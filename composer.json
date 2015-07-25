@@ -3,11 +3,13 @@
     "description": "Core PHP Framework",
     "type": "library",
     "license": "MIT",
+    "homepage": "http://coreframework.in",
     "keywords": [
         "php",
         "framework",
         "Core",
-        "Core PHP Framework"
+        "Core PHP Framework",
+	"Core Framework"
     ],
     "autoload": {
         "psr-4": {"Core\\": "src/Core"}
