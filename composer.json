@@ -35,7 +35,7 @@
     },
     "scripts": {
         "post-install-cmd": [
-            "php reactor install"
+
         ],
         "post-update-cmd": [
 
