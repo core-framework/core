@@ -32,11 +32,10 @@ class AppConfig
 
     public function __construct($conf = null)
     {
-        if (is_null($conf)) {
-            $conf = require(_ROOT . "/config/framework.conf.php");
+        if (!is_null($conf)) {
+            static::configure($conf);
         }
 
-        static::configure($conf);
         return $this;
     }
 
@@ -138,7 +137,7 @@ class AppConfig
     {
         if (is_array($conf)) {
             static::$allConf = $conf;
-        } elseif (is_string($conf) && is_file($conf) && is_readable($conf)) {
+        } elseif (!empty($conf) && is_string($conf) && is_readable($conf)) {
             static::$confSrcPath = $conf;
             $confArr = include $conf;
             if (!is_array($confArr)) {

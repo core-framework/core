@@ -10,6 +10,7 @@ namespace Tests\Config;
 
 
 use Core\Config\AppConfig;
+use org\bovigo\vfs\vfsStream;
 
 class AppConfigTest extends \PHPUnit_Framework_TestCase
 {
@@ -17,20 +18,39 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
      * @var $config AppConfig
      */
     public $config;
-    public static $editableConf = '/config/override.conf.php';
+    public static $editableConf;
+    public static $frameworkConfArr = [
+        '$db' => [],
+        '$global' => [],
+        '$routes' => []
+    ];
+    public static $frameworkConf;
 
     public function setUp()
     {
+        $root = vfsStream::setup('config', 0777);
+        vfsStream::newFile('override.conf.php', 0777)->at($root);
+        static::$editableConf = vfsStream::url('config/override.conf.php');
+        static::$frameworkConf = vfsStream::url('config/framework.conf.php');
+        static::_initConfFiles();
         $this->config = new AppConfig();
+    }
+
+    public static function _initConfFiles()
+    {
+        $data1 = '<?php return ' . var_export(array(), true) . ";\n ?>";
+        file_put_contents(static::$editableConf, $data1);
+        $data2 = '<?php return ' . var_export(static::$frameworkConfArr, true) . ";\n ?>";
+        file_put_contents(static::$frameworkConf, $data2);
     }
 
     public function tearDown()
     {
-        $perms = substr(decoct(fileperms(_ROOT . static::$editableConf)),2);
-        chmod(_ROOT . static::$editableConf, 0777);
+        //$perms = substr(decoct(fileperms(static::$editableConf)),2);
+        //chmod(static::$editableConf, 0777);
         $data = '<?php return ' . var_export(array(), true) . ";\n ?>";
-        file_put_contents(_ROOT . static::$editableConf, $data);
-        chmod(_ROOT . static::$editableConf, octdec($perms));
+        file_put_contents(static::$editableConf, $data);
+        //chmod(static::$editableConf, octdec($perms));
     }
 
     /**
@@ -72,7 +92,7 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
 
     public function testSetFile()
     {
-        AppConfig::setFile(_ROOT . "/config/framework.conf.php");
+        AppConfig::setFile(static::$frameworkConf);
         $this->assertArrayHasKey('$global', AppConfig::$allConf);
         $this->assertArrayHasKey('$db', AppConfig::$allConf);
         $this->assertArrayHasKey('$routes', AppConfig::$allConf);
@@ -80,7 +100,7 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
 
     public function testSetEditableConfFile()
     {
-        $editablePath = _ROOT . "/config/override.conf.php";
+        $editablePath = static::$editableConf;
         $this->config->setEditableConfFile($editablePath);
         $this->assertEquals($editablePath, AppConfig::$confEditablePath);
     }
@@ -133,7 +153,7 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
         AppConfig::store(['storedArr' => 'storedVal']);
     }
 
-    public function testGetFileContentAllwaysReturnsArray()
+    public function testGetFileContentAlwaysReturnsArray()
     {
         $content = AppConfig::getFileContent('/config/override.conf.php');
         $this->assertInternalType('array', $content);
@@ -141,16 +161,16 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
 
     public function testGetFileContentWorksWithValidFile()
     {
-        $content = AppConfig::getFileContent(_ROOT . '/config/framework.conf.php');
+        $content = AppConfig::getFileContent(static::$frameworkConf);
         $this->assertInternalType('array', $content);
         $this->assertArrayHasKey('$global', $content);
     }
 
     public function testPutFileContentWorksWithValidFileAndArgument()
     {
-        AppConfig::putFileContent(_ROOT . static::$editableConf, ['putArr' => ['putKey' => 'putVal']]);
+        AppConfig::putFileContent(static::$editableConf, ['putArr' => ['putKey' => 'putVal']]);
 
-        $content = include _ROOT . static::$editableConf;
+        $content = include static::$editableConf;
         $this->assertArrayHasKey('putArr', $content);
     }
 

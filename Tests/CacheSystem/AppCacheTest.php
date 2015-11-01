@@ -10,6 +10,9 @@ namespace Core\Tests\CacheSystem;
 
 
 use Core\CacheSystem\AppCache;
+use org\bovigo\vfs\vfsStream;
+use org\bovigo\vfs\vfsStreamDirectory;
+use org\bovigo\vfs\vfsStreamWrapper;
 
 class AppCacheTest extends \PHPUnit_Framework_TestCase
 {
@@ -17,7 +20,9 @@ class AppCacheTest extends \PHPUnit_Framework_TestCase
 
     public function setUp()
     {
-
+        vfsStreamWrapper::register();
+        vfsStreamWrapper::setRoot(new vfsStreamDirectory('cache'));
+        parent::setUp();
     }
 
     public function tearDown()
@@ -64,7 +69,7 @@ class AppCacheTest extends \PHPUnit_Framework_TestCase
 
     public function testIfDefaultDirIsSet()
     {
-        AppCache::setCacheDir(_ROOT . '/storage/framework/cache/');
+        AppCache::setCacheDir(vfsStream::url('cache'));
         $this->assertTrue(AppCache::$dirIsGiven);
     }
 
@@ -102,6 +107,9 @@ class AppCacheTest extends \PHPUnit_Framework_TestCase
 
     public function testIfCacheIsDeleted()
     {
+        $testArr = ['SomeArrKey' => 'SomeArrValue'];
+        AppCache::cacheContent('SomeArrCacheKey', $testArr, 200);
+        AppCache::cacheContent('SomeCacheKey', 'Some long a** text', 200);
         $this->assertTrue(AppCache::deleteCache('SomeArrCacheKey'));
         $this->assertTrue(AppCache::deleteCache('SomeCacheKey'));
     }

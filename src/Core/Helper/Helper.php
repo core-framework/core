@@ -22,7 +22,6 @@
 
 
 use Core\CacheSystem\AppCache;
-use Core\CacheSystem\Cache;
 
 if ( ! function_exists('core_serialize') ) {
 
@@ -53,8 +52,7 @@ if ( ! function_exists('core_serialize') ) {
 }
 
 
-
-if (! function_exists('core_unserialize')) {
+if (!function_exists('core_unserialize')) {
 
     /**
      * @param $serialized
@@ -67,7 +65,7 @@ if (! function_exists('core_unserialize')) {
     }
 }
 
-if (! function_exists('copyr')) {
+if (!function_exists('copyr')) {
 
     /**
      * Method to copy files and directories recursively
@@ -105,7 +103,7 @@ if (! function_exists('copyr')) {
 }
 
 
-if (! function_exists('chmodDirFiles') ) {
+if (!function_exists('chmodDirFiles')) {
 
     /**
      * Method to change the permission for files recursively
@@ -130,7 +128,7 @@ if (! function_exists('chmodDirFiles') ) {
 }
 
 
-if (! function_exists('change_perms')) {
+if (!function_exists('change_perms')) {
 
     /**
      * Method to change the permission of a single file
@@ -145,7 +143,7 @@ if (! function_exists('change_perms')) {
 }
 
 
-if (! function_exists('searchArrayByKey')) {
+if (!function_exists('searchArrayByKey')) {
 
     /**
      * Searches given array for given key and return the value of that key. Returns false if nothing was found
@@ -154,17 +152,19 @@ if (! function_exists('searchArrayByKey')) {
      * @param $search
      * @return bool|mixed
      */
-    function searchArrayByKey(array $array, $search) {
+    function searchArrayByKey(array $array, $search)
+    {
         foreach (new RecursiveIteratorIterator(new RecursiveArrayIterator($array)) as $key => $value) {
-            if ($search === $key)
-            return $value;
+            if ($search === $key) {
+                return $value;
+            }
         }
         return false;
     }
 }
 
 
-if (! function_exists('requireCached') ) {
+if (!function_exists('requireCached')) {
 
     /**
      * Requires cached version of file if exists else caches the given file and requires the given file
@@ -173,7 +173,8 @@ if (! function_exists('requireCached') ) {
      * @return bool|mixed
      * @throws ErrorException
      */
-    function requireCached($filePath) {
+    function requireCached($filePath)
+    {
         new AppCache();
 
         if (AppCache::cacheExists($filePath)) {
@@ -189,4 +190,48 @@ if (! function_exists('requireCached') ) {
             return require($filePath);
         }
     }
+}
+
+if (!function_exists('strStartsWith')) {
+
+    /**
+     * search backwards starting from haystack length characters from the end
+     *
+     * @param $string
+     * @param $search
+     * @return bool
+     */
+    function strStartsWith($string, $search)
+    {
+        if (empty($string) || empty($search)) {
+            throw new InvalidArgumentException("String and Search values cannot be empty.");
+        }
+
+        return $search === "" || strrpos($string, $search, -strlen($string)) !== false;
+    }
+
+}
+
+if (!function_exists('strEndsWith')) {
+
+    /**
+     * search forward starting from end minus needle length characters
+     *
+     * @param $string
+     * @param $search
+     * @return bool
+     */
+    function strEndsWith($string, $search)
+    {
+        if (empty($string) || empty($search)) {
+            throw new InvalidArgumentException("String and Search values cannot be empty.");
+        }
+
+        return $search === "" || (($temp = strlen($string) - strlen($search)) >= 0 && strpos(
+                $string,
+                $search,
+                $temp
+            ) !== false);
+    }
+
 }

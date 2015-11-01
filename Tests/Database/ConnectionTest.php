@@ -20,7 +20,19 @@ class ConnectionTest extends \PHPUnit_Extensions_Database_TestCase
     public function getConnection()
     {
         if ($this->conn === null) {
-            $this->conf = $conf = require(_ROOT . '/config/db.conf.php');
+            $dbConfPath = _ROOT . '/config/db.conf.php';
+            if (is_readable($dbConfPath)) {
+                $this->conf = $conf = require($dbConfPath);
+            } else {
+                $this->conf = $conf = [
+                    'type' => 'mysql',
+                    'db' => 'test',
+                    'tables' => [],
+                    'host' => '127.0.0.1',
+                    'user' => 'root',
+                    'pass' => 'qwedsa'
+                ];
+            }
 
             if (self::$pdo == null) {
                 self::$pdo = new Connection($conf);
@@ -37,7 +49,8 @@ class ConnectionTest extends \PHPUnit_Extensions_Database_TestCase
         return $this->createMySQLXMLDataSet(__DIR__ . "/Fixtures/testDBFixture.xml");
     }
 
-    public function getSetUpOperation() {
+    public function getSetUpOperation()
+    {
         return $this->getOperations()->CLEAN_INSERT();
     }
 

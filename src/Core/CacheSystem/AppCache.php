@@ -27,14 +27,19 @@ class AppCache implements CacheInterface
      */
     public function __construct()
     {
-        defined('_ROOT') or define('_ROOT', realpath(__DIR__ . "/../../.."));
-        static::setCacheDir(_ROOT . "/storage/framework/cache/");
+
     }
 
     public static function setCacheDir($dir)
     {
         self::$dirIsGiven = true;
-        self::$cacheDir = $dir;
+
+        if (strEndsWith(DIRECTORY_SEPARATOR, $dir)) {
+            self::$cacheDir = $dir;
+        } else {
+            self::$cacheDir = $dir . DIRECTORY_SEPARATOR;
+        }
+
         if (!is_dir(self::$cacheDir)) {
             mkdir(self::$cacheDir, 0777);
         } elseif (!is_readable(self::$cacheDir)) {
