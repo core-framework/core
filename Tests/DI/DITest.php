@@ -12,17 +12,10 @@ use Core\DI\DI;
 
 class DITest extends \PHPUnit_Framework_TestCase {
 
-    public function testRoutesDI()
+    public function tearDown()
     {
-        $di = new DI();
-        $di->register('Request', '\\Core\\Request\\Request');
-        $di->register('Routes', '\\Core\\Routes\\Routes')
-            ->setArguments(array('Request'));
-
-        $resultRoutes = $di->get('Routes');
-
-        $this->assertInstanceOf("Core\\Routes\\Routes", $resultRoutes);
-
+        DI::reset();
+        parent::tearDown();
     }
 
     public function testReferenceMatch()
@@ -41,6 +34,16 @@ class DITest extends \PHPUnit_Framework_TestCase {
 
         $this->assertEquals($a, $c);
         $this->assertEquals($b, $c);
+    }
+
+    public function testCanRegisterClass()
+    {
+        $di = new DI();
+        $di->register('Cache', \Core\CacheSystem\OPCache::class);
+
+        $cache = $di->get('Cache');
+
+        $this->assertInstanceOf('\\Core\\CacheSystem\\OPCache', $cache);
     }
 
 } 

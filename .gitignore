@@ -2,17 +2,19 @@
 .DS_Store/
 
 ####
-bower_components
+bower_components/
 logs/
-src/Core/smarty_cache/cache/*
-src/Core/smarty_cache/config/*
-src/Core/smarty_cache/configs/*
-src/Core/smarty_cache/templates_c/*
-src/Core/cache
-src/Core/Scripts/cli.conf.php
 apigen.neon
+
+####
+web/styles/**
+web/scripts/**
+
+### Composer template
 composer.phar
 composer.lock
+vendor
+node_modules
 
 ### Windows template
 # Windows image file caches
@@ -32,3 +34,4 @@ $RECYCLE.BIN/
 *.msp
 
 ### NOTs
+tests/_output/*

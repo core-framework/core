@@ -24,7 +24,6 @@ namespace Core\Controllers;
 
 
 use Core\Application\Application;
-use Core\Application\CoreApp;
 use Core\Routes\Router;
 use Core\Views\AppView;
 
@@ -98,6 +97,8 @@ class BaseController
      */
     public $csrf;
 
+    public $isSecure;
+
     /**
      * @param Router $router
      * @param AppView $view
@@ -127,10 +128,16 @@ class BaseController
         $conf = $this->conf;
         $routeParams = $this->router->routeVars;
 
-        if (CoreApp::$app->_DEBUG === true) {
+        // Get debug mode
+        if ($GLOBALS['debug'] === true) {
             $this->view->setDebugMode(true);
         } else {
             $this->view->setDebugMode(false);
+        }
+
+        if ($this->router->httpMethod === 'POST' || $this->router->httpMethod === 'PUT' || $this->router->httpMethod === 'DELETE') {
+
+            $this->view->disable();
         }
 
         $this->generateCSRFKey();
@@ -172,6 +179,14 @@ class BaseController
             }
 
             $this->view->tplInfo['vars']['metas'] = $metas;
+        }
+
+        if (isset($this->conf['$global']['websiteUrl'])) {
+            $this->view->setTemplateVars('websiteUrl', $this->conf['$global']['websiteUrl']);
+        }
+
+        if (isset($this->conf['$global']['domain'])) {
+            $this->view->setTemplateVars('domain', $this->conf['$global']['domain']);
         }
 
     }
@@ -255,6 +270,25 @@ class BaseController
         echo $json;
 
         ob_end_flush();
+    }
+
+    public function getIsSecure()
+    {
+        return $this->isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $_SERVER['SERVER_PORT'] == 443;
+    }
+
+    public function redirect($url, $statusCode = 303)
+    {
+        header('Location: ' . $url, true, $statusCode);
+        die();
+    }
+
+    public function setHeader($val)
+    {
+        /**
+         * @var $app Application
+         */
+        Application::setHeaders($val);
     }
 
 }

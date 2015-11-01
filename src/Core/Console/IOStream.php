@@ -20,46 +20,64 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\Scripts;
+namespace Core\Console;
 
 
 /**
  * Class to handle the input output stream for the console commands
  *
- * @package Core\Scripts
+ * @package Core\Console
  * @version $Revision$
  * @license http://creativecommons.org/licenses/by-sa/4.0/
  * @link http://coreframework.in
  * @author Shalom Sam <shalom.s@coreframework.in>
  */
-class IOStream extends cmdcolors
+class IOStream extends ConsoleStyles
 {
     /**
      * @var resource Input stream
      */
-    protected $input;
+    protected static $input = STDIN;
     /**
      * @var resource Output stream
      */
-    protected $output;
+    protected static $output = STDOUT;
     /**
      * @var resource Error stream
      */
-    protected $error;
+    protected static $error = STDERR;
+    /**
+     * @var $argv mixed Global argv cli argument holder
+     */
+    protected static $argv;
     /**
      * @var int Number of times to repeat an output
      */
-    private $repeat;
+    private static $repeat;
 
     /**
-     * Constructor for IOStream
+     * @param null $argv
      */
-    public function __construct()
+    public function __construct($argv = null)
     {
         parent::__construct();
-        $this->input = fopen('php://stdin', 'r');
-        $this->output = fopen('php://output', 'w');
-        $this->error = fopen('php://stderr', 'w');
+
+        if (is_null($argv)) {
+            static::$argv = $_SERVER['argv'];
+        } else {
+            static::$argv = $argv;
+        }
+    }
+
+    public function getArgv()
+    {
+        return static::$argv;
+    }
+
+    public function getStream($type)
+    {
+        if (isset(self::$$type))
+            return self::$$type;
     }
 
     /**
@@ -67,9 +85,9 @@ class IOStream extends cmdcolors
      */
     public function __destruct()
     {
-        fclose($this->input);
-        fclose($this->output);
-        fclose($this->error);
+        fclose(static::$input);
+        fclose(static::$output);
+        fclose(static::$error);
     }
 
     /**
@@ -87,14 +105,14 @@ class IOStream extends cmdcolors
         for ($i = $repeat; $i >= 0; $i--) {
             $resp = $this->ask($msg, $default);
             $valid = $callback($resp);
-            $this->repeat = $repeat;
+            static::$repeat = $repeat;
 
-            if ($valid && $this->repeat !== 0) {
+            if ($valid && $this::$repeat !== 0) {
                 return $resp;
-            } elseif (!$valid && $this->repeat !== 0 || (!$valid && $this->repeat !== 0 && empty($default))) {
+            } elseif (!$valid && static::$repeat !== 0 || (!$valid && static::$repeat !== 0 && empty($default))) {
                 self::writeln("Sorry input must be " . $format, "yellow");
                 continue;
-            } elseif (!$valid && $this->repeat === 0 && !empty($default)) {
+            } elseif (!$valid && static::$repeat === 0 && !empty($default)) {
                 return $default;
             } else {
                 if (!$format) {
@@ -105,6 +123,8 @@ class IOStream extends cmdcolors
                 return false;
             }
         }
+
+        return false;
     }
 
     /**
@@ -130,14 +150,14 @@ class IOStream extends cmdcolors
         $coloredMsg = $this->getColoredString($message, 'green');
 
         if (!empty($options)) {
-            fprintf($this->output, "%s : [" . $options[0] . "/" . $options[1] . "] ", $coloredMsg);
+            fprintf(static::$output, "%s : [" . $options[0] . "/" . $options[1] . "] ", $coloredMsg);
         } elseif(!empty($default)) {
-            fprintf($this->output, "%s : [" . $default . "] ", $coloredMsg);
+            fprintf(static::$output, "%s : [" . $default . "] ", $coloredMsg);
         } else {
-            fprintf($this->output, "%s : ", $coloredMsg);
+            fprintf(static::$output, "%s : ", $coloredMsg);
         }
 
-        $input = trim(fgets($this->input), "\n");
+        $input = trim(fgets(static::$input), "\n");
 
         if (empty($input)) {
             return $default;
@@ -163,16 +183,25 @@ class IOStream extends cmdcolors
      */
     public function showErr($msg, $exception = null)
     {
-        if (empty($exception)) {
-            $coloredMsg = $this->getColoredString($msg, 'white', 'red');
-            $coloredSpace = $this->getColoredString(" ", 'white', 'red');
-            fprintf($this->output, "%s" , $coloredSpace);
-            fprintf($this->output, "%-40s", $coloredMsg);
-            fprintf($this->output, "%s" , $coloredSpace.PHP_EOL);
-	    //fprintf($this->output, "%s", PHP_EOL);
-        } else {
-            throw new $exception(sprintf($msg));
+        $format = "\n%s\n\n";
+        $lines = [];
+
+        $lines[] = " ";
+        if ($exception instanceof \Exception) {
+            $lines[] = "[" . $exception->getCode() . "][" . get_class($exception) . "]";
+        } elseif (!is_null($exception)) {
+            $lines[] = "[" . (string) $exception . "]";
         }
+        $lines[] = $msg;
+        $lines[] = " ";
+
+        $formattedLinesArr = $this->addPadding($lines, 5);
+        $formattedLinesArr = $this->addPadding($formattedLinesArr, 5, STR_PAD_LEFT);
+        $coloredLinesArr = $this->getColoredLines($formattedLinesArr, 'white', 'red', 'bold');
+        $styledLines = implode(PHP_EOL, $coloredLinesArr);
+
+        fprintf(static::$output, $format, $styledLines);
+
     }
 
     /**
@@ -203,21 +232,20 @@ class IOStream extends cmdcolors
      * @param $msg - message to output
      * @param null $foreColor - the text color
      * @param null $backColor - the background color
-     * @param null $format - text output format
+     * @param int $options - Display options like bold, underscore, blink, etc;
      */
-    public function writeln($msg, $foreColor = null, $backColor = null, $format = null)
+    public function writeln($msg, $foreColor = null, $backColor = null, $options = null)
     {
         $coloredMsg = $msg;
+        $format = "%s\n";
 
         if (!empty($foreColor) || !empty($backColor)) {
-            $coloredMsg = $this->getColoredString($msg, strtolower($foreColor), strtolower($backColor));
+            $coloredMsg = $this->getColoredString($msg, $foreColor, $backColor, $options);
         }
 
-        if (!empty($format)) {
-            fprintf($this->output, $format, $coloredMsg);
-        } else {
-            fprintf($this->output, "%s" . PHP_EOL, $coloredMsg);
-        }
+        $formattedMsg = sprintf($format, $coloredMsg);
+
+        fprintf(static::$output, $formattedMsg);
     }
 
     /**
@@ -231,6 +259,7 @@ class IOStream extends cmdcolors
      */
     public function choice($introMsg, array $list, $repeat = null)
     {
+        $return = false;
         if (!is_string($introMsg)) {
             throw new \ErrorException("Argument introMsg must be a string");
         }
@@ -250,9 +279,9 @@ class IOStream extends cmdcolors
         if (empty($repeat)) {
 
             $coloredMsg = $this->getColoredString('Your Choice :', 'green');
-            fprintf($this->output, "%s : [0-". (sizeof($list) - 1) ."]", $coloredMsg);
+            fprintf(static::$output, "%s : [0-". (sizeof($list) - 1) ."]", $coloredMsg);
 
-            $input = trim(fgets($this->input), "\n");
+            $input = trim(fgets(static::$output), "\n");
 
             if (empty($input) && (int) $input !== 0) {
                 $this->showErr("No option given exiting...");
@@ -309,4 +338,5 @@ class IOStream extends cmdcolors
         $decoratedLine = rtrim($decoratedLine, " ");
         $this->writeln($decoratedLine, null, null, $format);
     }
+
 } 

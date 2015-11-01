@@ -1,6 +1,6 @@
 <?php
 
-namespace Core\Scripts;
+namespace Core\Console;
 
 class Options
 {

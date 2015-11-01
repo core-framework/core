@@ -21,34 +21,32 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\Scripts;
+namespace Core\Console;
 
-
-use Core\CacheSystem\Cacheable;
-use Core\Config\Config;
+use Core\Application\Components;
+use Core\Config\AppConfig;
 use Core\DI\DI;
-use Core\Helper\Helper;
 
 /**
  * Class CLI
- * @package Core\Scripts
+ * @package Core\Console
  */
-class CLI implements Cacheable
+class CLI extends Components
 {
     /**
      * @var bool Defines if verbosity is set
      */
     public static $verbose = false;
     /**
-     * @var array Contains all assigned commands
+     * @var Command[] Contains all assigned commands
      */
     public $commands;
     /**
      * @var IOStream $io Contains IO stream object
      */
-    protected $io;
+    public $io;
     /**
-     * @var Config Contains the config object
+     * @var AppConfig Contains the config object
      */
     protected $config;
     /**
@@ -64,7 +62,7 @@ class CLI implements Cacheable
      */
     private $version = "0.0.1";
     /**
-     * @var array Contains an array of (global) options
+     * @var Options[] Contains an array of (global) options
      */
     private $options = [];
     /**
@@ -76,10 +74,6 @@ class CLI implements Cacheable
      */
     private $_passOptions;
     /**
-     * @var mixed Contains CLI config data
-     */
-    private $_cliConf;
-    /**
      * @var bool Sets whether after global option parsing, the following command(if any) should be parsed as well
      */
     private $stopPropagation = false;
@@ -88,15 +82,54 @@ class CLI implements Cacheable
      * CLI constructor
      *
      * @param IOStream $io
-     * @param Config $config
+     * @param array $config
      */
-    public function __construct(IOStream $io, Config $config)
+    public function __construct(IOStream $io, array $config = [])
     {
         $this->io = $io;
-        $this->config = $config;
-        $this->_cliConf = $config->getCliConfig();
-
+        $this->loadConf($config);
         $this->setDefaults();
+    }
+
+    public function loadConf($config = [])
+    {
+        if (!is_array($config)) {
+            throw new \InvalidArgumentException("Config must be an array! Given " . gettype($config));
+        }
+
+        if (empty($config)) {
+            return null;
+        }
+
+        if (isset($config['$components']) && !empty($config['$components'])) {
+            parent::loadConf($config);
+            $this->getComponents();
+            $this->loadComponents();
+        }
+
+        if (isset($config['$commands']) && !empty($config['$commands'])) {
+            $commandsArr = $config['$commands'];
+            foreach ($commandsArr as $index => $arr) {
+                $command = $this->addCommand($arr['name'], $arr['description'], $arr['definition']);
+                if (isset($arr['arguments'])) {
+                    $args = $arr['arguments'];
+                    $command->addArguments($args['name'], $args['isRequired'], $args['description']);
+                }
+            }
+        }
+
+        if (isset($config['$options']) && !empty($config['$options'])) {
+            $optionsArr = $config['$options'];
+            foreach ($optionsArr as $index => $arr) {
+                $this->setOptions($arr['name'], $arr['shortName'], $arr['description'], $arr['definition']);
+            }
+        }
+
+    }
+
+    private function loadComponents()
+    {
+        $this->cache = $this->get('Cache');
     }
 
     /**
@@ -218,16 +251,16 @@ class CLI implements Cacheable
      * Gets set options
      *
      * @param $name
-     * @return mixed
+     * @return Options[]
      * @throws \ErrorException
      */
     public function getOptions($name = null)
     {
-        if (empty($name)) {
-            $this->io->showErr("Missing Argument Option name.", '\\LogicException');
+        if (is_null($name)) {
+            return $this->options;
         }
         if (!isset($this->options[$name])) {
-            $this->io->showErr("Missing or not set Option by name {$name}.", '\\LogicException');
+            $this->io->showErr("Missing or not set Option by name {$name}.", '\\InvalidArgumentException');
         }
         return $this->options[$name];
     }
@@ -264,7 +297,7 @@ class CLI implements Cacheable
      */
     public function parse($argv, $argc = null)
     {
-        if(sizeof($argv) < 2) {
+        if (sizeof($argv) < 2) {
             //$argv[1] = "--help";
             //var_dump($argv);
             $this->showHelp();
@@ -343,7 +376,7 @@ class CLI implements Cacheable
                     /* @var $param \ReflectionParameter */
                     if (isset($this->_passOptions[$param->getName()])) {
                         $pass[] = $this->_passOptions[$param->getName()];
-                    } elseif(isset($this->_passOptions[$index])) {
+                    } elseif (isset($this->_passOptions[$index])) {
                         $pass[] = $this->_passOptions[$index];
                     } else {
                         $pass[] = $param->getDefaultValue();
@@ -482,21 +515,26 @@ class CLI implements Cacheable
         $this->io->writeln("");
         if (sizeof($this->options) > 0) {
             $this->io->writeln("Commands:", "yellow");
-            foreach ($this->commands as $key => $val) {
-                $this->io->write($key, 'green', null, "%-22s");
-                if ($this->commands[$key]->hasOptions()) {
-                    $optAsArr = $this->commands[$key]->getOptionsAsArray();
-                    $shortOpts = "[-" . $optAsArr[0] . "]";
-                    if (sizeof($optAsArr[1]) > 0) {
-                        $longOpts = "[--(" . Helper::serialize($optAsArr[1]) . ")]";
+            if (!empty($this->commands)) {
+                foreach ($this->commands as $key => $val) {
+                    $this->io->write($key, 'green', null, "%-22s");
+                    if ($this->commands[$key]->hasOptions()) {
+                        $optAsArr = $this->commands[$key]->getOptionsAsArray();
+                        $shortOpts = "[-" . $optAsArr[0] . "]";
+                        if (sizeof($optAsArr[1]) > 0) {
+                            $longOpts = "[--(" . core_serialize($optAsArr[1]) . ")]";
+                        } else {
+                            $longOpts = "     ";
+                        }
+                        $this->io->write($shortOpts . " " . $longOpts . "\t", "white", null, "%-30s");
                     } else {
-                        $longOpts = "     ";
+                        $this->io->write("\t", "white", null, "%-32s");
                     }
-                    $this->io->write($shortOpts . " " . $longOpts . "\t", "white", null, "%-30s");
-                } else {
-                    $this->io->write("\t", "white", null, "%-32s");
+                    $this->io->write($this->commands[$key]->getDescription(), "white", null, "%s" . PHP_EOL);
                 }
-                $this->io->write($this->commands[$key]->getDescription(), "white", null, "%s" . PHP_EOL);
+            } else {
+                $this->io->writeln("No Commands found", 'yellow');
+                return;
             }
         }
         $this->io->writeln(" ");
@@ -511,25 +549,6 @@ class CLI implements Cacheable
         $this->io->writeln($this->toolName, "white");
         $this->io->writeln("version: " . $this->version, "green");
         $this->stopPropagation = true;
-    }
-
-    /**
-     * Add cli conf parameter and value for later reference
-     *
-     * @param $name
-     * @param $val
-     */
-    public function addCliConf($name, $val)
-    {
-        if (strpos($name, '.') !== false) {
-            $this->assignArrayByPath($this->_cliConf, $name, $val);
-        } elseif (is_array($this->_cliConf[$name])) {
-            array_push($this->_cliConf[$name], $val);
-        } else {
-            $this->_cliConf[$name] = $val;
-        }
-
-        $this->config->store($this->_cliConf, $this->config->cliConfPath);
     }
 
     /**
@@ -555,21 +574,6 @@ class CLI implements Cacheable
     }
 
     /**
-     * Gets the CLI config data as array
-     *
-     * @param $name
-     * @return mixed
-     */
-    public function getCliConf($name)
-    {
-        if (strpos($name, '.') !== false) {
-            return $this->getArrayByPath($this->_cliConf, $name);
-        } else {
-            return $this->_cliConf[$name];
-        }
-    }
-
-    /**
      * Returns value of given path. Where path is a dot(.) separated array path
      *
      * @param $arr
@@ -588,11 +592,21 @@ class CLI implements Cacheable
     }
 
     /**
+     * Test helloWorld
+     *
+     * @param $name
+     */
+    public function helloWorld($name) {
+        $name = isset($name) && $name !== "" ? $name : "world";
+        echo "hello " . $name;
+    }
+
+    /**
      * Magic sleep method
      */
     public function __sleep()
     {
-        return ['verbose', 'commands', 'toolName', 'usage', 'version', 'options',  '_maps', '_cliConf', 'stopPropagation'];
+        return ['verbose', 'commands', 'toolName', 'usage', 'version', 'options', '_maps', 'stopPropagation'];
     }
 
     /**

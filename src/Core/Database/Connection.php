@@ -20,20 +20,20 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\Databases;
+namespace Core\Database;
 
 use PDO;
 
 /**
  * This class is the base database class which is an extension of PDO
  *
- * @package Core\Database
+ * @package Core\Connection
  * @version $Revision$
  * @license http://creativecommons.org/licenses/by-sa/4.0/
  * @link http://coreframework.in
  * @author Shalom Sam <shalom.s@coreframework.in>
  */
-class Database extends PDO
+class Connection extends PDO
 {
     /**
      * @var array Internal Caching
@@ -72,14 +72,14 @@ class Database extends PDO
             throw new \Exception("Database Host not provided.");
         }
 
-        if (!empty($array['username'])) {
-            $user = $array['username'];
+        if (!empty($array['user'])) {
+            $user = $array['user'];
         } else {
             $user = null;
         }
 
-        if (!empty($array['password'])) {
-            $pass = $array['password'];
+        if (!empty($array['pass'])) {
+            $pass = $array['pass'];
         } else {
             $pass = null;
         }

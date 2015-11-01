@@ -1,5 +1,4 @@
 <?php
-
 /**
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -21,22 +20,6 @@
  * file that was distributed with this source code.
  */
 
-session_start();
 
-error_reporting(E_ALL);
-ini_set('display_errors', 'On');
-
-defined('CORE_DEBUG') or define('CORE_DEBUG', true);
-defined('CORE_ENV') or define('CORE_ENV', 'dev');
-
-require(__DIR__ . '/../vendor/autoload.php');
-
-use Core\Application\Application;
-
-$conf = require(__DIR__ . '/config/global.conf.php');
-$app = new Application($conf);
-$app->run();
-
-session_write_close();
-
-?>
+defined('_ROOT') or define('_ROOT', realpath(__DIR__ . "/../../../") );
+include _ROOT . "/vendor/autoload.php";

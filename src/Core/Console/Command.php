@@ -6,7 +6,7 @@
  * Time: 12:26 PM
  */
 
-namespace Core\Scripts;
+namespace Core\Console;
 
 
 class Command {

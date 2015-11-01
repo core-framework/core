@@ -6,12 +6,12 @@
  * Time: 8:05 PM
  */
 
-namespace Core\Scripts;
+namespace Core\Console;
 
 
 /**
  * Class Argument
- * @package Core\Scripts
+ * @package Core\Console
  */
 class Argument {
 
@@ -44,7 +44,7 @@ class Argument {
 
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getName()
     {

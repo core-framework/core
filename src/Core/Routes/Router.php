@@ -147,18 +147,33 @@ class Router extends Request implements Cacheable
      */
     private $collection;
 
+    public $configSet = false;
+
     /**
      * @param array $config
      */
     public function __construct($config = [])
     {
+        if (!empty($config)) {
+            parent::__construct($config);
+            $this->init($config);
+        }
+    }
+
+    public function init($config)
+    {
         $this->config = $config;
-        parent::__construct($config);
+        $this->configSet = true;
         $this->path = $this->getPath();
         $this->pathBurst();
         $this->loadRoutesConf($config);
     }
 
+    public function setConfig(array $config)
+    {
+        parent::__construct($config);
+        $this->init($config);
+    }
 
     /**
      * build the urlPathArr prop
@@ -210,6 +225,10 @@ class Router extends Request implements Cacheable
      */
     public function resolve($useAestheticRouting = false)
     {
+        if(!$this->configSet) {
+            throw new \ErrorException("Config not set in Router!");
+        }
+
         // If was previously resolved then return that computed Array
         if (!empty($this->resolvedArr)) {
             return $this->resolvedArr;
@@ -277,7 +296,7 @@ class Router extends Request implements Cacheable
         $this->routeVars = $val;
 
         // If http method was defined ? if not default assumes GET
-        $this->definedMethod = !empty($val['httpMethod']) ? strtolower($val['httpMethod']) : 'get';
+        $this->definedMethod = !empty($val['httpMethod']) ? $val['httpMethod'] : 'GET';
 
         if (isset($val['useAestheticRouting']) && $val['useAestheticRouting'] === true) {
             $this->namespace = '@appBase\\Controllers';
@@ -290,7 +309,15 @@ class Router extends Request implements Cacheable
         }
 
         if (!empty($val['controller'])) {
-            $controllerStr = $this->controllerVerb = $val['controller'];
+
+            if (is_array($val['controller']) && isset($val['controller'][strtoupper($this->httpMethod)])) {
+                $controllerStr = $this->controllerVerb = $val['controller'][strtoupper($this->httpMethod)];
+            } elseif (is_array($val['controller']) && !isset($val['controller'][strtoupper($this->httpMethod)])) {
+                $controllerStr = "\\Core\\Controllers:errorController:indexAction";
+            } else {
+                $controllerStr = $this->controllerVerb = $val['controller'];
+            }
+
             $strArr = explode(':', $controllerStr);
             if (!empty($strArr) && sizeof($strArr) >= 2) {
                 $this->namespace = $strArr[0];
@@ -342,21 +369,38 @@ class Router extends Request implements Cacheable
 
                 // Replace string conditions with RegEx
                 $paramType = str_replace(array(':any', ':num', ':alpha'), array('[^/]+', '[0-9]+', '[\w]+'), $val['argReq']);
-                // Get Parameter name
-                $paramName = key($paramType);
+
                 // Build RegEx
-                $newKey = preg_replace('/\{(\w+)\}/', '(?P<'.$paramName.'>'.$paramType[$paramName].')', $key);
+                foreach ($paramType as $param => $pattern) {
+
+                    $subject = isset($newKey) && $newKey !== "" ? $newKey : $key;
+                    $newKey = preg_replace('#\{'.$param.'\}#', '(?P<'.$param.'>'.$pattern.')', $subject);
+                }
+
+                // reset key for next loop
+                $urlPattern = $newKey;
+                $newKey = "";
 
                 // RegEx matches with path ? then we are done
-                if (preg_match('#^'. $newKey . '$#', $path, $matches)) {
+                if (preg_match('#^'. $urlPattern . '$#', $path, $matches)) {
                     $this->foundMatch = true;
+
+                    // remove unwanted keys in matches array
                     foreach($matches as $k => $v) {
                         if (is_numeric($k) === true) {
                             unset($matches[$k]);
                         }
                     }
+
+                    // set arguments as matched parameters
                     $this->args = $matches;
-                    $this->pathVarsAssign($val);
+
+                    // If key value is closure ?
+                    if (is_callable($val)) {
+                        $val($this->args);
+                    } else {
+                        $this->pathVarsAssign($val);
+                    }
                 }
             }
 

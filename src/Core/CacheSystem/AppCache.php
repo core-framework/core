@@ -1,76 +1,50 @@
 <?php
 /**
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * This file is part of the Core Framework package.
- *
- * (c) Shalom Sam <shalom.s@coreframework.in>
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Created by PhpStorm.
+ * User: shalom.s
+ * Date: 24/10/15
+ * Time: 11:05 AM
  */
 
 namespace Core\CacheSystem;
 
 
-/**
- * Class to handle key based caching of data
- *
- * <code>
- *  $cache = new Cache();
- *  $request = new Request();
- *
- *  //store object
- *  $cache->cacheContent('request_cache', $request, 300);
- *  //OR store strings
- *  $cache->cacheContent('someUniqueKey', 'someValue', 300);
- *  //get Cached value
- *  $CachedRequest = $cache->getCache('request_cache');
- *  //delete specific cache
- *  $cache->deleteCache('request_cache');
- *
- *  //clear all cache
- *  $cache->clearCache();
- *
- * </code>
- *
- * @package Core\CacheSystem
- * @version $Revision$
- * @license http://creativecommons.org/licenses/by-sa/4.0/
- * @link http://coreframework.in
- * @author Shalom Sam <shalom.s@coreframework.in>
- */
-class Cache extends BaseCache
+class AppCache implements CacheInterface
 {
+    /**
+     * @var bool $dirIsGiven
+     */
+    public static $dirIsGiven = false;
+    private static $dirRequiresPermissions = false;
+
     /**
      * @var string The directory path where cache files should be stored
      */
-    private $cacheDir = "";
+    private static $cacheDir = "";
 
     /**
      * Cache Constructor
      */
     public function __construct()
     {
+        defined('_ROOT') or define('_ROOT', realpath(__DIR__ . "/../../.."));
+        static::setCacheDir(_ROOT . "/storage/framework/cache/");
+    }
 
-        defined('DS') or define('DS', DIRECTORY_SEPARATOR);
-        defined('_ROOT') or define('_ROOT', realpath(__DIR__ . DS . ".." . DS . ".." . DS . ".."));
+    public static function setCacheDir($dir)
+    {
+        self::$dirIsGiven = true;
+        self::$cacheDir = $dir;
+        if (!is_dir(self::$cacheDir)) {
+            mkdir(self::$cacheDir, 0777);
+        } elseif (!is_readable(self::$cacheDir)) {
+            chmod(self::$cacheDir, 0755);
+        }
 
-        $this->cacheDir = _ROOT . DS . "src" . DS . "Core" . DS . "cache" . DS;
-        if (!is_dir($this->cacheDir)) {
-            mkdir($this->cacheDir, 0755);
-        } elseif (!is_readable($this->cacheDir)) {
-            chmod($this->cacheDir, 0755);
+        $perms = substr(decoct(fileperms(static::$cacheDir)),2);
+
+        if (decoct($perms) !== 0777) {
+            self::$dirRequiresPermissions = true;
         }
     }
 
@@ -81,27 +55,30 @@ class Cache extends BaseCache
      */
     public function getCacheDir()
     {
-        return $this->cacheDir;
+        return self::$cacheDir;
     }
 
     /**
      * Caches the given content
      *
-     * @param $key
-     * @param $payload
-     * @param $ttl
+     * @param $key string
+     * @param $payload mixed
+     * @param $ttl int
      * @return bool
      * @throws \ErrorException
      */
-    public function cacheContent($key, $payload, $ttl)
+    public static function cacheContent($key, $payload, $ttl)
     {
-        $cache = [];
+        if (!self::$dirIsGiven) {
+            throw new \ErrorException("Cache Directory not defined!");
+        }
 
-        if (!$this->isValidMd5($key)) {
+        $cache = [];
+        if (!static::isValidMd5($key)) {
             $key = md5($key);
         }
 
-        $file = $this->cacheDir . $key . ".php";
+        $file = self::$cacheDir . $key . ".php";
         $type = gettype($payload);
 
         if (is_file($file)) {
@@ -110,6 +87,11 @@ class Cache extends BaseCache
             $ttlTime = $cache['cTime'] + $cache['ttl'];
             if (($currentTime >> $ttlTime) && $cache['ttl'] !== 0) {
                 $content = $payload;
+
+                if ($type === 'closure') {
+                    throw new \InvalidArgumentException("Caching of Closure types is not currently supported");
+                }
+
                 if ($type === 'object' && $payload instanceof Cacheable) {
                     $content = serialize($payload);
                 }
@@ -126,7 +108,7 @@ class Cache extends BaseCache
             if ($payload instanceof Cacheable) {
                 $cache['content'] = serialize($payload);
             } else {
-                throw new \ErrorException("Object must implement Cachable interface");
+                throw new \InvalidArgumentException("Object must implement Cacheable interface");
             }
         } elseif ($type === 'string' || $type === 'integer' || $type === 'double') {
             $cache['content'] = $payload;
@@ -150,19 +132,22 @@ class Cache extends BaseCache
         return true;
     }
 
-
     /**
      * returns cache of given key||string if exists else returns false
      *
      * @param $key - Hash string to identify cached vars
      * @return bool|mixed
+     * @throws \ErrorException
      */
-    public function getCache($key)
+    public static function getCache($key)
     {
-        if (!$this->isValidMd5($key)) {
+        if (!self::$dirIsGiven) {
+            throw new \ErrorException("Cache Directory not defined!");
+        }
+        if (!static::isValidMd5($key)) {
             $key = md5($key);
         }
-        $cacheDir = $this->cacheDir;
+        $cacheDir = self::$cacheDir;
         if (is_file($cacheDir . $key . ".php")) {
             $cache = include $cacheDir . $key . ".php";
             $currentTime = time();
@@ -189,13 +174,17 @@ class Cache extends BaseCache
      *
      * @param $key
      * @return bool
+     * @throws \ErrorException
      */
-    public function cacheExists($key)
+    public static function cacheExists($key)
     {
-        if (!$this->isValidMd5($key)) {
+        if (!self::$dirIsGiven) {
+            throw new \ErrorException("Cache Directory not defined!");
+        }
+        if (!static::isValidMd5($key)) {
             $key = md5($key);
         }
-        $cacheDir = $this->cacheDir;
+        $cacheDir = self::$cacheDir;
         if (is_file($cacheDir . $key . ".php")) {
             $cache = include_once $cacheDir . $key . ".php";
             $currentTime = time();
@@ -216,13 +205,17 @@ class Cache extends BaseCache
      *
      * @param $key
      * @return bool
+     * @throws \ErrorException
      */
-    public function deleteCache($key)
+    public static function deleteCache($key)
     {
-        if (!$this->isValidMd5($key)) {
+        if (!self::$dirIsGiven) {
+            throw new \ErrorException("Cache Directory not defined!");
+        }
+        if (!static::isValidMd5($key)) {
             $key = md5($key);
         }
-        $cacheDir = $this->cacheDir;
+        $cacheDir = self::$cacheDir;
         $cacheFile = $cacheDir . $key . ".php";
         if (is_file($cacheFile)) {
             $r = unlink($cacheFile);
@@ -233,20 +226,43 @@ class Cache extends BaseCache
     }
 
     /**
-     * Clear all cache
+     * Clears all cache (deletes all cache file in the Cache Dir)
+     *
+     * @throws \ErrorException
+     * @throws \Exception
      */
-    public function clearCache()
+    public static function clearCache()
     {
-        foreach (new \DirectoryIterator($this->cacheDir) as $fileInfo) {
+        if (!self::$dirIsGiven) {
+            throw new \ErrorException("Cache Directory not defined!");
+        }
+        foreach (new \DirectoryIterator(self::$cacheDir) as $fileInfo) {
             if ($fileInfo->isDot()) {
                 continue;
             }
             $filename = $fileInfo->getFilename();
-            $filePath = $this->cacheDir . $filename;
+            $ext = $fileInfo->getExtension();
+            $filePath = self::$cacheDir . $filename;
             @chmod($filePath, 0777);
+
+            if ($ext !== 'php') {
+                continue;
+            }
+
             if (unlink($filePath) === false) {
                 throw new \Exception("Unable to clear Cache.");
             }
         }
     }
-} 
+
+    /**
+     * Check if string is $key hash
+     *
+     * @param string $key
+     * @return int
+     */
+    public static function isValidMd5($key = '')
+    {
+        return preg_match('/^[a-f0-9_]{32}$/', $key);
+    }
+}
