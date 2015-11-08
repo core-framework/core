@@ -46,14 +46,11 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
 
     public function tearDown()
     {
-        //$perms = substr(decoct(fileperms(static::$editableConf)),2);
-        //chmod(static::$editableConf, 0777);
-        $data = '<?php return ' . var_export(array(), true) . ";\n ?>";
-        file_put_contents(static::$editableConf, $data);
-        //chmod(static::$editableConf, octdec($perms));
+
     }
 
     /**
+     * @covers \Core\Config\AppConfig::__construct
      * @expectedException \InvalidArgumentException
      */
     public function testExceptionOnCreation()
@@ -61,6 +58,9 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
         new AppConfig('');
     }
 
+    /**
+     * @covers \Core\Config\AppConfig::__construct
+     */
     public function testSetUpUsingArray()
     {
         $config = new AppConfig(array('Test' => array('testArr')));
@@ -68,12 +68,18 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
         $this->assertArrayHasKey('Test', AppConfig::$allConf);
     }
 
+    /**
+     * @covers \Core\Config\AppConfig::addConf
+     */
     public function testAddConf()
     {
         AppConfig::addConf('addArr', array('testKey' => 'testVal'));
         $this->assertArrayHasKey('addArr', AppConfig::$allConf);
     }
 
+    /**
+     * @covers \Core\Config\AppConfig::setConf
+     */
     public function testSetConf()
     {
         AppConfig::setConf(array('newArr' => array('testKey' => 'testVal')));
@@ -82,6 +88,7 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @covers \Core\Config\AppConfig::setFile
      * @expectedException \InvalidArgumentException
      * @expectedExceptionMessage Given argument must be a readable file path.
      */
@@ -90,6 +97,9 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
         AppConfig::setFile("");
     }
 
+    /**
+     * @covers \Core\Config\AppConfig::setFile
+     */
     public function testSetFile()
     {
         AppConfig::setFile(static::$frameworkConf);
@@ -98,6 +108,9 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
         $this->assertArrayHasKey('$routes', AppConfig::$allConf);
     }
 
+    /**
+     * @covers \Core\Config\AppConfig::setEditableConfFile
+     */
     public function testSetEditableConfFile()
     {
         $editablePath = static::$editableConf;
@@ -105,6 +118,10 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals($editablePath, AppConfig::$confEditablePath);
     }
 
+    /**
+     * @covers \Core\Config\AppConfig::store
+     * @covers \Core\Config\AppConfig::getFileContent
+     */
     public function testStore()
     {
         AppConfig::store(['storedArr' => 'storedVal']);
@@ -115,6 +132,7 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @covers \Core\Config\AppConfig::store
      * @expectedException \InvalidArgumentException
      * @expectedExceptionMessage Nothing to save!
      */
@@ -125,6 +143,7 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @covers \Core\Config\AppConfig::store
      * @expectedException \InvalidArgumentException
      * @expectedExceptionMessage Given argument must be an Array.
      */
@@ -134,6 +153,7 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @covers \Core\Config\AppConfig::store
      * @expectedException \LogicException
      * @expectedExceptionMessage Editable config file not provided.
      */
@@ -144,6 +164,7 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @covers \Core\Config\AppConfig::store
      * @expectedException \LogicException
      * @expectedExceptionMessage Provided config file is not readable.
      */
@@ -153,12 +174,18 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
         AppConfig::store(['storedArr' => 'storedVal']);
     }
 
+    /**
+     * @covers \Core\Config\AppConfig::getFileContent
+     */
     public function testGetFileContentAlwaysReturnsArray()
     {
         $content = AppConfig::getFileContent('/config/override.conf.php');
         $this->assertInternalType('array', $content);
     }
 
+    /**
+     * @covers \Core\Config\AppConfig::getFileContent
+     */
     public function testGetFileContentWorksWithValidFile()
     {
         $content = AppConfig::getFileContent(static::$frameworkConf);
@@ -166,6 +193,10 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
         $this->assertArrayHasKey('$global', $content);
     }
 
+    /**
+     * @covers \Core\Config\AppConfig::putFileContent
+     * @throws \ErrorException
+     */
     public function testPutFileContentWorksWithValidFileAndArgument()
     {
         AppConfig::putFileContent(static::$editableConf, ['putArr' => ['putKey' => 'putVal']]);
@@ -175,6 +206,7 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @covers \Core\Config\AppConfig::putFileContent
      * @expectedException \InvalidArgumentException
      * @expectedExceptionMessage Content to put in file must be an Array.
      */
@@ -184,6 +216,7 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @covers \Core\Config\AppConfig::putFileContent
      * @expectedException \InvalidArgumentException
      * @expectedExceptionMessage Nothing to put in file.
      */
@@ -193,6 +226,7 @@ class AppConfigTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @covers \Core\Config\AppConfig::putFileContent
      * @expectedException \InvalidArgumentException
      * @expectedExceptionMessage Given file not readable Or writable.
      */

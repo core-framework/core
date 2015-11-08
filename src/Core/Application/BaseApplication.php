@@ -8,7 +8,9 @@
 
 namespace Core\Application;
 
+use Core\DI\DI;
 use Core\Routes\Router;
+use Core\Views\AppView;
 
 /**
  * Base Application class
@@ -196,32 +198,52 @@ abstract class BaseApplication extends Components
     private $requestedURI;
 
     /**
-     * Application constructor
+     * Application Constructor
      *
      * @param array $config Application configuration from the config file(s)
+     * @param Router|null $router
+     * @param AppView|null $view
      */
-    public function __construct($config = [])
+    public function __construct($config = [], Router $router = null, AppView $view = null)
     {
         static::$app = $this;
         $this->status = self::STATUS_BEGIN;
-        $this->init($config);
+        parent::__construct($config);
+        $this->init($config, $router, $view);
     }
 
     /**
      * Application initiation
      *
-     * @param array $config Application configuration from the config file(s)
+     * @param array $config
+     * @param Router|null $router
+     * @param AppView|null $view
      */
-    public function init($config = [])
+    public function init($config = [], Router $router = null, AppView $view = null)
     {
         $this->status = self::STATUS_INIT;
-        $this->loadConf($config);
-        $this->getComponents();
-        $this->router = $this->get('Router');
-        $this->router->setConfig($this->conf);
-        //$this->controller = $this->get('Controller');
-        $this->view = $this->get('View');
+        $this->loadComponents($router, $view);
         $this->setEnvironment($config);
+    }
+
+    public function loadComponents(Router $router = null, AppView $view = null)
+    {
+        if (!is_null($router)) {
+            $this->router = $router;
+        } elseif (DI::serviceExists('Router')) {
+            $this->router = $this->get('Router');
+        }
+
+        if (isset($this->router) && $this->router instanceof Router) {
+            $this->router->setConfig($this->conf);
+        }
+
+        if (!is_null($view)) {
+            $this->view = $view;
+        } elseif (DI::serviceExists('View')) {
+            $this->view = $this->get('View');
+        }
+
     }
 
     /**
@@ -492,17 +514,17 @@ abstract class BaseApplication extends Components
     public function setEnvironment($config = [])
     {
         if (isset($config['$env']['app_env']) && strstr($config['$env']['app_env'], 'prod')) {
-            $GLOBALS['app_env'] = static::$appEnv = static::PRODUCTION_STATE;
+            static::$appEnv = static::PRODUCTION_STATE;
         } else {
-            $GLOBALS['app_env'] = static::$appEnv = static::DEVELOPMENT_STATE;
+            static::$appEnv = static::DEVELOPMENT_STATE;
             error_reporting(E_ALL);
             ini_set('display_errors', 'On');
-            $this->view->setDebugMode(true);
+            //$this->view->setDebugMode(true);
         }
 
         if (isset($config['$env']['debug']) && $config['$env']['debug'] === true) {
 
-            $GLOBALS['debug'] = static::$isDebugMode = $config['$env']['debug'];
+            static::$isDebugMode = $config['$env']['debug'];
             if (ini_get('display_errors') === 'off' || ini_get('display_errors') === false) {
                 ini_set('display_errors', 'On');
             }
@@ -512,10 +534,6 @@ abstract class BaseApplication extends Components
             } else {
                 error_reporting(E_ALL);
             }
-
-//            if ($this->view->debugMode === false) {
-//                $this->view->setDebugMode(true);
-//            }
 
         } else {
             $GLOBALS['debug'] = false;

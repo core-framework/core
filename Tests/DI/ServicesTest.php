@@ -14,6 +14,10 @@ class ServicesTest extends \PHPUnit_Framework_TestCase {
 
 
     /**
+     * @covers \Core\DI\Service::__construct
+     * @covers \Core\DI\Service::getDefinition
+     * @covers \Core\DI\Service::getShared
+     *
      * @param $name string
      * @param $definition mixed
      * @param $shared bool
@@ -33,6 +37,9 @@ class ServicesTest extends \PHPUnit_Framework_TestCase {
     }
 
 
+    /**
+     * @return array
+     */
     public function providerTestConstructReturnSupplied()
     {
         $request = $this->getMockBuilder('Core\\Request\\Request');

@@ -89,4 +89,11 @@ interface viewInterface {
      */
     public function render();
 
+    /**
+     * Capture the html output
+     *
+     * @return mixed
+     */
+    public function fetch();
+
 }

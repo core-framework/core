@@ -104,9 +104,16 @@ class Components extends DI
     ];
 
     /**
-     * object Constructor
+     * @param array|null $conf
      */
-    public function __construct() { }
+    public function __construct(array $conf = null)
+    {
+        if (!is_null($conf)) {
+            $this->loadConf($conf);
+            $this->getComponents();
+        }
+
+    }
 
     /**
      * loads component objects
@@ -140,10 +147,12 @@ class Components extends DI
     public function loadConf($conf = [])
     {
         if (!empty($conf)) {
-            static::$basePath = $conf['$global']['basePath'];
-            static::$appPath = $conf['$global']['appPath'];
-            static::addAlias('@base', static::$basePath);
-            static::addAlias('@web', static::$appPath);
+            if (isset($conf['$global'])) {
+                static::$basePath = $conf['$global']['basePath'];
+                static::$appPath = $conf['$global']['appPath'];
+                static::addAlias('@base', static::$basePath);
+                static::addAlias('@web', static::$appPath);
+            }
             $this->conf = $conf;
             $this->global = &$this->conf['$global'];
             if (isset($conf['$components']) && !empty($conf['$components'])) {

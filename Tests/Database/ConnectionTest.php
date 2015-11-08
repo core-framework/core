@@ -54,6 +54,9 @@ class ConnectionTest extends \PHPUnit_Extensions_Database_TestCase
         return $this->getOperations()->CLEAN_INSERT();
     }
 
+    /**
+     * @covers \Core\Database\Connection::__construct
+     */
     public function testDatabaseHasUser()
     {
         $this->getConnection()->createDataSet(array('user'));

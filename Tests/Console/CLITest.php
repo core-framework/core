@@ -35,7 +35,7 @@ class CLITest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @covers \Core\Console\CLI::__constructor
+     * @covers \Core\Console\CLI::__construct
      */
     public function testCLIConstructor()
     {

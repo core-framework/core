@@ -18,12 +18,17 @@ class DITest extends \PHPUnit_Framework_TestCase {
         parent::tearDown();
     }
 
+    /**
+     * @covers \Core\DI\DI::register
+     * @covers \Core\DI\DI::get
+     * @throws \ErrorException
+     */
     public function testReferenceMatch()
     {
         $di = new DI();
         $di->register('_di', $di);
         $di->register('Smarty', '\\Smarty');
-        $di->register('View', '\\Core\\Views\\View')
+        $di->register('View', '\\Core\\Views\\AppView')
             ->setArguments(array('Smarty'));
 
         $a = $di->get('View');
@@ -36,6 +41,11 @@ class DITest extends \PHPUnit_Framework_TestCase {
         $this->assertEquals($b, $c);
     }
 
+    /**
+     * @covers \Core\DI\DI::register
+     * @covers \Core\DI\DI::get
+     * @throws \ErrorException
+     */
     public function testCanRegisterClass()
     {
         $di = new DI();

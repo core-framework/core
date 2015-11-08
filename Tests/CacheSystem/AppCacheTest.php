@@ -31,6 +31,7 @@ class AppCacheTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @covers \Core\CacheSystem\AppCache::cacheExists
      * @expectedException \ErrorException
      * @expectedExceptionMessage Cache Directory not defined!
      */
@@ -40,6 +41,7 @@ class AppCacheTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @covers \Core\CacheSystem\AppCache::cacheContent
      * @expectedException \ErrorException
      * @expectedExceptionMessage Cache Directory not defined!
      */
@@ -49,6 +51,7 @@ class AppCacheTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @covers \Core\CacheSystem\AppCache::getCache
      * @expectedException \ErrorException
      * @expectedExceptionMessage Cache Directory not defined!
      */
@@ -57,15 +60,20 @@ class AppCacheTest extends \PHPUnit_Framework_TestCase
         AppCache::getCache('SomeKey');
     }
 
+
     public function testDirIsGivenIsFalseWhenDirNotProvided()
     {
         $this->assertNotTrue(AppCache::$dirIsGiven);
     }
 
+    /**
+     * @covers \Core\CacheSystem\AppCache::__construct
+     */
     public function testCacheConstruct()
     {
         $this->assertInstanceOf('\\Core\\CacheSystem\\AppCache', new AppCache());
     }
+
 
     public function testIfDefaultDirIsSet()
     {
@@ -73,11 +81,20 @@ class AppCacheTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue(AppCache::$dirIsGiven);
     }
 
+    /**
+     * @covers \Core\CacheSystem\AppCache::getCache
+     * @throws \ErrorException
+     */
     public function testIfFalseIfNoCacheExists()
     {
         $this->assertNotTrue(AppCache::getCache('nonExistingCacheKey'));
     }
 
+    /**
+     * @covers \Core\CacheSystem\AppCache::cacheContent
+     * @covers \Core\CacheSystem\AppCache::getCache
+     * @throws \ErrorException
+     */
     public function testIfStringContentIsCached()
     {
         AppCache::cacheContent('SomeCacheKey', 'Some long a** text', 200);
@@ -86,6 +103,11 @@ class AppCacheTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals('Some long a** text', $str);
     }
 
+    /**
+     * @covers \Core\CacheSystem\AppCache::cacheContent
+     * @covers \Core\CacheSystem\AppCache::getCache
+     * @throws \ErrorException
+     */
     public function testIfArrayContentIsCached()
     {
         $testArr = ['SomeArrKey' => 'SomeArrValue'];
@@ -96,6 +118,7 @@ class AppCacheTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @covers \Core\CacheSystem\AppCache::cacheContent
      * @expectedException \InvalidArgumentException
      * @expectedExceptionMessage Object must implement Cacheable interface
      */
@@ -105,6 +128,11 @@ class AppCacheTest extends \PHPUnit_Framework_TestCase
         AppCache::cacheContent('SomeObjCacheKey', $object, 200);
     }
 
+    /**
+     * @covers \Core\CacheSystem\AppCache::cacheContent
+     * @covers \Core\CacheSystem\AppCache::deleteCache
+     * @throws \ErrorException
+     */
     public function testIfCacheIsDeleted()
     {
         $testArr = ['SomeArrKey' => 'SomeArrValue'];

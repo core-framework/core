@@ -312,8 +312,17 @@ class AppView implements viewInterface, Cacheable
         }
 
         $tpl = $this->template;
-        if (!$this->tplEngine->isCached($tpl)) {
+        $this->prepare();
+        $this->tplEngine->display($tpl);
+    }
 
+    /**
+     * Prepare before render
+     */
+    private function prepare()
+    {
+        $tpl = $this->template;
+        if (!$this->tplEngine->isCached($tpl)) {
             $tpl_exists = $this->tplEngine->templateExists($tpl);
             $this->tplInfo['vars']['showHeader'] = $this->showHeader;
             $this->tplInfo['vars']['showFooter'] = $this->showFooter;
@@ -334,10 +343,20 @@ class AppView implements viewInterface, Cacheable
                 }
 
             }
-
         }
+    }
 
-        $this->tplEngine->display($tpl);
+    /**
+     * Capture html output
+     *
+     * @throws \Exception
+     * @throws \SmartyException
+     */
+    public function fetch()
+    {
+        $tpl = $this->template;
+        $this->prepare();
+        $this->tplEngine->fetch($tpl);
     }
 
     /**
