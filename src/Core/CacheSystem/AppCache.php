@@ -9,6 +9,8 @@
 namespace Core\CacheSystem;
 
 
+use Core\Application\Application;
+
 class AppCache implements CacheInterface
 {
     /**
@@ -27,7 +29,9 @@ class AppCache implements CacheInterface
      */
     public function __construct()
     {
-
+        if (isset(Application::$basePath) && is_dir(Application::$basePath . "/storage/framework/cache/")) {
+            self::setCacheDir(Application::$basePath . "/storage/framework/cache/");
+        }
     }
 
     public static function setCacheDir($dir)
