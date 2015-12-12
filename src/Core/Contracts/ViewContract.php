@@ -20,43 +20,73 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\DI;
+namespace Core\Contracts;
 
 /**
- * Interface serviceInterface
- * @package Core\DI
+ * Interface ViewContract
+ * @package Core\ViewContract
  */
-interface ServiceInterface
-{
-    /**
-     * Creates a service instance with the given params
-     *
-     * @param string $name
-     * @param \Closure|string $definition
-     * @param bool $shared
-     * @throws \ErrorException
-     */
-    public function __construct($name, $definition, $shared = false);
+interface ViewContract {
 
     /**
-     * Sets the definition of the service
-     *
-     * @param mixed $definition
+     * Initiates view template Engine
      */
-    public function setDefinition($definition);
+    public function init();
 
     /**
-     * Sets whether service instances are shared
+     * Assigns new public parameters with given value
      *
-     * @param bool $bool
-     * @throws \ErrorException
+     * @param $var
+     * @param $val
      */
-    public function setShared($bool);
+    public function set($var, $val);
 
     /**
-     * Sets arguments to be passed to service constructor
+     * Loads the debug html with data to be displayed
      *
-     * @param array $args
+     * @param $bool
      */
-    public function setArguments(array $args);
+    public function setDebugMode($bool);
+
+    /**
+     * Set Template directory
+     *
+     * @param $path
+     */
+    public function addTemplateDir($path);
+
+    /**
+     * Set template variables
+     *
+     * @param $var
+     * @param $val
+     */
+    public function setTemplateVars($var, $val);
+
+    /**
+     * Set template file to render
+     *
+     * @param $tpl
+     */
+    public function setTemplate($tpl);
+
+    /**
+     * Disables the view render method
+     */
+    public function disable();
+
+    /**
+     * Renders the final html output
+     *
+     * @return bool
+     */
+    public function render();
+
+    /**
+     * Capture the html output
+     *
+     * @return mixed
+     */
+    public function fetch();
+
 }

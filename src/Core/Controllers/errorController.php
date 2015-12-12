@@ -22,8 +22,6 @@
 
 namespace Core\Controllers;
 
-use SebastianBergmann\RecursionContext\Exception;
-
 /**
  * Controller class to handle (html header) errors
  *
@@ -53,33 +51,40 @@ class errorController extends BaseController
     public function indexAction()
     {
         if (!$this->router->isAjax) {
-            $this->view->setHeader('404');
+            $this->response->setStatusCode(404);
             $this->view->setTemplate('errors/404.tpl');
             $this->view->setTemplateVars('pageName', "PageNotFound");
             $this->view->setTemplateVars('title', "Page Not Found");
+            $this->response->setContent($this->view);
+
         } else {
-            $this->setHeader('404');
+            $this->response->setStatusCode(404);
             $jsonArr['code'] = '404';
             $jsonArr['message'] = "Page not found";
-            $this->sendJson($jsonArr);
+            $this->response->setContent($jsonArr);
         }
 
+        return $this->response;
     }
 
     public function errorException($payload)
     {
         if (strtoupper($this->router->httpMethod) === "GET") {
-            $this->view->setHeader('404');
+            $this->response->setStatusCode(404);
             $this->view->setTemplate('errors/404.tpl');
             $this->view->setTemplateVars('pageName', "PageNotFound");
             $this->view->setTemplateVars('info', $payload['message']);
             $this->view->setTemplateVars('title', "Page Not Found");
+            $this->response->setContent($this->view);
+
         } else {
-            $this->setHeader('404');
+            $this->response->setStatusCode(404);
             $jsonArr['code'] = '404';
             $jsonArr['message'] = $payload['message'];
-            $this->sendJson($jsonArr);
+            $this->response->setContent($jsonArr);
         }
+
+        return $this->response;
     }
 
 }

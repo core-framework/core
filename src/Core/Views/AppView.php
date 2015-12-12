@@ -23,13 +23,14 @@
 namespace Core\Views;
 
 use Core\Application\Application;
-use Core\CacheSystem\Cacheable;
+use Core\Contracts\ViewContract;
+use Core\Contracts\CacheableContract;
 
 /**
  * Class AppView
  * @package Core\Views
  */
-class AppView implements viewInterface, Cacheable
+class AppView implements ViewContract, CacheableContract
 {
 
     /**
@@ -100,7 +101,7 @@ class AppView implements viewInterface, Cacheable
      *
      * @var string
      */
-    public $basePath;
+    protected $basePath;
 
     /**
      * Base application folder path (DocumentRoot)
@@ -148,24 +149,22 @@ class AppView implements viewInterface, Cacheable
     /**
      * View constructor
      *
-     * @param null $tpl
+     * @param null $basePath
+     * @param null $tplEngine
      * @param array $conf
      */
-    public function __construct($tpl = null, $conf = [])
+    public function __construct($basePath = null, $tplEngine = null, $conf = [])
     {
-        if (isset($conf['tplType']) && $conf['tplType'] === 'tpl' && is_null($tpl)) {
+        if (isset($conf['tplType']) && $conf['tplType'] === 'tpl' && is_null($tplEngine)) {
             throw new \LogicException('tplType set as `tpl` but template Class not loaded');
         }
 
-        if (empty($conf)) {
-            $this->basePath = Application::getAlias('@base');
-            $this->appPath = Application::getAlias('@web');
-        } else {
-            $this->basePath = $conf['basePath'];
-            $this->appPath = $conf['appPath'];
+        if (!is_null($basePath)) {
+            $this->basePath = $basePath;
+            $this->appPath = $basePath . DIRECTORY_SEPARATOR . "web";
         }
 
-        $this->tplEngine = $tpl;
+        $this->tplEngine = $tplEngine;
         $this->init();
 
     }
@@ -175,9 +174,9 @@ class AppView implements viewInterface, Cacheable
      */
     public function init()
     {
-        $this->debugFile = $this->basePath . '/src/Core/Views/debug.php';
-        $this->httpTestsDir = $this->basePath . '/src/Core/Tests/HttpTests/';
-        $this->baseTemplateDir = $this->basePath . '/src/Core/Resources/BaseTemplates/';
+        $this->debugFile = __DIR__ . '/debug.php';
+        //$this->httpTestsDir = __DIR__ . '/BaseTemplates/httpTests/';
+        $this->baseTemplateDir = __DIR__ . '/Resources/BaseTemplates/';
 
         $this->tplEngine->left_delimiter = '<{';
         $this->tplEngine->right_delimiter = '}>';
@@ -187,7 +186,7 @@ class AppView implements viewInterface, Cacheable
         $this->tplEngine->setCacheDir($this->basePath . '/storage/smarty_cache/cache/');
         $this->tplEngine->setTemplateDir($this->appPath . '/Templates/');
         $this->tplEngine->addTemplateDir($this->baseTemplateDir);
-        $this->tplEngine->addTemplateDir($this->httpTestsDir);
+        //$this->tplEngine->addTemplateDir($this->httpTestsDir);
         $this->tplEngine->assign('basePath', $this->basePath);
         $this->tplEngine->assign('appPath', $this->appPath);
 
@@ -282,17 +281,6 @@ class AppView implements viewInterface, Cacheable
     }
 
     /**
-     * Sets the HTTP header status
-     *
-     * @param $val
-     */
-    public function setHeader($val)
-    {
-        $this->httpStatus = $val;
-        Application::setHeaders($val);
-    }
-
-    /**
      * Gets the HTTP header status
      *
      * @return mixed
@@ -356,7 +344,7 @@ class AppView implements viewInterface, Cacheable
     {
         $tpl = $this->template;
         $this->prepare();
-        $this->tplEngine->fetch($tpl);
+        return $this->tplEngine->fetch($tpl);
     }
 
     /**

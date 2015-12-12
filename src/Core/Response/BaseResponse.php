@@ -22,13 +22,15 @@
 
 namespace Core\Response;
 
-use Core\Views\viewInterface;
+use Core\Contracts\CacheableContract;
+use Core\Contracts\ResponseContract;
+use Core\Contracts\ViewContract;
 
 /**
  * Class BasesResponse
  * @package Core\Response
  */
-abstract class BaseResponse
+abstract class BaseResponse implements ResponseContract, CacheableContract
 {
     /**
      * Borrowed from @link https://github.com/symfony/symfony/blob/2.8/src/Symfony/Component/HttpFoundation/Response.php
@@ -172,7 +174,7 @@ abstract class BaseResponse
     public $useView = false;
 
     /**
-     * @var $view viewInterface
+     * @var $view ViewContract
      */
     protected $view;
 
@@ -195,7 +197,7 @@ abstract class BaseResponse
             throw new \InvalidArgumentException("Status Code must be a valid Integer, " . gettype($statusCode) . " given.");
         }
 
-        $this->headers = $headers;
+        $this->setHeaders($headers);
         $this->setContent($content);
         $this->setStatusCode($statusCode);
 
@@ -213,13 +215,17 @@ abstract class BaseResponse
             return;
         }
 
-        if (!is_string($content) && !is_array($content) && !$content instanceof viewInterface) {
+        if (!is_string($content) && !is_array($content) && !$content instanceof ViewContract && !$content instanceof \Serializable) {
             throw new \InvalidArgumentException("Content must be of type String or Array in case of JSON, " . gettype($content) . " given.");
         }
 
-        if ($content instanceof viewInterface) {
+        if ($content instanceof ViewContract) {
             $this->setView($content);
             return;
+        }
+
+        if ($content instanceof \Serializable) {
+            $content = $content->serialize();
         }
 
         if (is_array($content)) {
@@ -255,12 +261,22 @@ abstract class BaseResponse
     /**
      * Set View object
      *
-     * @param viewInterface $view
+     * @param ViewContract $view
      */
-    public function setView(viewInterface $view)
+    public function setView(ViewContract $view)
     {
         $this->view = $view;
         $this->useView = true;
+    }
+
+    /**
+     * @param $headers
+     */
+    private function setHeaders($headers)
+    {
+        if (!empty($headers)) {
+            $this->headers = $headers;
+        }
     }
 
     /**
@@ -284,14 +300,43 @@ abstract class BaseResponse
     }
 
     /**
-     * Remove previously set header
+     * Remove previously set header. Returns false if header not found.
      *
      * @param $key
+     * @return bool
      */
     public function removeHeader($key)
     {
-        unset($this->headers[$key]);
+        if (isset($this->headers[$key])) {
+            unset($this->headers[$key]);
+            return true;
+        }
+
+        return false;
     }
+
+    /**
+     * Magic sleep method to define properties to cache (serialize)
+     *
+     * @return array
+     */
+    public function __sleep()
+    {
+        return [
+            'content',
+            'statusCode',
+            'header',
+        ];
+    }
+
+    /**
+     * Magic wakup method. Initializes on unserialize
+     */
+    public function __wakeup()
+    {
+
+    }
+
 
     /**
      * Send Response

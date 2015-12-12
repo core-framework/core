@@ -20,40 +20,24 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\Controllers;
+namespace Core\Contracts;
 
 /**
- * Controller for simple http and URL match test
- *
- * @package Core\Controllers
- * @version $Revision$
- * @license http://creativecommons.org/licenses/by-sa/4.0/
- * @link http://coreframework.in
- * @author Shalom Sam <shalom.s@coreframework.in>
+ * Interface CacheableContract
+ * @package Core\Cache
  */
-class testController extends BaseController
+interface CacheableContract
 {
+    /**
+     * Magic sleep method to define properties to cache (serialize)
+     *
+     * @return array
+     */
+    public function __sleep();
 
     /**
-     * Method to print hello {name}. Where {name} is the dynamic route variable in the URL
-     *
-     * @param $payload
-     * @return mixed
+     * Magic wakup method. Initializes on unserialize
      */
-    public function helloAction($payload)
-    {
-        $this->view->setTemplate('httpTests/simple.tpl');
-        $this->view->setTemplateVars('name', $payload['name']);
-        $this->response->setContent($this->view);
-
-        return $this->response;
-    }
-
-    public function helloWorldAction(){
-        $this->view->setTemplate('httpTests/helloworld.tpl');
-        $this->response->setContent($this->view);
-
-        return $this->response;
-    }
+    public function __wakeup();
 
 } 

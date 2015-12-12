@@ -22,9 +22,11 @@
 
 namespace Core\Response;
 
-use Core\Views\viewInterface;
+use Core\Contracts\CacheableContract;
+use Core\Contracts\ResponseContract;
+use Core\Contracts\ViewContract;
 
-class Response extends BaseResponse
+class Response extends BaseResponse implements ResponseContract, CacheableContract
 {
     protected $file;
 
@@ -36,11 +38,19 @@ class Response extends BaseResponse
         $this->setDefaults();
     }
 
-    public function setDefaults()
+    /**
+     * set defaults
+     */
+    protected function setDefaults()
     {
         $this->setConnection();
     }
 
+    /**
+     * Set file
+     *
+     * @param $file
+     */
     public function setFile($file)
     {
         if (is_readable($file) === false) {
@@ -50,6 +60,11 @@ class Response extends BaseResponse
         $this->file = $file;
     }
 
+    /**
+     * Return file if set
+     *
+     * @return mixed
+     */
     public function getFile()
     {
         return $this->file;
@@ -380,21 +395,20 @@ class Response extends BaseResponse
      */
     public function sendHeaders()
     {
+        $headers = $this->headers;
+
         // headers already send
         if (headers_sent()) {
             return $this;
         }
 
-        $headers = $this->headers;
-
         // Lazy redirect
         if (isset($headers['Location'])) {
             header("Location: ".$headers['Location'], true, $this->statusCode);
-
             return true;
         }
 
-        // Lazy setting of headers
+        // Lazy(/consolidated) setting of headers
         foreach($headers as $key => $val) {
             if (!headers_sent()) {
                 if($key === "Status") {
@@ -431,11 +445,11 @@ class Response extends BaseResponse
      */
     public function sendOutput()
     {
-        if ($this->useView === true) {
-            $this->view->render();
-        } elseif (isset($this->content) && !$this->content instanceof viewInterface) {
-            echo $this->content;
+        if ($this->useView === true && !$this->content instanceof ViewContract) {
+            $this->content = $this->view->fetch();
         }
+
+        echo $this->content;
 
         if ($this->do_gzip_compression === true) {
             $this->sendGzipCompressed();

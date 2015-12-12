@@ -20,11 +20,11 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\DI;
+namespace Core\Container;
 
 /**
  * Class Service
- * @package Core\DI
+ * @package Core\Container
  */
 class Service implements serviceInterface
 {

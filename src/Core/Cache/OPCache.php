@@ -20,15 +20,17 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\CacheSystem;
+namespace Core\Cache;
+
+use Core\Contracts\CacheContract;
 
 /**
  * Cache wrapper for OpCache
  *
  * Class OPCache
- * @package Core\CacheSystem
+ * @package Core\Cache
  */
-class OPCache implements CacheInterface
+class OPCache implements CacheContract
 {
 
     public static function cacheContent($key, $payload, $ttl)

@@ -9,8 +9,8 @@
 namespace Core\Models;
 
 
+use Core\Application\Application;
 use Core\Database\Connection;
-use Core\DI\DI;
 
 abstract class BaseModel {
 
@@ -48,9 +48,8 @@ abstract class BaseModel {
     public static function getConnection(array $dbConf = [])
     {
         if (empty($dbConf) && empty(static::$dbConf)) {
-            /** @var \Core\Config\AppConfig $config */
-            $config = DI::get('Config');
-            $dbConf = $config->get('$db');
+            $dbConf = Application::$app->config['$db'];
+            //$dbConf = $config->get('$db');
         } elseif (empty($dbConf) && !empty(static::$dbConf)) {
             $dbConf = static::$dbConf;
         }
@@ -69,6 +68,20 @@ abstract class BaseModel {
     public static function setDbConf(array $conf)
     {
         static::$dbConf = $conf;
+    }
+
+    public static function getDbConf()
+    {
+        $dbConf = Application::$app->config['$db'];
+
+        if (!is_array($dbConf)) {
+            /** @var \Core\Config\AppConfig $config */
+            $config = Application::get('Config');
+            $config->setFile(Application::getBasePath() . "/config/framework.conf.php");
+            $dbConf = $config->get('$db');
+        }
+
+        return $dbConf;
     }
 
     public static function addDbConf($key, $val)

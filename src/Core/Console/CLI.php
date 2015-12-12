@@ -23,15 +23,16 @@
 
 namespace Core\Console;
 
-use Core\Application\Components;
-use Core\Config\AppConfig;
-use Core\DI\DI;
+use Core\Application\Application;
+use Core\Application\BaseApplication;
+use Core\Contracts\CacheContract;
+use Core\Contracts\CLIContract;
 
 /**
  * Class CLI
  * @package Core\Console
  */
-class CLI extends Components
+abstract class CLI extends BaseApplication implements CLIContract
 {
     /**
      * @var bool Defines if verbosity is set
@@ -46,107 +47,81 @@ class CLI extends Components
      */
     public $io;
     /**
-     * @var AppConfig Contains the config object
+     * @inheritdoc
      */
-    protected $config;
+    public $config;
     /**
      * @var string The Tool name
      */
-    private $toolName = "Console";
+    protected static $toolName = "Console";
     /**
      * @var string Usage string
      */
-    private $usage = "Console [globalOptions] command [arguments || [options]]";
+    protected $usage = "Console [globalOptions] command [arguments || [options]]";
     /**
      * @var string Version no.
      */
-    private $version = "0.0.1";
+    protected static $version = "0.0.1";
     /**
      * @var Options[] Contains an array of (global) options
      */
-    private $options = [];
+    protected $options = [];
     /**
      * @var array Contains the map array for options short name -> long name pointers
      */
-    private $_map;
+    protected $_map;
     /**
      * @var array
      */
-    private $_passOptions;
+    protected $_passOptions;
+
+    protected $argv;
+
+    protected $argc;
+
+    private $parsedArgv;
+
     /**
      * @var bool Sets whether after global option parsing, the following command(if any) should be parsed as well
      */
     private $stopPropagation = false;
 
     /**
-     * CLI constructor
-     *
+     * @param null $basePath
      * @param IOStream $io
-     * @param array $config
      */
-    public function __construct(IOStream $io, array $config = [])
+    public function __construct($basePath = null, IOStream $io)
     {
         $this->io = $io;
-        $this->loadConf($config);
-        $this->setDefaults();
-    }
-
-    public function loadConf($config = [])
-    {
-        if (!is_array($config)) {
-            throw new \InvalidArgumentException("Config must be an array! Given " . gettype($config));
-        }
-
-        if (empty($config)) {
-            return null;
-        }
-
-        if (isset($config['$components']) && !empty($config['$components'])) {
-            parent::loadConf($config);
-            $this->getComponents();
-            $this->loadComponents();
-        }
-
-        if (isset($config['$commands']) && !empty($config['$commands'])) {
-            $commandsArr = $config['$commands'];
-            foreach ($commandsArr as $index => $arr) {
-                $command = $this->addCommand($arr['name'], $arr['description'], $arr['definition']);
-                if (isset($arr['arguments'])) {
-                    $args = $arr['arguments'];
-                    $command->addArguments($args['name'], $args['isRequired'], $args['description']);
-                }
-            }
-        }
-
-        if (isset($config['$options']) && !empty($config['$options'])) {
-            $optionsArr = $config['$options'];
-            foreach ($optionsArr as $index => $arr) {
-                $this->setOptions($arr['name'], $arr['shortName'], $arr['description'], $arr['definition']);
-            }
-        }
-
-    }
-
-    private function loadComponents()
-    {
-        $this->cache = $this->get('Cache');
+        parent::__construct($basePath);
+        $this->loadConsole();
     }
 
     /**
-     * Sets defaults for ClI applications
+     * Method to set/add all console Commands associated with this Console App
+     *
+     * @return mixed
      */
-    private function setDefaults()
+    protected abstract function loadConsole();
+
+    /**
+     * @inheritdoc
+     */
+    public function loadBaseComponents()
     {
-        $this->setOptions("help", "h", "Prints the help for this tool", get_class($this) . "::showHelp");
-        $this->setOptions(
-            "verbose",
-            "V",
-            "Increases verbosity of message output",
-            function () {
-                $this::$verbose = true;
-            }
+        $this->registerAndLoad(
+            'Cache',
+            \Core\Cache\AppCache::class,
+            [$this->getAbsolutePath("/storage/framework/cache")]
         );
-        $this->setOptions("version", "v", "Display the version of this tool", get_class($this) . "::showVersion");
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getConfigPath()
+    {
+        return $this->getAbsolutePath('/config/cli.conf.php');
     }
 
     /**
@@ -154,20 +129,17 @@ class CLI extends Components
      */
     public function getToolName()
     {
-        return $this->toolName;
+        return static::$toolName;
     }
 
     /**
      * Sets Tool name
      *
      * @param $toolName
-     * @return $this
      */
     public function setToolName($toolName)
     {
-        $this->toolName = $toolName;
-
-        return $this;
+        static::$toolName = $toolName;
     }
 
     /**
@@ -196,7 +168,7 @@ class CLI extends Components
      */
     public function getVersion()
     {
-        return $this->version;
+        return static::$version;
     }
 
     /**
@@ -207,9 +179,7 @@ class CLI extends Components
      */
     public function setVersion($version)
     {
-        $this->version = $version;
-
-        return $this;
+        static::$version = $version;
     }
 
     /**
@@ -230,21 +200,6 @@ class CLI extends Components
         }
 
         return $this->commands[$command];
-    }
-
-    /**
-     * Adds command to command list
-     *
-     * @param $name
-     * @param $description
-     * @param $definition
-     * @return Command
-     */
-    public function addCommand($name, $description, $definition)
-    {
-        $this->commands[$name] = new Command($name, $description, $definition);
-
-        return $this->commands[$name];
     }
 
     /**
@@ -290,22 +245,100 @@ class CLI extends Components
     }
 
     /**
-     * Parse command line
+     * @inheritdoc
      *
-     * @param $argv
-     * @param $argc
+     * @throws \ErrorException
+     * @throws \Exception
      */
-    public function parse($argv, $argc = null)
+    public function parse()
     {
+        $argv = $this->argv = isset($GLOBALS['argv']) ? $GLOBALS['argv'] : $_SERVER['argv'];
+        $argc = $this->argc = isset($GLOBALS['argc']) ? $GLOBALS['argc'] : $_SERVER['argc'];
+
         if (sizeof($argv) < 2) {
-            //$argv[1] = "--help";
-            //var_dump($argv);
             $this->showHelp();
             return;
         }
 
-        array_shift($argv); //reset indices
+        $argv = $this->parseConsoleOptions();
 
+        if (sizeof($argv) === 0 || $this->stopPropagation === true) {
+            $this->terminate();
+            return;
+        }
+
+        if ($this->commandExists($argv[0])) {
+            $this->parseConsoleCommands();
+        } else {
+            $this->io->showErr("Command $argv[0] not found");
+        }
+    }
+
+    /**
+     * Default show help
+     */
+    public function showHelp()
+    {
+        $this->io->writeln($this->toolName, "white");
+        $this->io->writeln("version: " . $this->version, "green");
+        $this->io->writeln("");
+        $this->io->writeln("Usage:", "yellow");
+        $this->io->writeln($this->usage);
+        $this->io->writeln("");
+        $this->io->writeln("Options(global):", "yellow");
+
+        foreach ($this->options as $key => $val) {
+            $this->io->write("--" . $key, 'green', null, "%-22s");
+            if ($this->options[$key]->getShortName()) {
+                $this->io->write(" (-" . $this->options[$key]->getShortName() . ") ", "white", null, "%-20s");
+            } else {
+                $this->io->write("  ");
+            }
+            $this->io->write($this->options[$key]->getDescription(), "white", null, "%s" . PHP_EOL);
+        }
+
+        $this->io->writeln("");
+        if (sizeof($this->options) > 0) {
+            $this->io->writeln("Commands:", "yellow");
+            if (!empty($this->commands)) {
+                foreach ($this->commands as $key => $val) {
+                    $this->io->write($key, 'green', null, "%-22s");
+                    if ($this->commands[$key]->hasOptions()) {
+                        $optAsArr = $this->commands[$key]->getOptionsAsArray();
+                        $shortOpts = "[-" . $optAsArr[0] . "]";
+                        if (sizeof($optAsArr[1]) > 0) {
+                            $longOpts = "[--(" . core_serialize($optAsArr[1]) . ")]";
+                        } else {
+                            $longOpts = "     ";
+                        }
+                        $this->io->write($shortOpts . " " . $longOpts . "\t", "white", null, "%-30s");
+                    } else {
+                        $this->io->write("\t", "white", null, "%-32s");
+                    }
+                    $this->io->write($this->commands[$key]->getDescription(), "white", null, "%s" . PHP_EOL);
+                }
+            } else {
+                $this->io->writeln("No Commands found", 'yellow');
+                return;
+            }
+        }
+        $this->io->writeln(" ");
+        $this->stopPropagation = true;
+    }
+
+    /**
+     * Parse command line options
+     *
+     * @return array
+     * @throws \ErrorException
+     * @throws \Exception
+     */
+    protected function parseConsoleOptions()
+    {
+        $argv = $this->argv;
+        $this->parsedArgv = &$argv;
+
+        array_shift($argv); //reset indices
         $optsArr = $this->getOptionsAsArray($this->options);
         $globalOpts = getopt($optsArr[0], $optsArr[1]);
 
@@ -320,77 +353,7 @@ class CLI extends Components
             }
         }
 
-        if ($this->stopPropagation === true) {
-            return;
-        }
-
-        if ($this->commandExists($argv[0])) {
-
-            /**
-             * @var $command Command
-             */
-            $command = $this->commands[$argv[0]];
-            $def = $command->getDefinition();
-            $options = $command->getOptions();
-            $arguments = $command->getArguments();
-
-            array_shift($argv);
-            $optsAsArr = $this->getOptionsAsArray($options);
-
-            while (count($argv) > 0) {
-                if (substr($argv[0], 0, 2) == '--') {
-
-                    $optionName = preg_replace('/-+/', "", $argv[0]);
-                    $this->parseCommandOptions($optionName, $options[$optionName], $optsAsArr[1], $argv);
-                    array_shift($argv);
-
-                } elseif (substr($argv[0], 0, 1) == '-') {
-
-                    $shortName = preg_replace('/-+/', "", $argv[0]);
-                    $optionName = $command->getNameFromShortName($shortName);
-                    $this->parseCommandOptions($optionName, $options[$optionName], str_split($optsAsArr[0]), $argv);
-                    array_shift($argv);
-
-                } elseif (count($arguments) !== 0) {
-                    $argumentName = $arguments[0]->getName();
-                    if ($arguments[0]->getRequired() === true && empty($argv[0])) {
-                        $this->io->showErr("Argument {$arguments[0]->getRequired()} is required");
-                        exit;
-                    }
-                    array_shift($arguments);
-                    $this->_passOptions[$argumentName] = $argv[0];
-                    array_shift($argv);
-
-                }
-            }
-
-            $arr = explode('::', $def);
-            $reflection = new \ReflectionClass($arr[0]);
-
-            $method = $reflection->getMethod($arr[1]);
-            $params = $method->getParameters();
-
-            $pass = array();
-            if (count($params) > 0) {
-                foreach ($params as $index => $param) {
-                    /* @var $param \ReflectionParameter */
-                    if (isset($this->_passOptions[$param->getName()])) {
-                        $pass[] = $this->_passOptions[$param->getName()];
-                    } elseif (isset($this->_passOptions[$index])) {
-                        $pass[] = $this->_passOptions[$index];
-                    } else {
-                        $pass[] = $param->getDefaultValue();
-                    }
-                }
-                $method->invokeArgs($this, $pass);
-            } else {
-                $method->invoke($this);
-            }
-
-
-        } else {
-            $this->io->showErr("Command $argv[1] not found");
-        }
+        return $argv;
     }
 
     /**
@@ -463,6 +426,80 @@ class CLI extends Components
     }
 
     /**
+     * Parse command line Commands
+     *
+     * @param null $argv
+     * @throws \ErrorException
+     */
+    protected function parseConsoleCommands($argv = null)
+    {
+        if (is_null($argv)) {
+            $argv = $this->parsedArgv;
+        }
+
+        /** @var $command Command */
+        $command = $this->commands[$argv[0]];
+        $def = $command->getDefinition();
+        $options = $command->getOptions();
+        $arguments = $command->getArguments();
+
+        array_shift($argv);
+        $optsAsArr = $this->getOptionsAsArray($options);
+
+        while (count($argv) > 0) {
+            if (substr($argv[0], 0, 2) == '--') {
+
+                $optionName = preg_replace('/-+/', "", $argv[0]);
+                $this->parseCommandOptions($optionName, $options[$optionName], $optsAsArr[1], $argv);
+                array_shift($argv);
+
+            } elseif (substr($argv[0], 0, 1) == '-') {
+
+                $shortName = preg_replace('/-+/', "", $argv[0]);
+                $optionName = $command->getNameFromShortName($shortName);
+                $this->parseCommandOptions($optionName, $options[$optionName], str_split($optsAsArr[0]), $argv);
+                array_shift($argv);
+
+            } elseif (count($arguments) !== 0) {
+                $argumentName = $arguments[0]->getName();
+                if ($arguments[0]->getRequired() === true && empty($argv[0])) {
+                    $this->io->showErr("Argument {$arguments[0]->getRequired()} is required");
+                    exit;
+                }
+                array_shift($arguments);
+                $this->_passOptions[$argumentName] = $argv[0];
+                array_shift($argv);
+
+            }
+        }
+
+        $arr = explode('::', $def);
+        $reflection = new \ReflectionClass($arr[0]);
+
+        $method = $reflection->getMethod($arr[1]);
+        $params = $method->getParameters();
+
+        $pass = array();
+        if (count($params) > 0) {
+            foreach ($params as $index => $param) {
+                /* @var $param \ReflectionParameter */
+                if (isset($this->_passOptions[$param->getName()])) {
+                    $pass[] = $this->_passOptions[$param->getName()];
+                } elseif (isset($this->_passOptions[$index])) {
+                    $pass[] = $this->_passOptions[$index];
+                } elseif ($param->isDefaultValueAvailable()) {
+                    $pass[] = $param->getDefaultValue();
+                } else {
+                    $pass[] = null;
+                }
+            }
+            $method->invokeArgs($this, $pass);
+        } else {
+            $method->invoke($this);
+        }
+    }
+
+    /**
      * Parse set command options
      *
      * @param $optionName
@@ -487,58 +524,6 @@ class CLI extends Components
                 }
             }
         }
-    }
-
-    /**
-     * Default show help
-     */
-    public function showHelp()
-    {
-        $this->io->writeln($this->toolName, "white");
-        $this->io->writeln("version: " . $this->version, "green");
-        $this->io->writeln("");
-        $this->io->writeln("Usage:", "yellow");
-        $this->io->writeln($this->usage);
-        $this->io->writeln("");
-        $this->io->writeln("Options(global):", "yellow");
-
-        foreach ($this->options as $key => $val) {
-            $this->io->write("--" . $key, 'green', null, "%-22s");
-            if ($this->options[$key]->getShortName()) {
-                $this->io->write(" (-" . $this->options[$key]->getShortName() . ") ", "white", null, "%-20s");
-            } else {
-                $this->io->write("  ");
-            }
-            $this->io->write($this->options[$key]->getDescription(), "white", null, "%s" . PHP_EOL);
-        }
-
-        $this->io->writeln("");
-        if (sizeof($this->options) > 0) {
-            $this->io->writeln("Commands:", "yellow");
-            if (!empty($this->commands)) {
-                foreach ($this->commands as $key => $val) {
-                    $this->io->write($key, 'green', null, "%-22s");
-                    if ($this->commands[$key]->hasOptions()) {
-                        $optAsArr = $this->commands[$key]->getOptionsAsArray();
-                        $shortOpts = "[-" . $optAsArr[0] . "]";
-                        if (sizeof($optAsArr[1]) > 0) {
-                            $longOpts = "[--(" . core_serialize($optAsArr[1]) . ")]";
-                        } else {
-                            $longOpts = "     ";
-                        }
-                        $this->io->write($shortOpts . " " . $longOpts . "\t", "white", null, "%-30s");
-                    } else {
-                        $this->io->write("\t", "white", null, "%-32s");
-                    }
-                    $this->io->write($this->commands[$key]->getDescription(), "white", null, "%s" . PHP_EOL);
-                }
-            } else {
-                $this->io->writeln("No Commands found", 'yellow');
-                return;
-            }
-        }
-        $this->io->writeln(" ");
-        $this->stopPropagation = true;
     }
 
     /**
@@ -596,9 +581,8 @@ class CLI extends Components
      *
      * @param $name
      */
-    public function helloWorld($name) {
-        $name = isset($name) && $name !== "" ? $name : "world";
-        echo "hello " . $name;
+    public function helloWorld($name = "world") {
+        echo "hello " . $name . PHP_EOL;
     }
 
     /**
@@ -614,7 +598,104 @@ class CLI extends Components
      */
     public function __wakeup()
     {
-        $this->io = DI::get('IOStream');
-        $this->config = DI::get('Config');
+        $this->io = Application::get('IOStream');
+    }
+
+    /**
+     * (Empty) Router not to be set for CLI
+     */
+    protected function setRouterConf()
+    {
+        /* EMPTY */
+    }
+
+    /**
+     * @inheritdoc
+     */
+    protected function loadConfig()
+    {
+        /** @var \Core\Cache\AppCache $cache */
+        $cache = $this->cache;
+
+        if (!$this->cache instanceof CacheContract) {
+            throw new \ErrorException("Cache Service not found.");
+        }
+
+        if ($cache->cacheExists('cli.conf')) {
+            $this->config = $cache->getCache('cli.conf');
+        } else {
+            $this->config = $this->getConfig();
+            $cache->cacheContent('cli.conf', $this->config, 0);
+        }
+    }
+
+    /**
+     * @inheritdoc
+     */
+    protected function registerServicesFromConfig()
+    {
+        parent::registerServicesFromConfig();
+        $this->loadConf();
+        $this->setDefaultCommands();
+    }
+
+    /**
+     * Load Configuration settings
+     *
+     * @throws \ErrorException
+     */
+    protected function loadConf()
+    {
+        $config = $this->config;
+        if (isset($config['$commands']) && !empty($config['$commands'])) {
+            $commandsArr = $config['$commands'];
+            foreach ($commandsArr as $index => $arr) {
+                $command = $this->addCommand($arr['name'], $arr['description'], $arr['definition']);
+                if (isset($arr['arguments'])) {
+                    $args = $arr['arguments'];
+                    $command->addArguments($args['name'], $args['isRequired'], $args['description']);
+                }
+            }
+        }
+
+        if (isset($config['$options']) && !empty($config['$options'])) {
+            $optionsArr = $config['$options'];
+            foreach ($optionsArr as $index => $arr) {
+                $this->setOptions($arr['name'], $arr['shortName'], $arr['description'], $arr['definition']);
+            }
+        }
+
+    }
+
+    /**
+     * Adds command to command list
+     *
+     * @param $name
+     * @param $description
+     * @param $definition
+     * @return Command
+     */
+    public function addCommand($name, $description, $definition)
+    {
+        $this->commands[$name] = new Command($name, $description, $definition);
+
+        return $this->commands[$name];
+    }
+
+    /**
+     * Sets defaults for ClI applications
+     */
+    private function setDefaultCommands()
+    {
+        $this->setOptions("help", "h", "Prints the help for this tool", get_class($this) . "::showHelp");
+        $this->setOptions(
+            "verbose",
+            "V",
+            "Increases verbosity of message output",
+            function () {
+                $this::$verbose = true;
+            }
+        );
+        $this->setOptions("version", "v", "Display the version of this tool", get_class($this) . "::showVersion");
     }
 }

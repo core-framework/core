@@ -69,15 +69,29 @@ class IOStream extends ConsoleStyles
         }
     }
 
+    /**
+     * Method to get current CLI Argument(s)
+     *
+     * @return mixed
+     */
     public function getArgv()
     {
         return static::$argv;
     }
 
+    /**
+     * Returns stream
+     *
+     * @param $type
+     * @return bool
+     */
     public function getStream($type)
     {
-        if (isset(self::$$type))
+        if (isset(self::$$type)) {
             return self::$$type;
+        } else {
+            return false;
+        }
     }
 
     /**

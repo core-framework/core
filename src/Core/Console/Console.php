@@ -23,25 +23,18 @@
 namespace Core\Console;
 
 
-class Console extends CLI
+use Core\Contracts\CLIContract;
+
+class Console extends CLI implements CLIContract
 {
     public $apacheUser;
     public $apacheUserGroup;
     public $apacheConfPath;
 
-    public function __construct(IOStream $IOStream, $config = null)
-    {
-        $this->loadConsole();
-        parent::__construct($IOStream, $config);
-    }
-
-    public function parse()
-    {
-        $argv = $this->io->getArgv();
-        parent::parse($argv);
-    }
-
-    private function loadConsole()
+    /**
+     * @inheritdoc
+     */
+    protected function loadConsole()
     {
         $this->setVersion('1.0.0');
         $this->setToolName('Reactor');
@@ -50,6 +43,9 @@ class Console extends CLI
         $this->addCommand('test:status', "Performs PHPUnit and Codeception tests", '\\Core\\Console\\Console::testStatus');
     }
 
+    /**
+     * @inheritdoc
+     */
     public function showHelp()
     {
         $this->printSign();

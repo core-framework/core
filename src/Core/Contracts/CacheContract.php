@@ -6,10 +6,10 @@
  * Time: 10:58 AM
  */
 
-namespace Core\CacheSystem;
+namespace Core\Contracts;
 
 
-interface CacheInterface
+interface CacheContract
 {
 
     /**

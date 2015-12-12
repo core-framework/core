@@ -6,32 +6,62 @@
  * Time: 10:44 AM
  */
 
-namespace Core\Tests\CLI;
+namespace Tests\Console;
 
-use Core\Console\CLI;
+use Core\Console\Console;
 use Core\Console\IOStream;
-use Core\DI\DI;
+use Core\Container\Container;
+use org\bovigo\vfs\vfsStream;
 
-class CLITest extends \PHPUnit_Framework_TestCase
+class ConsoleTest extends \PHPUnit_Framework_TestCase
 {
+    public static $basePath;
+    public static $frameworkConf;
+    public static $frameworkConfArr = [
+        '$db' => [],
+        '$global' => [],
+        '$routes' => []
+    ];
+    public static $structure = [
+        'storage' => [
+            'framework' => [
+                'cache' => [
+                    'emptyFile.php' => ""
+                ]
+            ]
+        ],
+        'config' => [
+            'cli.conf.php' => ""
+        ]
+    ];
 
-    /**
-     * @var $cli \Core\Console\CLI
-     */
-    public $cli;
     public $io;
 
     public function setUp()
     {
+        $this->_createMockPaths();
         $this->io = new IOStream();
-        $this->cli = new CLI($this->io);
         parent::setUp();
     }
 
     public function tearDown()
     {
-        DI::reset();
+        Container::reset();
         parent::tearDown();
+    }
+
+    public function _createMockPaths()
+    {
+        vfsStream::setup('root', 0777, self::$structure);
+        static::$frameworkConf = vfsStream::url('root/config/cli.conf.php');
+        static::$basePath = vfsStream::url('root');
+        static::_initConfFiles();
+    }
+
+    public static function _initConfFiles()
+    {
+        $data2 = '<?php return ' . var_export(static::$frameworkConfArr, true) . ";\n ?>";
+        file_put_contents(static::$frameworkConf, $data2);
     }
 
     /**
@@ -39,50 +69,28 @@ class CLITest extends \PHPUnit_Framework_TestCase
      */
     public function testCLIConstructor()
     {
-        $cli = new CLI($this->io);
-        $this->assertInstanceOf('\\Core\\Console\\CLI', $cli);
+        $cli = new Console(static::$basePath, $this->io);
+        $this->assertInstanceOf('\\Core\\Console\\Console', $cli);
 
         $this->assertInstanceOf('\\Core\\Console\\IOStream', $cli->io);
     }
 
     /**
      * @covers \Core\Console\CLI::loadConf
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessageRegExp /Config must be an array! Given/
      */
-    public function testCLILoadConfThrowsExceptionWhenNotArray()
-    {
-        $this->cli->loadConf('');
-    }
-
-    /**
-     * @covers \Core\Console\CLI::loadConf
-     */
-    public function testIfComponentIsSetWhenProvided()
+    public function testIfServiceIsSetWhenProvided()
     {
         $conf = [
-            '$components' => [
-                'Cache' => \Core\CacheSystem\AppCache::class
+            '$services' => [
+                'testService' => \stdClass::class
             ]
         ];
 
-        $testCLI = new CLI($this->io, $conf);
+        self::$frameworkConfArr = array_merge(self::$frameworkConfArr, $conf);
+        $this->_initConfFiles();
 
-        $this->assertInstanceOf('\\Core\\CacheSystem\\AppCache', $testCLI->cache);
-    }
-
-    /**
-     * @covers \Core\Console\CLI::loadConf
-     */
-    public function testIfThrowsErrorIfCacheComponentIsNotProvided()
-    {
-        $conf = [
-            '$components' => []
-        ];
-
-        $testCLI = new CLI($this->io, $conf);
-
-        $this->assertNull($testCLI->cache);
+        $testCLI = new Console(static::$basePath, $this->io);
+        $this->assertInstanceOf('\\stdClass', $testCLI->get('testService'));
     }
 
     /**
@@ -105,8 +113,10 @@ class CLITest extends \PHPUnit_Framework_TestCase
                 ]
             ]
         ];
+        self::$frameworkConfArr = array_merge(self::$frameworkConfArr, $conf);
+        $this->_initConfFiles();
 
-        $testCLI = new CLI($this->io, $conf);
+        $testCLI = new Console(self::$basePath, $this->io);
         $this->assertArrayHasKey('hello:world', $testCLI->commands);
         $this->assertInstanceOf('\\Core\\Console\\Command', $testCLI->commands['hello:world']);
         $this->assertInternalType('callable', $testCLI->commands['hello:world']->getDefinition());
@@ -127,8 +137,10 @@ class CLITest extends \PHPUnit_Framework_TestCase
                 ]
             ]
         ];
+        self::$frameworkConfArr = array_merge(self::$frameworkConfArr, $conf);
+        $this->_initConfFiles();
 
-        $testCLI = new CLI($this->io, $conf);
+        $testCLI = new Console(self::$basePath, $this->io);
         $options = $testCLI->getOptions();
         $this->assertInternalType('array', $options);
         $this->assertArrayHasKey('hello:world', $options);
@@ -141,10 +153,9 @@ class CLITest extends \PHPUnit_Framework_TestCase
      */
     public function testIfDefaultOptionsAreSet()
     {
-        $testCLI = new CLI($this->io);
+        $testCLI = new Console(self::$basePath, $this->io);
         $options = $testCLI->getOptions();
         $this->assertArrayHasKey('help', $options);
-
     }
 
 }

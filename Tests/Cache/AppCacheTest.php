@@ -9,7 +9,8 @@
 namespace Core\Tests\CacheSystem;
 
 
-use Core\CacheSystem\AppCache;
+use Core\Cache\AppCache;
+use Core\Container\Container;
 use org\bovigo\vfs\vfsStream;
 use org\bovigo\vfs\vfsStreamDirectory;
 use org\bovigo\vfs\vfsStreamWrapper;
@@ -27,7 +28,8 @@ class AppCacheTest extends \PHPUnit_Framework_TestCase
 
     public function tearDown()
     {
-
+        Container::reset();
+        parent::tearDown();
     }
 
     /**
@@ -71,7 +73,7 @@ class AppCacheTest extends \PHPUnit_Framework_TestCase
      */
     public function testCacheConstruct()
     {
-        $this->assertInstanceOf('\\Core\\CacheSystem\\AppCache', new AppCache());
+        $this->assertInstanceOf('\\Core\\Cache\\AppCache', new AppCache());
     }
 
 
@@ -120,7 +122,7 @@ class AppCacheTest extends \PHPUnit_Framework_TestCase
     /**
      * @covers \Core\CacheSystem\AppCache::cacheContent
      * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Object must implement Cacheable interface
+     * @expectedExceptionMessage Object must implement CacheableContract interface
      */
     public function testIfThrowsExceptionWhenNonCacheableObjectIsCached()
     {

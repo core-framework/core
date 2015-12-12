@@ -20,25 +20,43 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\CacheSystem;
+namespace Core\Container;
 
 /**
- * Interface Cacheable
- * @package Core\CacheSystem
+ * Interface serviceInterface
+ * @package Core\Container
  */
-interface Cacheable
+interface ServiceInterface
 {
-
     /**
-     * Magic sleep method to define properties to cache (serialize)
+     * Creates a service instance with the given params
      *
-     * @return array
+     * @param string $name
+     * @param \Closure|string $definition
+     * @param bool $shared
+     * @throws \ErrorException
      */
-    public function __sleep();
+    public function __construct($name, $definition, $shared = false);
 
     /**
-     * Magic wakup method. Initializes on unserialize
+     * Sets the definition of the service
+     *
+     * @param mixed $definition
      */
-    public function __wakeup();
+    public function setDefinition($definition);
 
-} 
+    /**
+     * Sets whether service instances are shared
+     *
+     * @param bool $bool
+     * @throws \ErrorException
+     */
+    public function setShared($bool);
+
+    /**
+     * Sets arguments to be passed to service constructor
+     *
+     * @param array $args
+     */
+    public function setArguments(array $args);
+}

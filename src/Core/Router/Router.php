@@ -20,17 +20,18 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\Routes;
+namespace Core\Router;
 
 
-use Core\CacheSystem\Cacheable;
+use Core\Contracts\CacheableContract;
+use Core\Contracts\RouterContract;
 use Core\Request\Request;
 
 /**
  * Class Router
- * @package Core\Routes
+ * @package Core\Router
  */
-class Router extends Request implements Cacheable
+class Router extends Request implements CacheableContract, RouterContract
 {
 
     /**
@@ -61,12 +62,7 @@ class Router extends Request implements Cacheable
      * @var bool
      */
     public $foundMatch = false;
-    /**
-     * Response array
-     *
-     * @var array
-     */
-    public $response = [];
+
     /**
      * Defined HTTP method
      *
@@ -90,32 +86,25 @@ class Router extends Request implements Cacheable
      *
      * @var string
      */
-    public $namespace;
+    private $namespace;
     /**
      * controller name
      *
      * @var string
      */
-    public $controller;
+    private $controller;
     /**
-     * method name
+     * Controller method name
      *
      * @var string
      */
-    public $method;
+    private $method;
     /**
      * Arguments passed by the route
      *
      * @var array
      */
-    public $args;
-    /**
-     * model name
-     *
-     * @deprecated Deprecated since version 3.0.0
-     * @var string
-     */
-    public $model;
+    private $args;
     /**
      * Requested filename
      *
@@ -147,7 +136,7 @@ class Router extends Request implements Cacheable
      */
     private $collection;
 
-    public $configSet = false;
+    public $isConfigSet = false;
 
     /**
      * @param array $config
@@ -160,15 +149,23 @@ class Router extends Request implements Cacheable
         }
     }
 
+    /**
+     * Init Router
+     *
+     * @param $config
+     */
     public function init($config)
     {
         $this->config = $config;
-        $this->configSet = true;
+        $this->isConfigSet = true;
         $this->path = $this->getPath();
         $this->pathBurst();
         $this->loadRoutesConf($config);
     }
 
+    /**
+     * @inheritdoc
+     */
     public function setConfig(array $config)
     {
         parent::__construct($config);
@@ -225,7 +222,7 @@ class Router extends Request implements Cacheable
      */
     public function resolve($useAestheticRouting = false)
     {
-        if(!$this->configSet) {
+        if(!$this->isConfigSet) {
             throw new \ErrorException("Config not set in Router!");
         }
 
@@ -353,7 +350,7 @@ class Router extends Request implements Cacheable
     }
 
     /**
-     *  check if URL (path) matches defined paths (pathConf file)
+     * @inheritdoc
      */
     public function checkIfPatternMatch()
     {
@@ -405,6 +402,70 @@ class Router extends Request implements Cacheable
             }
 
         }
+    }
+
+    /**
+     * @return string
+     */
+    public function getNamespace()
+    {
+        return $this->namespace;
+    }
+
+    /**
+     * @param string $namespace
+     */
+    public function setNamespace($namespace)
+    {
+        $this->namespace = $namespace;
+    }
+
+    /**
+     * @return string
+     */
+    public function getController()
+    {
+        return $this->controller;
+    }
+
+    /**
+     * @param string $controller
+     */
+    public function setController($controller)
+    {
+        $this->controller = $controller;
+    }
+
+    /**
+     * @return string
+     */
+    public function getMethod()
+    {
+        return $this->method;
+    }
+
+    /**
+     * @param string $method
+     */
+    public function setMethod($method)
+    {
+        $this->method = $method;
+    }
+
+    /**
+     * @return array
+     */
+    public function getArgs()
+    {
+        return $this->args;
+    }
+
+    /**
+     * @param array $args
+     */
+    public function setArgs(array $args)
+    {
+        $this->args = $args;
     }
 
     /**

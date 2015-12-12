@@ -6,12 +6,12 @@
  * Time: 11:05 AM
  */
 
-namespace Core\CacheSystem;
+namespace Core\Cache;
 
+use Core\Contracts\CacheableContract;
+use Core\Contracts\CacheContract;
 
-use Core\Application\Application;
-
-class AppCache implements CacheInterface
+class AppCache implements CacheContract
 {
     /**
      * @var bool $dirIsGiven
@@ -26,16 +26,22 @@ class AppCache implements CacheInterface
 
     /**
      * Cache Constructor
+     *
+     * @param null $cacheDir
      */
-    public function __construct()
+    public function __construct($cacheDir = null)
     {
-        if (isset(Application::$basePath) && is_dir(Application::$basePath . "/storage/framework/cache/")) {
-            self::setCacheDir(Application::$basePath . "/storage/framework/cache/");
+        if (!is_null($cacheDir) && is_dir($cacheDir)) {
+            self::setCacheDir($cacheDir);
         }
     }
 
     public static function setCacheDir($dir)
     {
+        if (!is_dir($dir)) {
+            throw new \InvalidArgumentException("Valid directory not provided.");
+        }
+
         self::$dirIsGiven = true;
 
         if (strEndsWith(DIRECTORY_SEPARATOR, $dir)) {
@@ -101,7 +107,7 @@ class AppCache implements CacheInterface
                     throw new \InvalidArgumentException("Caching of Closure types is not currently supported");
                 }
 
-                if ($type === 'object' && $payload instanceof Cacheable) {
+                if ($type === 'object' && $payload instanceof CacheableContract) {
                     $content = serialize($payload);
                 }
 
@@ -114,10 +120,10 @@ class AppCache implements CacheInterface
         if ($type === 'array') {
             $cache['content'] = $payload;
         } elseif ($type === 'object') {
-            if ($payload instanceof Cacheable) {
+            if ($payload instanceof CacheableContract) {
                 $cache['content'] = serialize($payload);
             } else {
-                throw new \InvalidArgumentException("Object must implement Cacheable interface");
+                throw new \InvalidArgumentException("Object must implement CacheableContract interface");
             }
         } elseif ($type === 'string' || $type === 'integer' || $type === 'double') {
             $cache['content'] = $payload;
@@ -273,5 +279,15 @@ class AppCache implements CacheInterface
     public static function isValidMd5($key = '')
     {
         return preg_match('/^[a-f0-9_]{32}$/', $key);
+    }
+
+    /**
+     * Reset Cache class
+     */
+    public static function reset()
+    {
+        self::clearCache();
+        self::$cacheDir = "";
+        self::$dirIsGiven = false;
     }
 }

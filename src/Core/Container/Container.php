@@ -20,13 +20,13 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\DI;
+namespace Core\Container;
 
 /**
- * Class DI
+ * Class Container
  *
  * <code>
- *  $di = new DI()
+ *  $di = new Container()
  *  $di->register('View', '\\Core\\Views\\View')
  *      ->setArguments(array('Smarty'));
  *  $di->register('Smarty', '')
@@ -35,10 +35,10 @@ namespace Core\DI;
  *      })
  *
  *  //OR
- *  DI::register(....)
+ *  Container::register(....)
  *
  * //Later to get services
- *  $view = DI::get('View');
+ *  $view = Container::get('View');
  * //OR
  *  $view = $di->get('View);
  * </code>
@@ -49,7 +49,7 @@ namespace Core\DI;
  * @link http://coreframework.in
  * @author Shalom Sam <shalom.s@coreframework.in>
  */
-class DI
+class Container implements \ArrayAccess
 {
     /**
      * @var array Array of service objects definitions
@@ -61,8 +61,6 @@ class DI
     protected static $sharedInstances = [];
 
     /**
-     * Method to register services
-     *
      * @param $name
      * @param $definition
      * @param bool $shared
@@ -168,7 +166,7 @@ class DI
      */
     public static function serviceExists($name)
     {
-        return !empty(self::$services[$name]) ? true : false;
+        return isset(self::$services[$name]);
     }
 
     /**
@@ -191,7 +189,10 @@ class DI
         $returnArguments = [];
 
         foreach ($arguments as $key => $val) {
-            if (is_string($val) && (class_exists($val) || self::serviceExists($val))) {
+
+            if (strpos($val, '::') > -1) {
+                $returnArguments[] = call_user_func($val);
+            } elseif (is_string($val) && (class_exists($val) || self::serviceExists($val))) {
                 $returnArguments[] = self::get($val);
             } else {
                 $returnArguments[] = $val;
@@ -273,13 +274,76 @@ class DI
     }
 
     /**
-     * Reset DI
+     * Reset Container
      */
     public static function reset()
     {
         static::$services = [];
         static::$sharedInstances = [];
     }
+
+    /**
+     * Whether a offset exists
+     * @link http://php.net/manual/en/arrayaccess.offsetexists.php
+     * @param mixed $offset <p>
+     * An offset to check for.
+     * </p>
+     * @return boolean true on success or false on failure.
+     * </p>
+     * <p>
+     * The return value will be casted to boolean if non-boolean was returned.
+     * @since 5.0.0
+     */
+    public function offsetExists($offset)
+    {
+        return isset(self::$services[$offset]);
+    }
+
+    /**
+     * Offset to retrieve
+     * @link http://php.net/manual/en/arrayaccess.offsetget.php
+     * @param mixed $offset <p>
+     * The offset to retrieve.
+     * </p>
+     * @return mixed Can return all value types.
+     * @since 5.0.0
+     */
+    public function offsetGet($offset)
+    {
+        return self::get($offset);
+    }
+
+    /**
+     * Offset to set
+     * @link http://php.net/manual/en/arrayaccess.offsetset.php
+     * @param mixed $offset <p>
+     * The offset to assign the value to.
+     * </p>
+     * @param mixed $value <p>
+     * The value to set.
+     * </p>
+     * @return void
+     * @since 5.0.0
+     */
+    public function offsetSet($offset, $value)
+    {
+        self::register($offset, $value);
+    }
+
+    /**
+     * Offset to unset
+     * @link http://php.net/manual/en/arrayaccess.offsetunset.php
+     * @param mixed $offset <p>
+     * The offset to unset.
+     * </p>
+     * @return void
+     * @since 5.0.0
+     */
+    public function offsetUnset($offset)
+    {
+        // TODO: Implement offsetUnset() method.
+    }
+
 
     /**
      * Magic sleep method for serialization

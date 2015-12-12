@@ -22,14 +22,19 @@
 
 namespace Core\Application;
 
+use Core\Contracts\ApplicationContract;
+
 /**
  * Application Class
  *
  * Class Application
  * @package Core\Application
  */
-class Application extends BaseApplication
+class Application extends BaseApplication implements ApplicationContract
 {
+    protected static $applicationName = "Core Framework";
+
+    protected static $version = "v1.0.0";
 
 }
 

@@ -9,7 +9,7 @@ class Options
     protected $shortName;
     protected $description;
     protected $definition;
-    protected $isRequired;
+    protected $isRequired = false;
 
     /**
      * @param $name

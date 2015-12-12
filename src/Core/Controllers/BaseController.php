@@ -24,7 +24,10 @@ namespace Core\Controllers;
 
 
 use Core\Application\Application;
-use Core\Routes\Router;
+use Core\Contracts\ResponseContract;
+use Core\Contracts\ViewContract;
+use Core\Response\Response;
+use Core\Router\Router;
 use Core\Views\AppView;
 
 /**
@@ -97,14 +100,26 @@ class BaseController
      */
     public $csrf;
 
+    /**
+     * If application is currently using ssl
+     *
+     * @var bool
+     */
     public $isSecure;
 
     /**
+     * Response instance
+     *
+     * @var Response|object
+     */
+    public $response;
+
+    /**
      * @param Router $router
-     * @param AppView $view
+     * @param ViewContract $view
      * @param array $conf
      */
-    function __construct(Router $router, AppView $view, $conf = [])
+    function __construct(Router $router, ViewContract $view, $conf = [])
     {
         $this->router = $router;
         $this->view = $view;
@@ -114,7 +129,7 @@ class BaseController
 
         $this->POST = &$router->POST;
         $this->GET = &$router->GET;
-        $this->method = &$router->method;
+        $this->method = $router->getMethod();
 
         $this->baseInit();
     }
@@ -128,15 +143,21 @@ class BaseController
         $conf = $this->conf;
         $routeParams = $this->router->routeVars;
 
+        // Default is to setResponse as Controller Property (unless explicitly stated as false)
+        $setResponseInController = isset($conf['$global']['setResponseInController']) ? $conf['$global']['setResponseInController'] : true;
+        if ($setResponseInController !== false) {
+            $this->setResponse();
+        }
+
         // Get debug mode
-        if ($GLOBALS['debug'] === true) {
+        if (Application::$isDebugMode === true) {
             $this->view->setDebugMode(true);
         } else {
             $this->view->setDebugMode(false);
         }
 
-        if ($this->router->httpMethod === 'POST' || $this->router->httpMethod === 'PUT' || $this->router->httpMethod === 'DELETE') {
-
+        // View instance is Disabled for Non GET methods
+        if ($this->router->httpMethod !== 'GET') {
             $this->view->disable();
         }
 
@@ -192,6 +213,27 @@ class BaseController
     }
 
     /**
+     * Set empty response instance for easy access in Controllers
+     *
+     * @return Response|object
+     * @throws \ErrorException
+     */
+    protected function setResponse()
+    {
+        $response = null;
+
+        if (Application::serviceExists('Response')) {
+            $response = Application::get('Response');
+        }
+
+        if (!$response instanceof ResponseContract) {
+            $response = new Response();
+        }
+
+        $this->response = $response;
+    }
+
+    /**
      * Generates CSRF key
      *
      */
@@ -239,7 +281,7 @@ class BaseController
     public function resetCache()
     {
         $routes = $this->conf['$routes'];
-        /** @var \Core\CacheSystem\BaseCache $cache */
+        /** @var \Core\Cache\AppCache $cache */
         $cache = Application::get('Cache');
 
         foreach($routes as $route => $params) {
@@ -281,14 +323,6 @@ class BaseController
     {
         header('Location: ' . $url, true, $statusCode);
         die();
-    }
-
-    public function setHeader($val)
-    {
-        /**
-         * @var $app Application
-         */
-        Application::setHeaders($val);
     }
 
 }

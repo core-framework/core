@@ -1,9 +1,9 @@
 <?php
 
-use Core\DI\DI;
+use Core\Container\Container;
 
-$di = new DI();
-$di->register('Cache', '\\Core\\CacheSystem\\AppCache');
+$di = new Container();
+$di->register('Cache', '\\Core\\Cache\\AppCache');
 $di->register('Config', '\\Core\\Config\\AppConfig');
 $di->register('IOStream', '\\Core\\Console\\IOStream');
 $di->register('CLI', "\\Core\\Console\\CLI")

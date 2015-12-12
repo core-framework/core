@@ -133,7 +133,7 @@ class AppConfig
         }
     }
 
-    private static function configure($conf)
+    protected static function configure($conf)
     {
         if (is_array($conf)) {
             static::$allConf = $conf;

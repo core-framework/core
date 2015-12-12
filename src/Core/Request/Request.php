@@ -22,13 +22,13 @@
 
 namespace Core\Request;
 
-use Core\CacheSystem\Cacheable;
+use Core\Contracts\CacheableContract;
 
 /**
  * The class that handles the incoming request to server
  *
  * <code>
- *  $request = DI::get('Request');
+ *  $request = Container::get('Request');
  * </code>
  *
  * @package Core\Request
@@ -37,7 +37,7 @@ use Core\CacheSystem\Cacheable;
  * @link http://coreframework.in
  * @author Shalom Sam <shalom.s@coreframework.in>
  */
-class Request implements Cacheable
+class Request implements CacheableContract
 {
     /**
      * @var string The URL/query string (relative path)
@@ -125,9 +125,11 @@ class Request implements Cacheable
         $config = $this->config;
 
         //get httpMethod
-        $this->httpMethod = $_SERVER['REQUEST_METHOD'] ? strtoupper($_SERVER['REQUEST_METHOD']) : strtoupper($_SERVER['HTTP_X_HTTP_METHOD']);
-
-        if (empty($this->httpMethod)) {
+        if (isset($_SERVER['REQUEST_METHOD'])) {
+            $this->httpMethod = strtoupper($_SERVER['REQUEST_METHOD']);
+        } elseif (isset($_SERVER['HTTP_X_HTTP_METHOD'])) {
+            $this->httpMethod = strtoupper($_SERVER['HTTP_X_HTTP_METHOD']);
+        } else {
             $this->httpMethod = "GET";
         }
 

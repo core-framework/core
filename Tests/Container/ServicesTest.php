@@ -6,17 +6,17 @@
  * Time: 3:20 PM
  */
 
-namespace Core\Tests\DI;
+namespace Core\Tests\Container;
 
-use Core\DI\Service;
+use Core\Container\Service;
 
 class ServicesTest extends \PHPUnit_Framework_TestCase {
 
 
     /**
-     * @covers \Core\DI\Service::__construct
-     * @covers \Core\DI\Service::getDefinition
-     * @covers \Core\DI\Service::getShared
+     * @covers \Core\Container\Service::__construct
+     * @covers \Core\Container\Service::getDefinition
+     * @covers \Core\Container\Service::getShared
      *
      * @param $name string
      * @param $definition mixed

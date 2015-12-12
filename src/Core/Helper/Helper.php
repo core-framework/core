@@ -21,7 +21,7 @@
  */
 
 
-use Core\CacheSystem\AppCache;
+use Core\Contracts\AppCache;
 
 if ( ! function_exists('core_serialize') ) {
 
@@ -175,8 +175,6 @@ if (!function_exists('requireCached')) {
      */
     function requireCached($filePath)
     {
-        new AppCache();
-
         if (AppCache::cacheExists($filePath)) {
             $cache = AppCache::getCache($filePath);
             if (is_bool($cache)) {
