@@ -138,10 +138,10 @@ class AppCache implements CacheContract
         $data = '<?php return ' . var_export($cache, true) . ";\n ?>";
 
         if (touch($file) === false) {
-            throw new \ErrorException("Unable to create cache file.");
+            throw new \ErrorException("Unable to create cache file. The cache may not have the required permissions.");
         }
         if (file_put_contents($file, $data) === false) {
-            throw new \ErrorException("Unable to write to file.");
+            throw new \ErrorException("Unable to write to file. The cache may not have the required permissions.");
         }
 
         return true;
@@ -265,7 +265,7 @@ class AppCache implements CacheContract
             }
 
             if (unlink($filePath) === false) {
-                throw new \Exception("Unable to clear Cache.");
+                throw new \Exception("Unable to clear Cache. Cache Directory may not have required permissions.");
             }
         }
     }
