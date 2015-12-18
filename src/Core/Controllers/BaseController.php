@@ -25,6 +25,7 @@ namespace Core\Controllers;
 
 use Core\Application\Application;
 use Core\Contracts\ResponseContract;
+use Core\Contracts\RouterContract;
 use Core\Contracts\ViewContract;
 use Core\Response\Response;
 use Core\Router\Router;
@@ -115,17 +116,20 @@ class BaseController
     public $response;
 
     /**
-     * @param Router $router
-     * @param ViewContract $view
+     * @param string $basePath
+     * @param RouterContract|Router $router
+     * @param ViewContract|AppView $view
      * @param array $conf
      */
-    function __construct(Router $router, ViewContract $view, $conf = [])
+    function __construct($basePath = null, RouterContract $router, ViewContract $view, $conf = [])
     {
         $this->router = $router;
         $this->view = $view;
         $this->conf = $conf;
-        $this->basePath = isset($this->conf['$global']['basePath']) ? $this->conf['$global']['basePath'] : null;
-        $this->appPath = isset($this->conf['$global']['appPath']) ? $this->conf['$global']['appPath'] : null;
+
+        if (!is_null($basePath)) {
+            $this->setPathBound($basePath);
+        }
 
         $this->POST = &$router->POST;
         $this->GET = &$router->GET;
@@ -134,6 +138,14 @@ class BaseController
         $this->baseInit();
     }
 
+    /**
+     * @param $basePath
+     */
+    function setPathBound($basePath)
+    {
+        $this->basePath = $basePath;
+        $this->appPath = $basePath . DIRECTORY_SEPARATOR . 'app';
+    }
 
     /**
      * Base init
@@ -231,6 +243,21 @@ class BaseController
         }
 
         $this->response = $response;
+    }
+
+    /**
+     * @return ResponseContract|Response|object
+     * @throws \ErrorException
+     */
+    public function getResponse()
+    {
+        if (!$this->response instanceof ResponseContract) {
+            if (Application::serviceExists('Response')) {
+                $this->response = Application::get('Response');
+            }
+        }
+
+        return $this->response;
     }
 
     /**

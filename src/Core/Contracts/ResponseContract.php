@@ -19,6 +19,12 @@ interface ResponseContract
      */
     public function setContent($content = null);
 
+    /**
+     * Check if content is set
+     *
+     * @return mixed
+     */
+    public function getIsContentSet();
 
     /**
      * Set status code for current response

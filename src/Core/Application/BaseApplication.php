@@ -26,6 +26,7 @@ use Core\Cache\AppCache;
 use Core\Container\Container;
 use Core\Contracts\BaseApplicationContract;
 use Core\Contracts\CacheContract;
+use Core\Contracts\ResponseContract;
 use Core\Response\Response;
 use Core\Router\Router;
 use Core\Contracts\ViewContract;
@@ -490,11 +491,17 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
      */
     public function run()
     {
-        $this->response = $this->handle($this->router);
+        $this->response = $response = $this->handle($this->router);
 
-        if (method_exists($this->response, 'send')) {
-            $this->response->send();
+        // If controller does not return a response and if no headers were already sent, .i.e.
+        // response was not handled by controller either, in which case we show "404 Page
+        // not found", through the ErrorController
+        if (!$response instanceof ResponseContract && !headers_sent()) {
+            $error = '\\Core\\Controllers\\ErrorController::indexAction';
+            $this->response = $response = $error();
         }
+
+        $response->send();
 
         $this->terminate();
     }
@@ -618,8 +625,12 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
         $method = $this->router->getMethod();
         $args = $this->router->getArgs();
         $class = $namespace . "\\" . $controller;
-        $controllerObj = new $class($this->router, $view, $this->config);
+        $controllerObj = new $class(self::basePath(), $this->router, $view, $this->config);
         $response = $controllerObj->$method(!isset($args) ?: $args);
+
+        if (!$response instanceof ResponseContract || $response->getIsContentSet()) {
+            $response = $controllerObj->getResponse();
+        }
 
         return $response;
     }

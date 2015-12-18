@@ -173,17 +173,31 @@ abstract class BaseResponse implements ResponseContract, CacheableContract
 
     public $useView = false;
 
+    private $contentIsSet = false;
+
     /**
      * @var $view ViewContract
      */
     protected $view;
 
+    /**
+     * @var $content string
+     */
     protected $content;
 
+    /**
+     * @var $cookies array
+     */
     protected $cookies;
 
+    /**
+     * @var $headers array
+     */
     protected $headers;
 
+    /**
+     * @var $statusCode int
+     */
     protected $statusCode = 200;
 
     /**
@@ -233,6 +247,7 @@ abstract class BaseResponse implements ResponseContract, CacheableContract
             $content = json_encode($content);
         }
 
+        $this->contentIsSet = true;
         $this->content = $content;
     }
 
@@ -313,6 +328,16 @@ abstract class BaseResponse implements ResponseContract, CacheableContract
         }
 
         return false;
+    }
+
+    /**
+     * Returns true if response content was set else false
+     *
+     * @return bool
+     */
+    public function getIsContentSet()
+    {
+        return $this->contentIsSet;
     }
 
     /**
