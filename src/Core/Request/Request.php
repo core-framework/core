@@ -175,6 +175,64 @@ class Request implements CacheableContract
     }
 
     /**
+     * @param array $array
+     */
+    public function sanitizeArray(array $array)
+    {
+        foreach($array as $key => $val) {
+
+            if (is_array($val)) {
+                $this->sanitizeArray($val);
+                continue;
+            }
+
+            $this->sanitize($key, $val);
+        }
+    }
+
+    /**
+     * @param $type
+     * @param $value
+     * @return string
+     */
+    public function sanitize($type, $value)
+    {
+        switch ($type) {
+            case 'email':
+                return htmlentities(
+                    filter_var(trim($value), FILTER_SANITIZE_EMAIL),
+                    ENT_COMPAT,
+                    'UTF-8',
+                    false
+                );
+                break;
+
+            case 'phone':
+            case 'mobile':
+                return htmlentities(
+                    filter_var(trim($value), FILTER_SANITIZE_NUMBER_INT),
+                    ENT_COMPAT,
+                    'UTF-8',
+                    false
+                );
+                break;
+
+            case 'data':
+                return htmlentities(filter_var(trim($value), FILTER_UNSAFE_RAW));
+                break;
+
+            default:
+                return htmlentities(
+                    filter_var(trim($value), FILTER_SANITIZE_STRING),
+                    ENT_COMPAT,
+                    'UTF-8',
+                    false
+                );
+                break;
+        }
+    }
+
+    /**
      * Sanitize inputs
      *
      * @param $data
@@ -184,39 +242,13 @@ class Request implements CacheableContract
     {
         $sanitizedData = [];
         foreach ($data as $key => $val) {
-            switch ($key) {
-                case 'email':
-                    $sanitizedData[$key] = htmlentities(
-                        filter_var(trim($val), FILTER_SANITIZE_EMAIL),
-                        ENT_COMPAT,
-                        'UTF-8',
-                        false
-                    );
-                    break;
 
-                case 'phone':
-                case 'mobile':
-                $sanitizedData[$key] = htmlentities(
-                    filter_var(trim($val), FILTER_SANITIZE_NUMBER_INT),
-                    ENT_COMPAT,
-                    'UTF-8',
-                    false
-                );
-                    break;
-
-                case 'data':
-                    $sanitizedData[$key] = htmlentities(filter_var(trim($val), FILTER_UNSAFE_RAW));
-                    break;
-
-                default:
-                    $sanitizedData[$key] = htmlentities(
-                        filter_var(trim($val), FILTER_SANITIZE_STRING),
-                        ENT_COMPAT,
-                        'UTF-8',
-                        false
-                    );
-                    break;
+            if (is_array($val)) {
+                $this->sanitizeArray($val);
+                continue;
             }
+
+            $sanitizedData[$key] = $this->sanitize($key, $val);
         }
 
         return $sanitizedData;
@@ -224,7 +256,6 @@ class Request implements CacheableContract
 
     /**
      * check for input (support for angular POST)
-     *
      */
     public function checkInput()
     {
