@@ -9,19 +9,59 @@
 namespace Core\Collections;
 
 
-class Collection
+use Core\Contracts\CollectionContract;
+
+class Collection implements CollectionContract
 {
-    protected static $collectionName;
+    protected static $collectionName = '';
     protected static $dbName = '';
-    protected static $conn;
+
+    /**
+     * List of fields not to be saved or assigned to Collection Objects
+     *
+     * @var array
+     */
+    public static $fieldsBlackList = [];
+
+    /**
+     * @var \MongoClient $client
+     */
+    protected static $client;
+    /**
+     * @var string $primaryKey
+     */
     protected static $primaryKey;
+    /**
+     * @var \MongoDB $db
+     */
     protected static $db;
 
-    public function __construct(\MongoDB $db)
+    /**
+     * Collection Object Constructor
+     *
+     * @param array $fields
+     * @param \MongoDB|null $db
+     * @throws \ErrorException
+     */
+    public function __construct(array $fields = [], \MongoDB $db = null)
     {
-        self::$db = $db;
+        if (!is_null($db)) {
+            self::$db = $db;
+        } else {
+            self::$db = $this->getConnection();
+        }
+
+        $this->configure($this, $fields);
     }
 
+    /**
+     * Attempts to assign given data to object properties
+     *
+     * @param $object
+     * @param $data
+     * @return mixed
+     * @throws \ErrorException
+     */
     public static function configure($object, $data)
     {
         if (!is_object($object)) {
@@ -33,16 +73,26 @@ class Collection
         if (!empty($data)) {
 
             foreach ($props as $prop) {
-                if (isset($data[$prop])) {
+                if (isset($data[$prop]) && !in_array($prop, self::$fieldsBlackList)) {
                     $object->$prop = $data[$prop];
                 }
             }
+
         }
 
         return $object;
     }
 
-    public static function findAll($condition = [], $orderBy = null, $limit = null)
+    /**
+     * Returns all collection object that match the given query(condition, etc.)
+     *
+     * @param array $condition
+     * @param null $orderBy
+     * @param null $limit
+     * @return array
+     * @throws \ErrorException
+     */
+    public static function findAll(array $condition = [], $orderBy = null, $limit = null)
     {
         $parameters = [];
         if (isset($condition) === true) {
@@ -58,7 +108,14 @@ class Collection
         return self::find($parameters);
     }
 
-    public static function find($parameters = null)
+    /**
+     * Returns an object matching given parameters(/condition)
+     *
+     * @param array|null $parameters
+     * @return array
+     * @throws \ErrorException
+     */
+    public static function find(array $parameters = null)
     {
         if (is_null($parameters) === false && is_array($parameters) === false) {
             throw new \ErrorException('Invalid parameters for find');
@@ -70,7 +127,14 @@ class Collection
         return self::getResultSet($parameters, $collection);
     }
 
-    public static function getCount($condition = null)
+    /**
+     * Gets a count of Collection result of a query
+     *
+     * @param array|null $condition
+     * @return int
+     * @throws \ErrorException
+     */
+    public static function getCount(array $condition = null)
     {
         if (is_null($condition) === false && is_array($condition) === false) {
             throw new \ErrorException('Invalid parameters for find');
@@ -91,7 +155,14 @@ class Collection
         }
     }
 
-    public static function aggregate($pipeline)
+    /**
+     * Used to perform Mongo aggregate actions on database
+     *
+     * @param array $pipeline
+     * @return array
+     * @throws \ErrorException
+     */
+    public static function aggregate(array $pipeline)
     {
         if (is_null($pipeline) === false && is_array($pipeline) === false) {
             throw new \ErrorException('Invalid parameters for find');
@@ -110,6 +181,54 @@ class Collection
 
     }
 
+    /**
+     * Gets a distinct result matching the given condition
+     *
+     * @param array $condition
+     * @return array|bool
+     * @throws \ErrorException
+     */
+    public static function distinct(array $condition)
+    {
+        if (is_string($condition) === false) {
+            throw new \ErrorException('Invalid parameters for distinct');
+        }
+
+        /** @var Collection $collection */
+        $mCollection = self::getCollection($condition);
+
+        if (!isset($condition)) {
+            throw new \ErrorException('Condition must be provided for a distinct call!');
+        }
+
+        return $mCollection->distinct($condition);
+    }
+
+    /**
+     * Returns the Mongo Collection Object
+     *
+     * @param array|null $condition
+     * @return \MongoCollection
+     */
+    protected static function getCollection(array $condition = null)
+    {
+        $className = get_called_class();
+        /** @var Collection $collection */
+        $collection = new $className($condition);
+        $collectionName = $collection->getCollectionName();
+        $db = $collection->getConnection();
+
+        $mCollection = $db->$collectionName;
+
+        return $mCollection;
+    }
+
+    /**
+     * @param null $parameters
+     * @param Collection $collection
+     * @return array
+     * @throws \ErrorException
+     */
     public static function getResultSet($parameters = null, Collection $collection)
     {
         $collectionName = $collection->getCollectionName();
@@ -149,31 +268,51 @@ class Collection
 
     }
 
+    /**
+     * @return string
+     */
     public function getCollectionName()
     {
         if (isset($this->collectionName) === false) {
-            $this->collectionName = strtolower(get_class($this));
+            self::$collectionName = strtolower(get_class($this));
         }
 
-        return $this->collectionName;
+        return self::$collectionName;
     }
 
+    /**
+     * Returns the MongoDB object
+     *
+     * @return \MongoDB
+     */
     public function getConnection()
     {
-        self::$conn = $conn = new \MongoClient();
+        self::$client = $client = new \MongoClient();
         $dbName = self::getDbName();
 
-        self::$db = $db = $conn->$dbName;
+        self::$db = $db = $client->$dbName;
 
         return $db;
     }
 
+    /**
+     * Returns the Database name
+     *
+     * @return string
+     */
     public static function getDbName()
     {
         return static::$dbName;
     }
 
-    public static function createObjectFromArr(array $arr)
+    /**
+     * Converts each row (array) into object of the called Collection instance
+     *
+     * @param array $arr
+     * @return array
+     * @throws \ErrorException
+     */
+    protected static function createObjectFromArr(array $arr)
     {
         if (empty($arr)) {
             throw new \ErrorException('Array cannot be empty in createObjectFromArr');
@@ -188,9 +327,16 @@ class Collection
         return $collectionArr;
     }
 
-    public static function findOne($condition = null)
+    /**
+     * Finds only one collection item
+     *
+     * @param array $condition
+     * @return array
+     * @throws \ErrorException
+     */
+    public static function findOne(array $condition = [])
     {
-        if (is_null($condition) === false && is_array($condition) === false) {
+        if (empty($condition) && is_array($condition) === false) {
             throw new \ErrorException('Invalid parameters for find');
         }
         $condition['limit'] = 1;
@@ -198,11 +344,16 @@ class Collection
         return static::find($condition);
     }
 
+    /**
+     * Save (write) to mongo database
+     *
+     * @throws \ErrorException
+     */
     public function save()
     {
         $db = $this->getConnection();
         $collectionName = $this->getCollectionName();
-        $this->unsetBeforeSave();
+        $this->beforeSave();
 
         if (empty($collectionName)) {
             throw new \ErrorException('Collection Name not specified.');
@@ -219,18 +370,35 @@ class Collection
         }
     }
 
-    public function unsetBeforeSave()
+    /**
+     * Actions to be performed before writing to database
+     *
+     * @param bool|true $unsetDates
+     */
+    public function beforeSave($unsetDates = true)
     {
-        unset($this->_id);
-        unset($this->creation_date);
-        unset($this->modified_date);
+        foreach (static::$fieldsBlackList as $column) {
+            unset($this->$column);
+        }
+
+        if ($unsetDates === true) {
+            unset($this->created_at);
+            unset($this->modified_at);
+        }
     }
 
+    /**
+     * Update (modify) to mongo database
+     *
+     * @param array $conditions
+     * @param array $fields
+     * @throws \ErrorException
+     */
     public function update($conditions = [], $fields = [])
     {
         $db = $this->getConnection();
         $collectionName = $this->getCollectionName();
-        $this->unsetBeforeSave();
+        $this->beforeSave();
 
         if (empty($collectionName)) {
             throw new \ErrorException('Collection Name not specified.');
@@ -256,4 +424,15 @@ class Collection
         }
     }
 
+    /**
+     * @param $name
+     * @throws \ErrorException
+     */
+    public static function setCollectionName($name)
+    {
+        if (is_string($name) === false) {
+            throw new \ErrorException('Collection name must be of type string.');
+        }
+        self::$collectionName = $name;
+    }
 }

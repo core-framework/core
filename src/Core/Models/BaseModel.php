@@ -49,7 +49,11 @@ abstract class BaseModel {
     {
         if (empty($dbConf) && empty(static::$dbConf)) {
             $dbConf = Application::$app->config['$db'];
-            //$dbConf = $config->get('$db');
+
+            if (!is_array($dbConf)) {
+                throw new \ErrorException('Unable to find Database Config data!');
+            }
+
         } elseif (empty($dbConf) && !empty(static::$dbConf)) {
             $dbConf = static::$dbConf;
         }
