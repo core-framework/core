@@ -47,6 +47,10 @@ class Model extends BaseModel
      * @var string Database name
      */
     protected static $dbName = '';
+    /**
+     * @var bool Flag to filter dates (on save)
+     */
+    protected static $unsetDates = true;
 
 
     /**
@@ -73,16 +77,14 @@ class Model extends BaseModel
 
     /**
      * Unset un-used parameters before storing in Database
-     *
-     * @param bool|true $unsetDates
      */
-    public function beforeSave($unsetDates = true)
+    public function beforeSave()
     {
         foreach(static::$columnSaveBlacklist as $column) {
             unset($this->$column);
         }
 
-        if ($unsetDates === true) {
+        if (self::$unsetDates === true) {
             unset($this->created_at);
             unset($this->modified_at);
         }
