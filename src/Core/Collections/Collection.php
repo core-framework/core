@@ -271,7 +271,7 @@ class Collection implements CollectionContract
     /**
      * @return string
      */
-    public function getCollectionName()
+    protected function getCollectionName()
     {
         if (isset($this->collectionName) === false) {
             self::$collectionName = strtolower(get_class($this));
