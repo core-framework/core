@@ -60,9 +60,9 @@ abstract class BaseModel {
 
         $arr[] = [];
         $arr['db'] = isset(static::$dbName) && empty(static::$dbName) === false ? static::$dbName : $dbConf['db'];
-        $arr['type'] = isset($dbConf['pdoDriver']) ? $dbConf['pdoDriver'] : '';
-        $arr['host'] = isset($dbConf['host']) ? $dbConf['host'] : '';
-        $arr['user'] = isset($dbConf['user']) ? $dbConf['user'] : '';
+        $arr['type'] = isset($dbConf['pdoDriver']) ? $dbConf['pdoDriver'] : 'mysql';
+        $arr['host'] = isset($dbConf['host']) ? $dbConf['host'] : '127.0.0.1';
+        $arr['user'] = isset($dbConf['user']) ? $dbConf['user'] : 'root';
         $arr['pass'] = isset($dbConf['pass']) ? $dbConf['pass'] : '';
         $arr['port'] = isset($dbConf['port']) ? $dbConf['port'] : '';
 
@@ -237,6 +237,9 @@ abstract class BaseModel {
      */
     private static function getFromDbandBuildObj($query, $params = [])
     {
+        if (is_null(self::$connection)) {
+            self::getConnection();
+        }
         $prep = self::$connection->getPrepared($query);
         $prep->execute($params);
         $row = $prep->fetch(\PDO::FETCH_ASSOC);
