@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<database name="test">
+	<table_structure name="model_test_user">
+		<field Field="id" Type="int(10) unsigned" Null="NO" Key="PRI" Extra="auto_increment" Comment="" />
+		<field Field="fname" Type="varchar(200)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="lname" Type="varchar(200)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="name" Type="varchar(255)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="age" Type="int(10) unsigned" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="created_at" Type="timestamp" Null="NO" Key="" Default="CURRENT_TIMESTAMP" Extra="" Comment="" />
+		<field Field="modified_at" Type="timestamp" Null="NO" Key="" Default="CURRENT_TIMESTAMP" Extra="on update CURRENT_TIMESTAMP" Comment="" />
+		<key Table="model_test_user" Non_unique="0" Key_name="PRIMARY" Seq_in_index="1" Column_name="id" Collation="A" Cardinality="6" Null="" Index_type="BTREE" Comment="" Index_comment="" />
+		<options Name="model_test_user" Engine="InnoDB" Version="10" Row_format="Compact" Rows="6" Avg_row_length="2730" Data_length="16384" Max_data_length="0" Index_length="0" Data_free="0" Auto_increment="7" Create_time="2016-02-05 13:05:53" Collation="utf8_unicode_ci" Create_options="" Comment="" />
+	</table_structure>
+	<table_data name="model_test_user">
+	<row>
+		<field name="id">1</field>
+		<field name="fname">Shalom</field>
+		<field name="lname">Sam</field>
+		<field name="name">Shalom Sam</field>
+		<field name="age">29</field>
+		<field name="created_at">2016-02-05 13:05:53</field>
+		<field name="modified_at">2016-02-05 13:05:53</field>
+	</row>
+	<row>
+		<field name="id">2</field>
+		<field name="fname">Shelley</field>
+		<field name="lname">Sam</field>
+		<field name="name">Shelley Sam</field>
+		<field name="age">24</field>
+		<field name="created_at">2016-02-05 13:05:53</field>
+		<field name="modified_at">2016-02-05 13:05:53</field>
+	</row>
+	<row>
+		<field name="id">3</field>
+		<field name="fname">John</field>
+		<field name="lname">Doe</field>
+		<field name="name">John Doe</field>
+		<field name="age">30</field>
+		<field name="created_at">2016-02-05 13:05:53</field>
+		<field name="modified_at">2016-02-05 13:05:53</field>
+	</row>
+	<row>
+		<field name="id">4</field>
+		<field name="fname">Jane</field>
+		<field name="lname">Doe</field>
+		<field name="name">Jane Doe</field>
+		<field name="age">28</field>
+		<field name="created_at">2016-02-05 13:05:53</field>
+		<field name="modified_at">2016-02-05 13:05:53</field>
+	</row>
+	<row>
+		<field name="id">5</field>
+		<field name="fname">Keith</field>
+		<field name="lname">Pinto</field>
+		<field name="name">Keith Pinto</field>
+		<field name="age">27</field>
+		<field name="created_at">2016-02-05 13:05:53</field>
+		<field name="modified_at">2016-02-05 13:05:53</field>
+	</row>
+	<row>
+		<field name="id">6</field>
+		<field name="fname">Money</field>
+		<field name="lname">Penny</field>
+		<field name="name">Money Penny</field>
+		<field name="age">40</field>
+		<field name="created_at">2016-02-05 13:05:58</field>
+		<field name="modified_at">2016-02-05 13:05:58</field>
+	</row>
+	</table_data>
+</database>
+</mysqldump>

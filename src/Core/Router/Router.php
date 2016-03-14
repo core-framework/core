@@ -23,6 +23,7 @@
 namespace Core\Router;
 
 
+use Core\Container\Container;
 use Core\Contracts\CacheableContract;
 use Core\Contracts\RouterContract;
 use Core\Request\Request;
@@ -131,6 +132,7 @@ class Router extends Request implements CacheableContract, RouterContract
      * @var array
      */
     public $config;
+
     /**
      * @var array Contains a collection of the defined routes in route.conf
      */
@@ -468,6 +470,8 @@ class Router extends Request implements CacheableContract, RouterContract
         $this->args = $args;
     }
 
+
+
     /**
      * Sleep magic method
      *
@@ -501,6 +505,40 @@ class Router extends Request implements CacheableContract, RouterContract
 
         return $routerSleep;
     }
+
+    /**
+     * @return array
+     */
+    public function getCollection()
+    {
+        return $this->collection;
+    }
+
+    /**
+     * @param array $collection
+     */
+    public function setCollection($collection)
+    {
+        $this->collection = $collection;
+    }
+
+    public function addRoute($uri, $methods, $handler, $options = [])
+    {
+        $this->collection[$uri] = new Route($uri, $methods, $handler, $options);
+        return $this;
+    }
+
+    public function get($uri, $handler, $options = [])
+    {
+        return $this->addRoute($uri, ['GET'], $handler, $options);
+    }
+
+    public function post($uri, $handler, $options)
+    {
+        return $this->addRoute($uri, ['POST'], $handler, $options);
+    }
+
+    //TODO: Handling to parse Route instances in collection
 
     /**
      * Magic wakup method. Initializes on unserialize

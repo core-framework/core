@@ -104,7 +104,7 @@ class ConsoleTest extends \PHPUnit_Framework_TestCase
                     'name' => 'hello:world',
                     'shortName' => '',
                     'description' => 'Simple Hello World Command',
-                    'definition' => '\\Core\\Console\\CLI::helloWorld',
+                    'definition' => '\\Core\\Console\\CliApplication::helloWorld',
                     'arguments' => [
                         'name' => 'name',
                         'isRequired' => false,
@@ -133,7 +133,7 @@ class ConsoleTest extends \PHPUnit_Framework_TestCase
                     'name' => 'hello:world',
                     'shortName' => 'H',
                     'description' => 'Simple Hello World Command',
-                    'definition' => '\\Core\\Console\\CLI::helloWorld'
+                    'definition' => '\\Core\\Console\\CliApplication::helloWorld'
                 ]
             ]
         ];

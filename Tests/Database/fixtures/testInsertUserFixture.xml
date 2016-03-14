@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <database name="test">
+        <table_data name="user">
+            <row>
+                <field name="id">1</field>
+                <field name="fname">Shalom</field>
+                <field name="lname">Sam</field>
+                <field name="name">Shalom Sam</field>
+                <field name="fbLogin" xsi:nil="true" />
+                <field name="userId">shalom5634d10f9a663</field>
+                <field name="fb_likes">0</field>
+                <field name="twttr_share">0</field>
+                <field name="email">test@test.com</field>
+                <field name="email_hash" xsi:nil="true" />
+                <field name="pass_hash">$2y$13$6YY1DczQim4JsRDTN3Cb0Oa.TtCUBDfoTZW.Cwj4MGQEV1rQkRV6y</field>
+                <field name="salt">$2y$13$6YY1DczQim4JsRDTN3Cb0c</field>
+                <field name="dashboardUrl">/dashboard/test10_55</field>
+                <field name="uploadUrl">/upload/test10_552bb</field>
+                <field name="imageUrl">/images/users/test10</field>
+                <field name="imageThumbUrl">/images/users/test10</field>
+                <field name="imageDesc" xsi:nil="true" />
+                <field name="imageSubmitted" xsi:nil="true" />
+                <field name="register_date">2015-10-31 20:02:48</field>
+                <field name="submitted_date">2015-10-31 20:02:48</field>
+                <field name="modified_date">2015-10-31 20:02:48</field>
+            </row>
+        </table_data>
+    </database>
+</mysqldump>

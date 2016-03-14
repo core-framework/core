@@ -2,21 +2,23 @@
 /**
  * Created by PhpStorm.
  * User: shalom.s
- * Date: 29/10/15
- * Time: 10:43 AM
+ * Date: 05/02/16
+ * Time: 10:52 AM
  */
 
-namespace Core\Tests\Database;
-
+namespace Core\TestCases;
 
 use Core\Database\Connection;
 
-class ConnectionTest extends \PHPUnit_Extensions_Database_TestCase
+class DatabaseTestCase extends \PHPUnit_Extensions_Database_TestCase
 {
     /**
      * @var \PDO
      */
     private static $pdo = null;
+
+    public static $confFilePath;
+
     /**
      * @var Connection|null $conn
      */
@@ -24,20 +26,22 @@ class ConnectionTest extends \PHPUnit_Extensions_Database_TestCase
     /**
      * @var Array
      */
-    public static $conf;
+    public $conf;
 
-    public static function getConfig()
+    protected function getConfig()
     {
-        if (!isset(self::$conf)) {
+        if (!isset($this->conf)) {
             $dbConfPath = _ROOT . '/config/db.conf.php';
             if (is_readable($dbConfPath)) {
-                self::$conf = $conf = require($dbConfPath);
+                $this->conf = $conf = require($dbConfPath);
+            } elseif(isset(static::$confFilePath)) {
+                $this->conf = $conf = require(static::$confFilePath);
             } else {
-                self::$conf = $conf = require('config.php');
+                throw new \ErrorException('Config file missing.');
             }
         }
 
-        return self::$conf;
+        return $this->conf;
     }
 
     public function getConnection()
@@ -124,18 +128,5 @@ class ConnectionTest extends \PHPUnit_Extensions_Database_TestCase
     public function quote($string)
     {
         return "`{$string}`";
-    }
-
-    /**
-     * @covers \Core\Database\Connection::__construct
-     */
-    public function testDatabaseHasUser()
-    {
-        $this->getConnection()->createDataSet(array('user'));
-        $prod = $this->getDataSet();
-        $resultingTable = $this->getConnection()->createQueryTable('user', 'SELECT * FROM user');
-        $expectedTable = $this->getDataSet()->getTable('user');
-
-        $this->assertTablesEqual($expectedTable, $resultingTable);
     }
 }

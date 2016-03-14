@@ -349,6 +349,7 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
             \Core\Cache\AppCache::class,
             [$this->getAbsolutePath("/storage/framework/cache")]
         );
+        $this->registerAndLoad('AppConfig', \Core\Config\AppConfig::class, [$this->config]);
     }
 
     /**
@@ -700,6 +701,26 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
     public function environment()
     {
         return $this->appEnv;
+    }
+
+    /**
+     * Return true if current Environment is in Production state else false
+     *
+     * @return bool
+     */
+    public function isProduction()
+    {
+        return $this->environment() === Application::PRODUCTION_STATE;
+    }
+
+    /**
+     * Return true if current Environment is in Development state else false
+     *
+     * @return bool
+     */
+    public function isDevelopment()
+    {
+        return $this->environment() === Application::DEVELOPMENT_STATE;
     }
 
     /**

@@ -19,7 +19,7 @@ interface CollectionContract
      * @param \MongoDB|null $db
      * @throws \ErrorException
      */
-    public function __construct(array $fields = [], \MongoDB $db = null);
+    public function __construct(array $fields = null, \MongoDB $db = null);
 
     /**
      * Returns all collection object that match the given query(condition, etc.)

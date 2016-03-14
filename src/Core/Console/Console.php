@@ -24,8 +24,9 @@ namespace Core\Console;
 
 
 use Core\Contracts\CLIContract;
+use Symfony\Component\Console\Helper\Table;
 
-class Console extends CLI implements CLIContract
+class Console extends CliApplication implements CLIContract
 {
     public $apacheUser;
     public $apacheUserGroup;
@@ -34,13 +35,14 @@ class Console extends CLI implements CLIContract
     /**
      * @inheritdoc
      */
-    protected function loadConsole()
+    protected function loadCommands()
     {
         $this->setVersion('1.0.0');
         $this->setToolName('Reactor');
 
-        $this->addCommand('install', "Install Composer and bower to set up the framework", '\\Core\\Console\\Console::install');
-        $this->addCommand('test:status', "Performs PHPUnit and Codeception tests", '\\Core\\Console\\Console::testStatus');
+        $this->addCommand('install', 'Install Composer and bower to set up the framework', '\\Core\\Console\\Console::install');
+        $this->addCommand('test:status', 'Performs PHPUnit and Codeception tests', '\\Core\\Console\\Console::testStatus');
+        $this->addCommand('routes:list', 'List all registered routes', '\\Core\\Console\\Console::routesList');
     }
 
     /**
@@ -275,4 +277,9 @@ class Console extends CLI implements CLIContract
         }
     }
 
+    public function routesList()
+    {
+        $consoleTable = new Table();
+
+    }
 }

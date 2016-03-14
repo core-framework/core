@@ -29,10 +29,10 @@ use Core\Contracts\CacheContract;
 use Core\Contracts\CLIContract;
 
 /**
- * Class CLI
+ * Class CliApplication
  * @package Core\Console
  */
-abstract class CLI extends BaseApplication implements CLIContract
+abstract class CliApplication extends BaseApplication implements CLIContract
 {
     /**
      * @var bool Defines if verbosity is set
@@ -94,7 +94,7 @@ abstract class CLI extends BaseApplication implements CLIContract
     {
         $this->io = $io;
         parent::__construct($basePath);
-        $this->loadConsole();
+        $this->loadCommands();
     }
 
     /**
@@ -102,7 +102,7 @@ abstract class CLI extends BaseApplication implements CLIContract
      *
      * @return mixed
      */
-    protected abstract function loadConsole();
+    protected abstract function loadCommands();
 
     /**
      * @inheritdoc
@@ -602,7 +602,7 @@ abstract class CLI extends BaseApplication implements CLIContract
     }
 
     /**
-     * (Empty) Router not to be set for CLI
+     * (Empty) Router not to be set for CliApplication
      */
     protected function setRouterConf()
     {

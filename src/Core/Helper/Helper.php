@@ -20,9 +20,6 @@
  * file that was distributed with this source code.
  */
 
-
-use Core\Contracts\AppCache;
-
 if ( ! function_exists('core_serialize') ) {
 
     /**
@@ -160,33 +157,6 @@ if (!function_exists('searchArrayByKey')) {
             }
         }
         return false;
-    }
-}
-
-
-if (!function_exists('requireCached')) {
-
-    /**
-     * Requires cached version of file if exists else caches the given file and requires the given file
-     *
-     * @param $filePath
-     * @return bool|mixed
-     * @throws ErrorException
-     */
-    function requireCached($filePath)
-    {
-        if (AppCache::cacheExists($filePath)) {
-            $cache = AppCache::getCache($filePath);
-            if (is_bool($cache)) {
-                AppCache::cacheContent($filePath, require($filePath), 10000);
-                return require($filePath);
-            } else {
-                return $cache;
-            }
-        } else {
-            AppCache::cacheContent($filePath, require($filePath), 10000);
-            return require($filePath);
-        }
     }
 }
 

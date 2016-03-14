@@ -39,10 +39,14 @@ use Core\Contracts\CacheableContract;
  */
 class Request implements CacheableContract
 {
+    public static $validHttpMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'COPY', 'HEAD', 'OPTIONS', 'LINK', 'UNLINK', 'PURGE', 'LOCK', 'UNLOCK', 'PROPFIND', 'VIEW'];
+
+
     /**
      * @var string The URL/query string (relative path)
      */
-    public $path;
+    protected $path;
+
     /**
      * @var string The request httpMethod .i.e. GET, POST, PUT and DELETE
      */
@@ -126,11 +130,11 @@ class Request implements CacheableContract
 
         //get httpMethod
         if (isset($_SERVER['REQUEST_METHOD'])) {
-            $this->httpMethod = strtoupper($_SERVER['REQUEST_METHOD']);
+            $this->setHttpMethod($_SERVER['REQUEST_METHOD']);
         } elseif (isset($_SERVER['HTTP_X_HTTP_METHOD'])) {
-            $this->httpMethod = strtoupper($_SERVER['HTTP_X_HTTP_METHOD']);
+            $this->setHttpMethod($_SERVER['HTTP_X_HTTP_METHOD']);
         } else {
-            $this->httpMethod = "GET";
+            $this->setHttpMethod("GET");
         }
 
         if (filter_input(INPUT_SERVER, 'HTTP_X_REQUESTED_WITH') === 'xmlhttprequest') {
@@ -176,18 +180,22 @@ class Request implements CacheableContract
 
     /**
      * @param array $array
+     * @return string
      */
     public function sanitizeArray(array $array)
     {
+        $sanitized = [];
         foreach($array as $key => $val) {
 
             if (is_array($val)) {
-                $this->sanitizeArray($val);
+                $sanitized[$key] = $this->sanitizeArray($val);
                 continue;
             }
 
-            $this->sanitize($key, $val);
+            $sanitized[$key] = $this->sanitize($key, $val);
         }
+
+        return $sanitized;
     }
 
     /**
@@ -244,7 +252,7 @@ class Request implements CacheableContract
         foreach ($data as $key => $val) {
 
             if (is_array($val)) {
-                $this->sanitizeArray($val);
+                $sanitizedData[$key] = $this->sanitizeArray($val);
                 continue;
             }
 
@@ -296,9 +304,25 @@ class Request implements CacheableContract
      *
      * @return string
      */
-    public function getRqstMethod()
+    public function getHttpMethod()
     {
         return $this->httpMethod;
+    }
+
+    /**
+     * Sets the http Method
+     *
+     * @param $httpMethod
+     * @return $this
+     */
+    public function setHttpMethod($httpMethod)
+    {
+        if (!in_array(strtoupper($httpMethod), static::$validHttpMethods)) {
+            throw new \InvalidArgumentException("Unknown method: {$httpMethod} given.");
+        }
+
+        $this->httpMethod = strtoupper($httpMethod);
+        return $this;
     }
 
     /**
@@ -312,23 +336,33 @@ class Request implements CacheableContract
     }
 
     /**
-     * Returns an array of sanitized $_GET variables
+     * Find variable value in global $_GET
      *
-     * @return array
+     * @param null|string $variable
+     * @return string|bool
      */
-    public function getGET()
+    public static function _GET($variable = null)
     {
-        return $this->GET;
+        if (is_null($variable)) {
+            return $_GET;
+        }
+
+        return isset($_GET[$variable]) ? $_GET[$variable] : false;
     }
 
     /**
-     * Returns an array of sanitized $_POST variables
+     * Find variable value in global $_POST
      *
-     * @return array
+     * @param null|string $variable
+     * @return string|bool
      */
-    public function getPOST()
+    public static function _POST($variable = null)
     {
-        return $this->POST;
+        if (is_null($variable)) {
+            return $_POST;
+        }
+
+        return isset($_POST[$variable]) ? $_POST[$variable] : false;
     }
 
     /**

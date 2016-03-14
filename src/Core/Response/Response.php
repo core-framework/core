@@ -483,5 +483,13 @@ class Response extends BaseResponse implements ResponseContract, CacheableContra
         return true;
     }
 
-
+    /**
+     * @param $content
+     * @param int $statusCode
+     * @return Response
+     */
+    public static function create($content, $statusCode = 200)
+    {
+        return new self($content, $statusCode);
+    }
 }

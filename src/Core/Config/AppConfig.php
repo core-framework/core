@@ -50,6 +50,41 @@ class AppConfig
         }
     }
 
+    public function find($key)
+    {
+        return static::get($key);
+    }
+
+    public static function getAll()
+    {
+        return self::get();
+    }
+
+    public static function getDatabase()
+    {
+        return self::get('$db');
+    }
+
+    public static function getGlobal()
+    {
+        return self::get('$global');
+    }
+
+    public static function getRoutes()
+    {
+        return self::get('$routes');
+    }
+
+    public static function getEnvironment()
+    {
+        return self::get('$env');
+    }
+
+    public static function getServices()
+    {
+        return self::get('$services');
+    }
+
     public static function setFile($filePath)
     {
         if (!is_readable($filePath)) {

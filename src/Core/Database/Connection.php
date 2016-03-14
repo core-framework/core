@@ -40,73 +40,65 @@ class Connection extends PDO
      */
     private $cache = [];
 
+    protected static $config;
+
     /**
      * Creates an instance of the pdo class
      *
-     * @param array $array
+     * @param array $config
      * @throws \ErrorException
      * @throws \Exception
      */
-    public function __construct(array $array = [])
+    public function __construct(array $config = [])
     {
+        $this->setConfig($config);
+        $this->init($config);
+    }
 
-        if (empty($array)) {
-            throw new \ErrorException("Connection parameters cannot be empty.");
+    /**
+     * @param array $config
+     * @return PDO
+     */
+    public function init(array $config = [])
+    {
+        $options = [];
+        $defaultOptions = array(\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION, \PDO::ATTR_EMULATE_PREPARES => false);
+
+        if (empty($config)) {
+            $config = $this->getConfig();
         }
 
-        if ($array['db'] == "") {
-            $db = "";
-        } elseif ($array['db'] != null) {
-            $db = "dbname=" . $array['db'];
-        }
+        $db = isset($config['db']) ? $config['db'] : 'test';
+        $type = isset($config['type']) ? $config['type'] : 'mysql';
+        $host = isset($config['host']) ? $config['host'] : 'localhost';
+        $user = isset($config['user']) ? $config['user'] : null;
+        $pass = isset($config['pass']) ? $config['pass'] : null;
+        $port = isset($config['port']) ? $config['port'] : '';
 
-        if (!empty($array['type'])) {
-            $type = $array['type'];
-        } else {
-            $type = "mysql";
-        }
+        $dsnString = $type . ':' . 'dbname=' .$db . ';' . 'host=' . $host . ';' . $port;
 
-        if (!empty($array['host'])) {
-            $host = $array['host'];
-        } else {
-            throw new \Exception("Database Host not provided.");
-        }
 
-        if (!empty($array['user'])) {
-            $user = $array['user'];
-        } else {
-            $user = null;
-        }
+        try {
 
-        if (!empty($array['pass'])) {
-            $pass = $array['pass'];
-        } else {
-            $pass = null;
-        }
-
-        if (!empty($array['port'])) {
-            $port = "port=" . $array['port'];
-        } else {
-            $port = "";
-        }
-
-        $dsn = $type . ':' . $db . ';' . 'host=' . $host . ';' . $port;
-
-        $dsnString = $dsn;
-
-        if (isset($array['dsn'])) {
-            $dsn = $array['type'] . ":";
-            $dsnAttrArr = [];
-            foreach ($array['dsn'] as $key => $val) {
-                $dsnAttrArr[] = $key . "=" . $val;
+            if (isset($config['options'])) {
+               $options = array_merge($defaultOptions, $config['options']);
             }
 
-            $dsnAttr = implode(";", $dsnAttrArr);
+            parent::__construct($dsnString, $user, $pass, $options);
 
-            $dsnString = $dsn . $dsnAttr;
+
+        } catch (\Exception $e) {
+            throw new \PDOException("There was a problem connecting to the database: {$e->getMessage()}");
         }
+    }
 
-        return parent::__construct($dsnString, $user, $pass);
+    public function setDefaultOptions($options = [])
+    {
+        if (!empty($options)) {
+            foreach ($options as $key => $value) {
+                $this->setAttribute($key, $value);
+            }
+        }
     }
 
     /**
@@ -122,6 +114,16 @@ class Connection extends PDO
             $this->cache[$hash] = $this->prepare($query);
         }
         return $this->cache[$hash];
+    }
+
+    public static function setConfig($config)
+    {
+        self::$config = $config;
+    }
+
+    public static function getConfig()
+    {
+        return self::$config;
     }
 
     /**

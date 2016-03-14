@@ -43,7 +43,7 @@ class Collection implements CollectionContract
      * @param \MongoDB|null $db
      * @throws \ErrorException
      */
-    public function __construct(array $fields = [], \MongoDB $db = null)
+    public function __construct(array $fields = null, \MongoDB $db = null)
     {
         if (!is_null($db)) {
             self::$db = $db;
@@ -51,7 +51,9 @@ class Collection implements CollectionContract
             self::$db = $this->getConnection();
         }
 
-        $this->configure($this, $fields);
+        if (!empty($fields)) {
+            $this->configure($this, $fields);
+        }
     }
 
     /**
