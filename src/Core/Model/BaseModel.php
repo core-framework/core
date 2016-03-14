@@ -8,7 +8,7 @@
 
 namespace Core\Model;
 
-use Core\Config\AppConfig;
+use Core\Config\Config;
 use Core\Contracts\Database\LanguageContract;
 use Core\Contracts\ModelContract;
 use Core\Database\Connection;
@@ -219,8 +219,8 @@ abstract class BaseModel implements ModelContract
      */
     public static function getConfig()
     {
-        if (empty(self::$config) && !empty(AppConfig::getDatabase())) {
-            self::setConfig(AppConfig::getDatabase());
+        if (empty(self::$config) && !empty(Config::getDatabase())) {
+            self::setConfig(Config::getDatabase());
         }
 
         return self::$config;

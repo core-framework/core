@@ -23,7 +23,7 @@
 namespace Core\Config;
 
 
-class AppConfig
+class Config
 {
     public static $confSrcPath;
     public static $confEditablePath;
@@ -90,7 +90,7 @@ class AppConfig
         if (!is_readable($filePath)) {
             throw new \InvalidArgumentException("Given argument must be a readable file path.");
         }
-        return new AppConfig($filePath);
+        return new Config($filePath);
     }
 
     public static function addConf($name, array $confArr)

@@ -157,9 +157,9 @@ class ApplicationTest extends \PHPUnit_Framework_TestCase
      */
     public function testIfApplicationHasConfig()
     {
-        $this->assertArrayHasKey('$db', $this->app->config);
-        $this->assertArrayHasKey('$global', $this->app->config);
-        $this->assertArrayHasKey('$routes', $this->app->config);
+        $this->assertArrayHasKey('$db', $this->app->configArr);
+        $this->assertArrayHasKey('$global', $this->app->configArr);
+        $this->assertArrayHasKey('$routes', $this->app->configArr);
     }
 
     /**

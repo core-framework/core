@@ -183,7 +183,7 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
      *
      * @var array
      */
-    public $config;
+    public $configArr;
 
     /**
      * Cache instance
@@ -317,7 +317,7 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
         if (!is_null($basePath)) {
             $this->loadConfig();
 
-            if (!is_null($this->config)) {
+            if (!is_null($this->configArr)) {
                 $this->setEnvironment();
                 $this->registerServicesFromConfig();
                 $this->setRouterConf();
@@ -349,7 +349,7 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
             \Core\Cache\AppCache::class,
             [$this->getAbsolutePath("/storage/framework/cache")]
         );
-        $this->registerAndLoad('AppConfig', \Core\Config\AppConfig::class, [$this->config]);
+        $this->registerAndLoad('Config', \Core\Config\Config::class, [$this->configArr]);
     }
 
     /**
@@ -388,10 +388,10 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
         }
 
         if ($cache->cacheExists('framework.conf')) {
-            $this->config = $cache->getCache('framework.conf');
+            $this->configArr = $cache->getCache('framework.conf');
         } else {
-            $this->config = $this->getConfig();
-            $cache->cacheContent('framework.conf', $this->config, 0);
+            $this->configArr = $this->getConfig();
+            $cache->cacheContent('framework.conf', $this->configArr, 0);
         }
     }
 
@@ -435,11 +435,11 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
      */
     protected function getConfig()
     {
-        if (is_null($this->config)) {
-            $this->config = require($this->getConfigPath());
+        if (is_null($this->configArr)) {
+            $this->configArr = require($this->getConfigPath());
         }
 
-        return $this->config;
+        return $this->configArr;
     }
 
     /**
@@ -457,7 +457,7 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
      */
     protected function registerServicesFromConfig()
     {
-        $this->baseServices = isset($this->config['$services']) ? $this->config['$services'] : [];
+        $this->baseServices = isset($this->configArr['$services']) ? $this->configArr['$services'] : [];
 
         if (!isset ($this->baseServices) || empty($this->baseServices)) {
             return;
@@ -550,7 +550,7 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
     protected function parseRoute()
     {
         $this->setStatus(self::STATUS_HANDLING_REQUEST);
-        $useAestheticRouting = isset($this->config['$global']['useAestheticRouting']) ? $this->config['$global']['useAestheticRouting'] : false;
+        $useAestheticRouting = isset($this->configArr['$global']['useAestheticRouting']) ? $this->configArr['$global']['useAestheticRouting'] : false;
         $this->router->resolve($useAestheticRouting);
         $this->cacheRouter();
 
@@ -626,7 +626,7 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
         $method = $this->router->getMethod();
         $args = $this->router->getArgs();
         $class = $namespace . "\\" . $controller;
-        $controllerObj = new $class(self::basePath(), $this->router, $view, $this->config);
+        $controllerObj = new $class(self::basePath(), $this->router, $view, $this->configArr);
         $response = $controllerObj->$method(!isset($args) ?: $args);
 
         if (!$response instanceof ResponseContract || $response->getIsContentSet()) {
