@@ -1,8 +1,7 @@
 <?php
 
 
-namespace Test\Request\Request;
-
+namespace Core\Tests\Request;
 
 use Core\Request\Request;
 

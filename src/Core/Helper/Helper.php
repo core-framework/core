@@ -20,7 +20,7 @@
  * file that was distributed with this source code.
  */
 
-if ( ! function_exists('core_serialize') ) {
+if (!function_exists('core_serialize')) {
 
     /**
      * Method to serialize array (comma separated values as single string)
@@ -200,6 +200,95 @@ if (!function_exists('strEndsWith')) {
                 $search,
                 $temp
             ) !== false);
+    }
+
+}
+
+if (!function_exists('dotGet')) {
+
+    /**
+     * Dot notation access to given array.
+     *
+     * @param $key
+     * @param array $data
+     * @param null $default
+     * @return array|null
+     */
+    function dotGet($key, array $data, $default = null)
+    {
+        if (!is_string($key) || empty($key) || !count($data)) {
+            return $default;
+        }
+
+        if (strpos($key, '.') !== false) {
+            $keys = explode('.', $key);
+
+            foreach ($keys as $innerKey) {
+                if (!array_key_exists($innerKey, $data)) {
+                    return $default;
+                }
+
+                $data = $data[$innerKey];
+            }
+
+            return $data;
+        }
+
+        return array_key_exists($key, $data) ? $data[$key] : $default;
+    }
+}
+
+if (!function_exists('dotSet')) {
+
+    /**
+     * Dot notation set array value.
+     *
+     * @param $path
+     * @param array $array
+     * @param $value
+     * @return array|bool
+     */
+    function dotSet($path, array &$array, $value)
+    {
+        if (!is_string($path) || empty($path) || !count($array)) {
+            return false;
+        }
+
+        if (strpos($path, '.') !== false) {
+            $loc = &$array;
+            foreach (explode('.', $path) as $step) {
+                $loc = &$loc[$step];
+            }
+            $loc = $value;
+            return $array;
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('getOne')) {
+
+    function getOne($original, $default)
+    {
+        try {
+            if (is_callable($original)) {
+                $originalValue = $original();
+            } else {
+                $originalValue = $original;
+            }
+
+            if (!isset($originalValue) || empty($originalValue)) {
+                $returnVal = $default;
+            } else {
+                $returnVal = $originalValue;
+            }
+
+        } catch (Exception $e) {
+            $returnVal = $default;
+        }
+
+        return $returnVal;
     }
 
 }

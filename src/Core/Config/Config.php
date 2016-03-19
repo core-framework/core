@@ -22,169 +22,305 @@
 
 namespace Core\Config;
 
+use Core\Contracts\ConfigContract;
 
-class Config
+class Config implements ConfigContract
 {
-    public static $confSrcPath;
-    public static $confEditablePath;
-    public static $allConfPath;
-    public static $allConf;
+    public static $confDir;
+    public static $confFilesData = [];
 
-    public function __construct($conf = null)
+    public static $baseConfFiles = [
+        '$global' => 'global.conf.php',
+        '$db' => 'db.conf.php',
+        '$routes' => 'routes.conf.php',
+        '$env' => 'env.conf.php',
+        '$services' => 'services.conf.php'
+    ];
+
+    public static $cliConfFiles = [
+        '$global' => 'global.conf.php',
+        '$db' => 'db.conf.php',
+        '$services' => 'cliServices.conf.php',
+        '$commands' => 'commands.conf.php',
+        '$options' => 'options.conf.php'
+    ];
+
+    public static $allConf = [
+        '$global' => [],
+        '$db' => [],
+        '$routes' => [],
+        '$env' => [],
+        '$services' => [],
+        '$commands' => [],
+        '$options' => []
+    ];
+
+    /**
+     * Constructor
+     *
+     * @param null $configDir
+     */
+    public function __construct($configDir = null)
     {
-        if (!is_null($conf)) {
-            static::configure($conf);
+        if (!is_null($configDir)) {
+
+            if (!is_string($configDir)) {
+                $type = gettype($configDir);
+                throw new \InvalidArgumentException(
+                    "Config must be initiated with Config Directory Path (string). {$type} given."
+                );
+            }
+
+            static::setConfDir($configDir);
+            static::setUp();
         }
 
         return $this;
     }
 
+    /**
+     * @inheritdoc
+     */
     public static function get($confKey = null)
     {
-        if (is_null($confKey)) {
-            return static::$allConf;
-        } elseif (isset(static::$allConf[$confKey])) {
-            return static::$allConf[$confKey];
+        if (strpos($confKey, ':') !== false) {
+            return self::getFromFile($confKey);
         } else {
-            return searchArrayByKey(static::$allConf, $confKey);
+            if (is_null($confKey)) {
+                return static::$allConf;
+            } elseif (isset(static::$allConf[$confKey])) {
+                return static::$allConf[$confKey];
+            } elseif (strpos($confKey, '.') !== false) {
+                return dotGet($confKey, static::$allConf);
+            } else {
+                return searchArrayByKey(static::$allConf, $confKey);
+            }
         }
     }
 
-    public function find($key)
+    /**
+     * Extracts path (dot notation) or Key from given config Key
+     *
+     * @param $confKey
+     * @return string
+     */
+    protected static function getPathFromKey($confKey)
     {
-        return static::get($key);
+        $parts = explode(':', $confKey);
+        $path = array_slice($parts, 1)[0];
+        if (empty($path) || $path === null) {
+            $path = '';
+        }
+        return $path;
     }
 
-    public static function getAll()
+    /**
+     * Determines the file Path from provided Config Key
+     *
+     * @param $confKey
+     * @return string
+     */
+    protected static function getFilePathFromKey($confKey)
     {
-        return self::get();
+        $filePath = '';
+        $parts = explode(':', $confKey);
+        $file = $parts[0];
+        if (is_readable(static::$confDir . '/' . $file . '.conf.php')) {
+            $filePath = static::$confDir . '/' . $file . '.conf.php';
+        } elseif (is_readable(static::$confDir . '/' . $file . '.php')) {
+            $filePath = static::$confDir . '/' . $file . '.php';
+        } else {
+            $filePath = static::$confDir . '/' . $file;
+        }
+
+        return $filePath;
     }
 
+    protected static function getFileNameFromKey($confKey)
+    {
+        $fileName = null;
+        $parts = explode(':', $confKey);
+        $file = $parts[0];
+        if (is_readable(static::$confDir . '/' . $file . '.conf.php')) {
+            $fileName = $file . '.conf.php';
+        } elseif (is_readable(static::$confDir . '/' . $file . '.php')) {
+            $fileName = $file . '.php';
+        } else {
+            $fileName = $file;
+        }
+
+        return $fileName;
+    }
+
+    /**
+     * Get Config from file given (dot notation) path or key and filePath
+     *
+     * @param $confKey
+     * @return array|null
+     */
+    protected static function getFromFile($confKey)
+    {
+        $fileName = static::getFileNameFromKey($confKey);
+        $pathKey = static::getPathFromKey($confKey);
+        $env = self::getEnvironment();
+
+        $orgFilePath = static::getConfDir() . '/' . $fileName;
+        $overrideFilePath = static::getConfDir() . '/' . $env . '/' . $fileName;
+
+        if (is_readable($overrideFilePath) && is_readable($orgFilePath)){
+            $overrideArr = include($overrideFilePath);
+            $orgFilePath = include($orgFilePath);
+            $array = array_merge($orgFilePath, $overrideArr);
+            static::$confFilesData[$fileName] = $array;
+        } elseif (isset(static::$confFilesData[$fileName])) {
+            $array = static::$confFilesData[$fileName];
+        } elseif (is_readable($orgFilePath)) {
+            $array = include $orgFilePath;
+            static::$confFilesData[$fileName] = $array;
+        } else {
+            throw new \LogicException("Given Config File not found or not readable.");
+        }
+
+        if (!is_array($array)) {
+            throw new \LogicException("Expects config file content to be an array.");
+        }
+
+        return dotGet($pathKey, $array);
+    }
+
+    /**
+     * @inheritdoc
+     */
     public static function getDatabase()
     {
         return self::get('$db');
     }
 
+    /**
+     * @inheritdoc
+     */
     public static function getGlobal()
     {
         return self::get('$global');
     }
 
+    /**
+     * @inheritdoc
+     */
     public static function getRoutes()
     {
         return self::get('$routes');
     }
 
+    /**
+     * @inheritdoc
+     */
     public static function getEnvironment()
     {
-        return self::get('$env');
+        return getOne(getenv('environment'), 'local');
     }
 
+    /**
+     * @inheritdoc
+     */
     public static function getServices()
     {
         return self::get('$services');
     }
 
-    public static function setFile($filePath)
-    {
-        if (!is_readable($filePath)) {
-            throw new \InvalidArgumentException("Given argument must be a readable file path.");
-        }
-        return new Config($filePath);
-    }
-
-    public static function addConf($name, array $confArr)
+    /**
+     * @inheritdoc
+     */
+    public static function add($name, array $confArr)
     {
         static::$allConf[$name] = $confArr;
     }
 
-    public static function setConf(array $confArr)
+    /**
+     * @inheritdoc
+     */
+    public static function set(array $confArr)
     {
         static::$allConf = $confArr;
     }
 
-    public static function setEditableConfFile($filePath)
+    /**
+     * Setup/initiate Config Class
+     */
+    protected static function setUp()
     {
-        static::$confEditablePath = $filePath;
-    }
+        $confDir = static::getConfDir();
+        $env = getenv('environment');
+        $confArr = [];
 
-    public static function store($arr = [])
-    {
-        $filePath = static::$confEditablePath;
-
-        if (empty($arr)) {
-            throw new \InvalidArgumentException("Nothing to save!");
-        }
-
-        if (!is_array($arr)) {
-            throw new \InvalidArgumentException("Given argument must be an Array.");
-        }
-
-        if (!isset($filePath)) {
-            throw new \LogicException("Editable config file not provided.");
-        }
-
-        if (!is_readable($filePath)) {
-            throw new \LogicException("Provided config file is not readable.");
-        }
-
-        static::putFileContent($filePath, $arr);
-    }
-
-    public static function getFileContent($filePath)
-    {
-        if (is_readable($filePath)) {
-            $orgData = include $filePath;
+        if (is_readable($confDir . '/framework.conf.php')) {
+            self::$allConf = include($confDir . '/framework.conf.php');
+        } elseif (is_readable($confDir . '/cli.conf.php')) {
+            self::$allConf = include($confDir . '/cli.conf.php');
         } else {
-            $orgData = [];
-        }
-        return $orgData;
-    }
 
-    public static function putFileContent($filePath, $putArr = [])
-    {
-        if (!is_array($putArr)) {
-            throw new \InvalidArgumentException("Content to put in file must be an Array.");
-        }
+            $filesArr = php_sapi_name() === 'cli' ? static::$cliConfFiles : static::$baseConfFiles;
 
-        if (empty($putArr)) {
-            throw new \InvalidArgumentException("Nothing to put in file.");
-        }
+            foreach ($filesArr as $key => $file) {
+                $orgFile = $confDir . '/' . $file;
+                $overrideFile = $confDir . '/' . $env . '/' . $file;
 
-        if (!is_readable($filePath) || !is_writable($filePath)) {
-            throw new \InvalidArgumentException("Given file not readable Or writable.");
-        }
+                if (is_readable($orgFile)) {
+                    $confArr = include($orgFile);
+                    if (!is_array($confArr)) {
+                        $confArr = [];
+                    }
+                }
 
-        $orgContentArr = static::getFileContent($filePath);
-        try {
-            $perms = substr(decoct(fileperms($filePath)),2);
-            chmod($filePath, 0777);
-            $newArr = array_merge($putArr, $orgContentArr);
-            $data = '<?php return ' . var_export($newArr, true) . ";\n ?>";
-            file_put_contents($filePath, $data);
-            chmod($filePath, octdec($perms));
-        } catch (\Exception $e) {
-            throw new \ErrorException($e->getMessage());
-        }
-    }
+                if (is_readable($overrideFile)) {
+                    $confArr = array_merge_recursive($confArr, $overrideFile);
+                }
 
-    protected static function configure($conf)
-    {
-        if (is_array($conf)) {
-            static::$allConf = $conf;
-        } elseif (!empty($conf) && is_string($conf) && is_readable($conf)) {
-            static::$confSrcPath = $conf;
-            $confArr = include $conf;
-            if (!is_array($confArr)) {
-                throw new \InvalidArgumentException(
-                    "Expected contents of file to be array, " . gettype($confArr) . " given."
-                );
+                static::$allConf[$key] = $confArr;
             }
-            static::$allConf = $confArr;
-        } elseif (!is_readable($conf)) {
-            throw new \InvalidArgumentException("Unable to read file " . $conf);
-        } else {
-            throw new \InvalidArgumentException("Config must be a readable file or array");
+
         }
+
+        $config = static::$allConf;
+
+        if (isset($config['$global']['apcIsLoaded']) && isset($config['$global']['apcIsEnabled'])) {
+            $config['$global']['hasAPC'] = true;
+        } else {
+            $config['$global']['hasAPC'] = false;
+        }
+
+        if ($env === 'local' || ($env === 'production' && isset($config['$env']['debug']) && $config['$env']['debug'] === true)) {
+
+            ini_set('display_errors', 'On');
+            if (isset($config['$env']['error_reporting_type'])) {
+                error_reporting($config['$env']['error_reporting_type']);
+            } else {
+                error_reporting(E_ALL);
+            }
+
+        } else {
+            ini_set('display_errors', 'Off');
+            error_reporting(0);
+        }
+
     }
+
+
+    /**
+     * @inheritdoc
+     */
+    public static function getConfDir()
+    {
+        return self::$confDir;
+    }
+
+
+    /**
+     * @inheritdoc
+     */
+    public static function setConfDir($confDir)
+    {
+        self::$confDir = rtrim($confDir, '/');
+    }
+
 }

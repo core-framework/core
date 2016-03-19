@@ -1,5 +1,7 @@
 <?php
 
+namespace Core\Tests\Response;
+
 use Core\Response\Response;
 use org\bovigo\vfs\vfsStream;
 
@@ -9,7 +11,7 @@ use org\bovigo\vfs\vfsStream;
  * Date: 02/11/15
  * Time: 11:39 PM
  */
-class ResponseTest extends PHPUnit_Framework_TestCase
+class ResponseTest extends \PHPUnit_Framework_TestCase
 {
     public function setUp()
     {

@@ -25,6 +25,7 @@ namespace Core\Console;
 
 use Core\Application\Application;
 use Core\Application\BaseApplication;
+use Core\Config\Config;
 use Core\Contracts\CacheContract;
 use Core\Contracts\CLIContract;
 
@@ -114,6 +115,7 @@ abstract class CliApplication extends BaseApplication implements CLIContract
             \Core\Cache\AppCache::class,
             [$this->getAbsolutePath("/storage/framework/cache")]
         );
+        $this->registerAndLoad('Config', \Core\Config\Config::class, [$this->getConfigDir()]);
     }
 
     /**
@@ -622,10 +624,10 @@ abstract class CliApplication extends BaseApplication implements CLIContract
         }
 
         if ($cache->cacheExists('cli.conf')) {
-            $this->config = $cache->getCache('cli.conf');
+            $this->configArr = $cache->getCache('cli.conf');
         } else {
-            $this->config = $this->getConfig();
-            $cache->cacheContent('cli.conf', $this->config, 0);
+            $this->configArr = $this->getConfig();
+            $cache->cacheContent('cli.conf', $this->configArr, 0);
         }
     }
 
@@ -646,7 +648,7 @@ abstract class CliApplication extends BaseApplication implements CLIContract
      */
     protected function loadConf()
     {
-        $config = $this->config;
+        $config = $this->configArr;
         if (isset($config['$commands']) && !empty($config['$commands'])) {
             $commandsArr = $config['$commands'];
             foreach ($commandsArr as $index => $arr) {

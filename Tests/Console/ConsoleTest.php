@@ -6,7 +6,7 @@
  * Time: 10:44 AM
  */
 
-namespace Tests\Console;
+namespace Core\Tests\Console;
 
 use Core\Console\Console;
 use Core\Console\IOStream;

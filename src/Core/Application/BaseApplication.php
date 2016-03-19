@@ -23,9 +23,11 @@
 namespace Core\Application;
 
 use Core\Cache\AppCache;
+use Core\Config\Config;
 use Core\Container\Container;
 use Core\Contracts\BaseApplicationContract;
 use Core\Contracts\CacheContract;
+use Core\Contracts\ConfigContract;
 use Core\Contracts\ResponseContract;
 use Core\Response\Response;
 use Core\Router\Router;
@@ -42,12 +44,12 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
     /**
      * Application Development State Flag
      */
-    const DEVELOPMENT_STATE = 'dev';
+    const DEVELOPMENT_STATE = 'local';
 
     /**
      * Application Production State Flag
      */
-    const PRODUCTION_STATE = 'prod';
+    const PRODUCTION_STATE = 'production';
 
     /**
      * Begin state
@@ -302,6 +304,7 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
     public function boot()
     {
         $this->setStatus(self::STATUS_BOOTING);
+        $this->setEnvironment();
         $this->registerApp();
         $this->loadBaseComponents();
         $this->clearCacheIfRequired();
@@ -318,7 +321,6 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
             $this->loadConfig();
 
             if (!is_null($this->configArr)) {
-                $this->setEnvironment();
                 $this->registerServicesFromConfig();
                 $this->setRouterConf();
             }
@@ -349,7 +351,7 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
             \Core\Cache\AppCache::class,
             [$this->getAbsolutePath("/storage/framework/cache")]
         );
-        $this->registerAndLoad('Config', \Core\Config\Config::class, [$this->configArr]);
+        $this->registerAndLoad('Config', \Core\Config\Config::class, [$this->getConfigDir()]);
     }
 
     /**
@@ -400,32 +402,11 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
      */
     public function setEnvironment()
     {
-        $config = $this->getConfig();
+        $env = !isset($_SERVER['REMOTE_ADDR']) || $_SERVER['REMOTE_ADDR'] == '127.0.0.1' ? static::DEVELOPMENT_STATE : static::PRODUCTION_STATE;
+        $this->appEnv = $env;
+        putenv('environment='.$env);
 
-        if (isset($config['$env']['app_env']) && strstr($config['$env']['app_env'], 'prod')) {
-            $this->appEnv = static::PRODUCTION_STATE;
-        } else {
-            $this->appEnv = static::DEVELOPMENT_STATE;
-            error_reporting(E_ALL);
-            ini_set('display_errors', 'On');
-        }
-
-        if (isset($config['$env']['debug']) && $config['$env']['debug'] === true) {
-
-            static::$isDebugMode = $config['$env']['debug'];
-            if (ini_get('display_errors') === 'off' || ini_get('display_errors') === false) {
-                ini_set('display_errors', 'On');
-            }
-
-            if (isset($config['$env']['error_reporting_type'])) {
-                error_reporting($config['$env']['error_reporting_type']);
-            } else {
-                error_reporting(E_ALL);
-            }
-
-        } else {
-            static::$isDebugMode = false;
-        }
+        return $this;
     }
 
     /**
@@ -436,7 +417,11 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
     protected function getConfig()
     {
         if (is_null($this->configArr)) {
-            $this->configArr = require($this->getConfigPath());
+            if ($this->config instanceof ConfigContract) {
+                $this->configArr = $this->config->get();
+            } else {
+                $this->configArr = Config::get();
+            }
         }
 
         return $this->configArr;
@@ -450,6 +435,11 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
     public function getConfigPath()
     {
         return $this->getAbsolutePath('/config/framework.conf.php');
+    }
+
+    public function getConfigDir()
+    {
+        return $this->getAbsolutePath('/config');
     }
 
     /**
@@ -887,7 +877,7 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
      */
     public function setDocumentRoot($docRoot = null)
     {
-        $docRoot = is_null($docRoot) ? $this->getBasePath() : $docRoot;
+        $docRoot = is_null($docRoot) ? $this->getBasePath() . "/web" : $docRoot;
         $docRoot = rtrim($docRoot, "/");
         self::$docRoot = $docRoot;
         self::addAlias("@docRoot", $docRoot);

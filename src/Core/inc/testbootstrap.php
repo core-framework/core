@@ -22,4 +22,5 @@
 
 
 defined('_ROOT') or define('_ROOT', realpath(__DIR__ . "/../../../") );
+defined('_environment') or define('_environment', 'testing');
 include _ROOT . "/vendor/autoload.php";
