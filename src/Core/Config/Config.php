@@ -79,172 +79,6 @@ class Config implements ConfigContract
     }
 
     /**
-     * @inheritdoc
-     */
-    public static function get($confKey = null)
-    {
-        if (strpos($confKey, ':') !== false) {
-            return self::getFromFile($confKey);
-        } else {
-            if (is_null($confKey)) {
-                return static::$allConf;
-            } elseif (isset(static::$allConf[$confKey])) {
-                return static::$allConf[$confKey];
-            } elseif (strpos($confKey, '.') !== false) {
-                return dotGet($confKey, static::$allConf);
-            } else {
-                return searchArrayByKey(static::$allConf, $confKey);
-            }
-        }
-    }
-
-    /**
-     * Extracts path (dot notation) or Key from given config Key
-     *
-     * @param $confKey
-     * @return string
-     */
-    protected static function getPathFromKey($confKey)
-    {
-        $parts = explode(':', $confKey);
-        $path = array_slice($parts, 1)[0];
-        if (empty($path) || $path === null) {
-            $path = '';
-        }
-        return $path;
-    }
-
-    /**
-     * Determines the file Path from provided Config Key
-     *
-     * @param $confKey
-     * @return string
-     */
-    protected static function getFilePathFromKey($confKey)
-    {
-        $filePath = '';
-        $parts = explode(':', $confKey);
-        $file = $parts[0];
-        if (is_readable(static::$confDir . '/' . $file . '.conf.php')) {
-            $filePath = static::$confDir . '/' . $file . '.conf.php';
-        } elseif (is_readable(static::$confDir . '/' . $file . '.php')) {
-            $filePath = static::$confDir . '/' . $file . '.php';
-        } else {
-            $filePath = static::$confDir . '/' . $file;
-        }
-
-        return $filePath;
-    }
-
-    protected static function getFileNameFromKey($confKey)
-    {
-        $fileName = null;
-        $parts = explode(':', $confKey);
-        $file = $parts[0];
-        if (is_readable(static::$confDir . '/' . $file . '.conf.php')) {
-            $fileName = $file . '.conf.php';
-        } elseif (is_readable(static::$confDir . '/' . $file . '.php')) {
-            $fileName = $file . '.php';
-        } else {
-            $fileName = $file;
-        }
-
-        return $fileName;
-    }
-
-    /**
-     * Get Config from file given (dot notation) path or key and filePath
-     *
-     * @param $confKey
-     * @return array|null
-     */
-    protected static function getFromFile($confKey)
-    {
-        $fileName = static::getFileNameFromKey($confKey);
-        $pathKey = static::getPathFromKey($confKey);
-        $env = self::getEnvironment();
-
-        $orgFilePath = static::getConfDir() . '/' . $fileName;
-        $overrideFilePath = static::getConfDir() . '/' . $env . '/' . $fileName;
-
-        if (is_readable($overrideFilePath) && is_readable($orgFilePath)){
-            $overrideArr = include($overrideFilePath);
-            $orgFilePath = include($orgFilePath);
-            $array = array_merge($orgFilePath, $overrideArr);
-            static::$confFilesData[$fileName] = $array;
-        } elseif (isset(static::$confFilesData[$fileName])) {
-            $array = static::$confFilesData[$fileName];
-        } elseif (is_readable($orgFilePath)) {
-            $array = include $orgFilePath;
-            static::$confFilesData[$fileName] = $array;
-        } else {
-            throw new \LogicException("Given Config File not found or not readable.");
-        }
-
-        if (!is_array($array)) {
-            throw new \LogicException("Expects config file content to be an array.");
-        }
-
-        return dotGet($pathKey, $array);
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public static function getDatabase()
-    {
-        return self::get('$db');
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public static function getGlobal()
-    {
-        return self::get('$global');
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public static function getRoutes()
-    {
-        return self::get('$routes');
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public static function getEnvironment()
-    {
-        return getOne(getenv('environment'), 'local');
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public static function getServices()
-    {
-        return self::get('$services');
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public static function add($name, array $confArr)
-    {
-        static::$allConf[$name] = $confArr;
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public static function set(array $confArr)
-    {
-        static::$allConf = $confArr;
-    }
-
-    /**
      * Setup/initiate Config Class
      */
     protected static function setUp()
@@ -305,7 +139,6 @@ class Config implements ConfigContract
 
     }
 
-
     /**
      * @inheritdoc
      */
@@ -314,13 +147,178 @@ class Config implements ConfigContract
         return self::$confDir;
     }
 
-
     /**
      * @inheritdoc
      */
     public static function setConfDir($confDir)
     {
         self::$confDir = rtrim($confDir, '/');
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public static function getDatabase()
+    {
+        return self::get('$db');
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public static function get($confKey = null)
+    {
+        if (is_null($confKey)) {
+            return static::$allConf;
+        } elseif (strpos($confKey, ':') !== false) {
+            return self::getFromFile($confKey);
+        } else {
+            if (isset(static::$allConf[$confKey])) {
+                return static::$allConf[$confKey];
+            } elseif (strpos($confKey, '.') !== false) {
+                return dotGet($confKey, static::$allConf);
+            } else {
+                return searchArrayByKey(static::$allConf, $confKey);
+            }
+        }
+    }
+
+    /**
+     * Get Config from file given (dot notation) path or key and filePath
+     *
+     * @param $confKey
+     * @return array|null
+     */
+    protected static function getFromFile($confKey)
+    {
+        $fileName = static::getFileNameFromKey($confKey);
+        $pathKey = static::getPathFromKey($confKey);
+        $env = self::getEnvironment();
+
+        $orgFilePath = static::getConfDir() . '/' . $fileName;
+        $overrideFilePath = static::getConfDir() . '/' . $env . '/' . $fileName;
+
+        if (is_readable($overrideFilePath) && is_readable($orgFilePath)){
+            $overrideArr = include($overrideFilePath);
+            $orgFilePath = include($orgFilePath);
+            $array = array_merge($orgFilePath, $overrideArr);
+            static::$confFilesData[$fileName] = $array;
+        } elseif (isset(static::$confFilesData[$fileName])) {
+            $array = static::$confFilesData[$fileName];
+        } elseif (is_readable($orgFilePath)) {
+            $array = include $orgFilePath;
+            static::$confFilesData[$fileName] = $array;
+        } else {
+            throw new \LogicException("Given Config File not found or not readable.");
+        }
+
+        if (!is_array($array)) {
+            throw new \LogicException("Expects config file content to be an array.");
+        }
+
+        return dotGet($pathKey, $array);
+    }
+
+    protected static function getFileNameFromKey($confKey)
+    {
+        $fileName = null;
+        $parts = explode(':', $confKey);
+        $file = $parts[0];
+        if (is_readable(static::$confDir . '/' . $file . '.conf.php')) {
+            $fileName = $file . '.conf.php';
+        } elseif (is_readable(static::$confDir . '/' . $file . '.php')) {
+            $fileName = $file . '.php';
+        } else {
+            $fileName = $file;
+        }
+
+        return $fileName;
+    }
+
+    /**
+     * Extracts path (dot notation) or Key from given config Key
+     *
+     * @param $confKey
+     * @return string
+     */
+    protected static function getPathFromKey($confKey)
+    {
+        $parts = explode(':', $confKey);
+        $path = array_slice($parts, 1)[0];
+        if (empty($path) || $path === null) {
+            $path = '';
+        }
+        return $path;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public static function getEnvironment()
+    {
+        return getOne(getenv('environment'), 'local');
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public static function getGlobal()
+    {
+        return self::get('$global');
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public static function getRoutes()
+    {
+        return self::get('$routes');
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public static function getServices()
+    {
+        return self::get('$services');
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public static function add($name, array $confArr)
+    {
+        static::$allConf[$name] = $confArr;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public static function set(array $confArr)
+    {
+        static::$allConf = $confArr;
+    }
+
+    /**
+     * Determines the file Path from provided Config Key
+     *
+     * @param $confKey
+     * @return string
+     */
+    protected static function getFilePathFromKey($confKey)
+    {
+        $filePath = '';
+        $parts = explode(':', $confKey);
+        $file = $parts[0];
+        if (is_readable(static::$confDir . '/' . $file . '.conf.php')) {
+            $filePath = static::$confDir . '/' . $file . '.conf.php';
+        } elseif (is_readable(static::$confDir . '/' . $file . '.php')) {
+            $filePath = static::$confDir . '/' . $file . '.php';
+        } else {
+            $filePath = static::$confDir . '/' . $file;
+        }
+
+        return $filePath;
     }
 
 }
