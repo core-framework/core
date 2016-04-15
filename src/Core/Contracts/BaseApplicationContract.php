@@ -65,12 +65,4 @@ interface BaseApplicationContract
      */
     public function boot();
 
-
-    /**
-     * Get path to "framework.conf.php" file
-     *
-     * @return mixed
-     */
-    public function getConfigPath();
-
 }

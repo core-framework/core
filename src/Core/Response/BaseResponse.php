@@ -274,6 +274,16 @@ abstract class BaseResponse implements ResponseContract, CacheableContract
     }
 
     /**
+     * Get HTTP response status
+     * 
+     * @return bool
+     */
+    public function getStatusCode()
+    {
+        return $this->getHeader('Status');
+    }
+
+    /**
      * Set View object
      *
      * @param ViewContract $view
@@ -350,7 +360,7 @@ abstract class BaseResponse implements ResponseContract, CacheableContract
         return [
             'content',
             'statusCode',
-            'header',
+            'headers',
         ];
     }
 

@@ -39,8 +39,23 @@ use Core\Contracts\CacheableContract;
  */
 class Request implements CacheableContract
 {
-    public static $validHttpMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'COPY', 'HEAD', 'OPTIONS', 'LINK', 'UNLINK', 'PURGE', 'LOCK', 'UNLOCK', 'PROPFIND', 'VIEW'];
-
+    public static $validHttpMethods = [
+        'GET',
+        'POST',
+        'PUT',
+        'PATCH',
+        'DELETE',
+        'COPY',
+        'HEAD',
+        'OPTIONS',
+        'LINK',
+        'UNLINK',
+        'PURGE',
+        'LOCK',
+        'UNLOCK',
+        'PROPFIND',
+        'VIEW'
+    ];
 
     /**
      * @var string The URL/query string (relative path)
@@ -64,15 +79,37 @@ class Request implements CacheableContract
      */
     public $server;
     /**
+     * @var array Request Headers
+     */
+    public $headers;
+    /**
      * @var array Contains the cookie data from the request
      */
     public $cookies;
     /**
+     * @var array Contains $_FILES data
+     */
+    public $files;
+    /**
+     * @var null|string Contains the Request Body
+     */
+    public $body;
+    /**
      * @var bool Defines if operating in development mode
      */
     public $devMode = false;
-    public $config;
-    public $isAjax = false;
+    /**
+     * @var bool Defines if Request is Ajax
+     */
+    protected $isAjax = false;
+
+    protected static $http_header_prefix = 'HTTP_';
+    protected static $http_nonprefixed_headers = array(
+        'CONTENT_LENGTH',
+        'CONTENT_TYPE',
+        'CONTENT_MD5',
+    );
+
     /**
      * @var array An array of illegal characters
      */
@@ -101,24 +138,109 @@ class Request implements CacheableContract
     ];
 
     /**
-     * Request Constructor
+     * Request constructor.
      *
-     * @param array $config
+     * @param array $GET
+     * @param array $POST
+     * @param array $server
+     * @param array $cookies
+     * @param array $files
+     * @param string $body
      */
-    public function __construct($config = [])
-    {
-        if (empty($config)) {
-            trigger_error('Config is empty in ' . __CLASS__, E_USER_WARNING);
-        }
-
-        $this->config = $config;
-
-        if (isset($config['$global']['devMode'])) {
-            $this->devMode = $config['$global']['devMode'];
-        }
+    public function __construct(
+        array $GET = [],
+        array $POST = [],
+        array $server = [],
+        array $cookies = [],
+        array $files = [],
+        $body = null
+    ) {
+        $this->GET = $GET;
+        $this->POST = $POST;
+        $this->server = $server;
+        $this->headers = $this->getHeaders();
+        $this->cookies = $cookies;
+        $this->files = $files;
+        $this->body = isset($body) ? (string)$body : null;
 
         $this->getServerRequest();
+    }
 
+    /**
+     * @return Request
+     */
+    public static function createFromGlobals()
+    {
+        return new static($_GET, $_POST, $_SERVER, $_COOKIE, $_FILES, null);
+    }
+
+    /**
+     * Gets the request body
+     *
+     * @return string
+     */
+    public function body()
+    {
+        // Only get it once
+        if (null === $this->body) {
+            $this->body = @file_get_contents('php://input');
+        }
+        return $this->body;
+    }
+
+    /**
+     * Get our headers from our server data collection
+     *
+     * PHP is weird... it puts all of the HTTP request
+     * headers in the $_SERVER array. This handles that
+     *
+     * @return array
+     */
+    public function getHeaders()
+    {
+        // Define a headers array
+        $headers = array();
+        foreach ($this->server as $key => $value) {
+            // Does our server attribute have our header prefix?
+            if (self::hasPrefix($key, self::$http_header_prefix)) {
+                // Add our server attribute to our header array
+                $headers[substr($key, strlen(self::$http_header_prefix))] = $value;
+            } elseif (in_array($key, self::$http_nonprefixed_headers)) {
+                // Add our server attribute to our header array
+                $headers[$key] = $value;
+            }
+        }
+        return $headers;
+    }
+
+    /**
+     * Returns true if domain is secure
+     *
+     * @return bool
+     */
+    public function isSecure()
+    {
+        return ($this->server['HTTPS'] == true);
+    }
+
+    /**
+     * Returns the requester's IP
+     *
+     * @return mixed
+     */
+    public function ip()
+    {
+        return isset($this->server['REMOTE_ADDR']) ? $this->server['REMOTE_ADDR'] : '127.0.0.1';
+    }
+
+    /**
+     * Returns the User Agent string
+     *
+     * @return mixed
+     */
+    public function userAgent()
+    {
+        return isset($this->server['USER_AGENT']) ? $this->server['USER_AGENT'] : false;
     }
 
     /**
@@ -126,29 +248,17 @@ class Request implements CacheableContract
      */
     private function getServerRequest()
     {
-        $config = $this->config;
-
         //get httpMethod
-        if (isset($_SERVER['REQUEST_METHOD'])) {
-            $this->setHttpMethod($_SERVER['REQUEST_METHOD']);
-        } elseif (isset($_SERVER['HTTP_X_HTTP_METHOD'])) {
-            $this->setHttpMethod($_SERVER['HTTP_X_HTTP_METHOD']);
+        if (isset($this->server['REQUEST_METHOD'])) {
+            $this->setHttpMethod($this->server['REQUEST_METHOD']);
+        } elseif (isset($this->server['HTTP_X_HTTP_METHOD'])) {
+            $this->setHttpMethod($this->server['HTTP_X_HTTP_METHOD']);
         } else {
             $this->setHttpMethod("GET");
         }
 
         if (filter_input(INPUT_SERVER, 'HTTP_X_REQUESTED_WITH') === 'xmlhttprequest') {
             $this->isAjax = true;
-        }
-
-        //get POST vars && GET vars sanitized
-        if (isset($config['$global']['sanitizeGlobals']) && $config['$global']['sanitizeGlobals'] === true) {
-            $this->sanitizeGlobals();
-        } else {
-            $this->POST = $_POST;
-            $this->GET = $_GET;
-            $this->server = $_SERVER;
-            $this->cookies = $_COOKIE;
         }
 
         $this->checkInput();
@@ -160,6 +270,10 @@ class Request implements CacheableContract
 
     }
 
+
+    /**
+     * @deprecated
+     */
     public function sanitizeGlobals()
     {
         $this->GET = $this->inputSanitize($_GET);
@@ -185,7 +299,7 @@ class Request implements CacheableContract
     public function sanitizeArray(array $array)
     {
         $sanitized = [];
-        foreach($array as $key => $val) {
+        foreach ($array as $key => $val) {
 
             if (is_array($val)) {
                 $sanitized[$key] = $this->sanitizeArray($val);
@@ -279,6 +393,11 @@ class Request implements CacheableContract
         }
     }
 
+    public function isAjax()
+    {
+        return $this->isAjax;
+    }
+
     /**
      * Returns an array of server info
      *
@@ -335,6 +454,11 @@ class Request implements CacheableContract
         return $this->path;
     }
 
+    public function setPath($path)
+    {
+        $this->path = $path;
+    }
+
     /**
      * Find variable value in global $_GET
      *
@@ -363,6 +487,21 @@ class Request implements CacheableContract
         }
 
         return isset($_POST[$variable]) ? $_POST[$variable] : false;
+    }
+
+    /**
+     * Quickly check if a string has a passed prefix
+     *
+     * @param string $string The string to check
+     * @param string $prefix The prefix to test
+     * @return boolean
+     */
+    public static function hasPrefix($string, $prefix)
+    {
+        if (strpos($string, $prefix) === 0) {
+            return true;
+        }
+        return false;
     }
 
     /**

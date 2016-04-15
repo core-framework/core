@@ -24,12 +24,15 @@ namespace Core\Controllers;
 
 
 use Core\Application\Application;
+use Core\Config\Config;
 use Core\Contracts\ResponseContract;
 use Core\Contracts\RouterContract;
 use Core\Contracts\ViewContract;
+use Core\Foundation\DataCollection;
+use Core\Request\Request;
 use Core\Response\Response;
 use Core\Router\Router;
-use Core\Views\AppView;
+use Core\View\View;
 
 /**
  * Class BaseController
@@ -43,35 +46,33 @@ class BaseController
      *
      * @var Router
      */
-    public $router;
+    protected $router;
 
     /**
-     * AppView object
-     *
-     * @var AppView
+     * @var Request
      */
-    public $view;
-
+    protected $request;
+    
     /**
      * Application configuration
      *
-     * @var Array
+     * @var Config
      */
-    public $conf;
+    protected $conf;
 
     /**
      * Application base/core path
      *
      * @var null | string
      */
-    public $basePath;
+    protected $basePath;
 
     /**
      * Application folder path
      *
      * @var null | string
      */
-    public $appPath;
+    protected $appPath;
 
     /**
      * Sanitized $_POST parameter
@@ -86,20 +87,6 @@ class BaseController
      * @var array
      */
     public $GET;
-
-    /**
-     * Request Method
-     *
-     * @var string
-     */
-    public $method;
-
-    /**
-     * CSRF string
-     *
-     * @var string
-     */
-    public $csrf;
 
     /**
      * If application is currently using ssl
@@ -118,22 +105,15 @@ class BaseController
     /**
      * @param string $basePath
      * @param RouterContract|Router $router
-     * @param ViewContract|AppView $view
-     * @param array $conf
-     */
-    function __construct($basePath = null, RouterContract $router, ViewContract $view, $conf = [])
+     **/
+    public function __construct($basePath, RouterContract $router)
     {
+        $this->setPathBound($basePath);
         $this->router = $router;
-        $this->view = $view;
-        $this->conf = $conf;
-
-        if (!is_null($basePath)) {
-            $this->setPathBound($basePath);
-        }
-
-        $this->POST = &$router->POST;
-        $this->GET = &$router->GET;
-        $this->method = $router->getMethod();
+        $this->request = $router->getRequest();
+        $this->POST = $this->request->POST;
+        $this->GET = $this->request->GET;
+        $this->method = $this->request->getHttpMethod();
 
         $this->baseInit();
     }
@@ -141,7 +121,7 @@ class BaseController
     /**
      * @param $basePath
      */
-    function setPathBound($basePath)
+    public function setPathBound($basePath)
     {
         $this->basePath = $basePath;
         $this->appPath = $basePath . DIRECTORY_SEPARATOR . 'app';
@@ -152,74 +132,52 @@ class BaseController
      */
     private function baseInit()
     {
-        $conf = $this->conf;
-        $routeParams = $this->router->routeVars;
 
-        // Default is to setResponse as Controller Property (unless explicitly stated as false)
-        $setResponseInController = isset($conf['$global']['setResponseInController']) ? $conf['$global']['setResponseInController'] : true;
-        if ($setResponseInController !== false) {
-            $this->setResponse();
-        }
-
-        // Get debug mode
-        if (Application::$isDebugMode === true) {
-            $this->view->setDebugMode(true);
-        } else {
-            $this->view->setDebugMode(false);
-        }
-
-        // View instance is Disabled for Non GET methods
-        if ($this->router->httpMethod !== 'GET') {
-            $this->view->disable();
-        }
-
-        $this->generateCSRFKey();
-
-        $pageTitle = isset($routeParams['pageTitle']) ? $routeParams['pageTitle'] : '';
-        $this->view->setTemplateVars('title', $pageTitle);
-
-        if (isset($routeParams['pageName'])) {
-            $this->view->setTemplateVars('pageName', $routeParams['pageName']);
-        }
-
-        if ((isset($conf['$global']['metaAndTitleFromFile']) &&
-                $conf['$global']['metaAndTitleFromFile'] === true) ||
-            (isset($routeParams['metaAndTitleFromFile']) &&
-                $routeParams['metaAndTitleFromFile'] === true)
-        ) {
-            $metaFilePath = isset($conf['$global']['metaFile']) ? $conf['$global']['metaFile'] :
-                isset($routeParams['metaFile']) ? $routeParams['metaFile'] : "";
-            $metaPath = $conf['$global']['appPath'] . DS . ltrim($metaFilePath, "/");
+        // Add Page Title and Page Name (and other Variables defined in Router) to global
+        $globalVariables = $this->router->getCurrentRoute()->getVariables();
+        DataCollection::each($globalVariables, function($key, $value) {
+            View::addVariable($key, $value);
+        });
+        
+        
+        $config = Config::getInstance();
+        /** @var Request $request */
+        $request = $this->router->getRequest();
+        
+        
+        if ($config->get('metaAndTitleFromFile', false)) {
+            $metaFilePath = $config->get('metaFile');
+            $metaPath = $this->appPath . DS . ltrim($metaFilePath, "/");
             if (is_readable($metaPath)) {
                 $metaContent = include($metaPath);
-                $metas = isset($metaContent[$this->router->path]) ? $metaContent[$this->router->path] : '';
+                $metas = isset($metaContent[$request->getPath()]) ? $metaContent[$request->getPath()] : '';
             } else {
                 trigger_error(
-                    htmlentities("{$conf['$global']['mataFile']} file not found or is not readable"),
+                    htmlentities("{$config->get('$global.mataFile')} file not found or is not readable"),
                     E_USER_WARNING
                 );
             }
 
-        } else {
-            $metas = isset($routeParams['metas']) ? $routeParams['metas'] : '';
-        }
-
-        if (!empty($metas)) {
-
-            if (isset($metas['pageTitle'])) {
-                $this->view->setTemplateVars('title', $metas['pageTitle']);
-                unset($metas['pageTitle']);
+            if (!empty($metas)) {
+                if (isset($metas['pageTitle'])) {
+                    View::addVariable('pageTitle', $metas['pageTitle']);
+                    unset($metas['pageTitle']);
+                }
+                View::addVariable('metas', $metas);
             }
 
-            $this->view->tplInfo['vars']['metas'] = $metas;
         }
 
+
+
         if (isset($this->conf['$global']['websiteUrl'])) {
-            $this->view->setTemplateVars('websiteUrl', $this->conf['$global']['websiteUrl']);
+            //$this->view->setTemplateVars('websiteUrl', $this->conf['$global']['websiteUrl']);
+            View::addVariable('domainName', $this->conf['$global']['websiteUrl']);
         }
 
         if (isset($this->conf['$global']['domain'])) {
-            $this->view->setTemplateVars('domain', $this->conf['$global']['domain']);
+            //$this->view->setTemplateVars('domain', $this->conf['$global']['domain']);
+            View::addVariable('domain', $this->conf['$global']['websiteUrl']);
         }
 
     }
@@ -246,39 +204,26 @@ class BaseController
     }
 
     /**
-     * @return ResponseContract|Response|object
-     * @throws \ErrorException
-     */
-    public function getResponse()
-    {
-        if (!$this->response instanceof ResponseContract) {
-            if (Application::serviceExists('Response')) {
-                $this->response = Application::get('Response');
-            }
-        }
-
-        return $this->response;
-    }
-
-    /**
+     * @deprecated
      * Generates CSRF key
-     *
      */
     private function generateCSRFKey()
     {
         $key = sha1(microtime());
         $this->csrf = $_SESSION['csrf'] = empty($_SESSION['csrf']) ? $key : $_SESSION['csrf'];
-        $this->view->setTemplateVars('csrf', $this->csrf);
+        //$this->view->setTemplateVars('csrf', $this->csrf);
     }
 
     /**
+     * @deprecated
+     *
      * Default method for template rendering
      *
      * @return array
      */
     public function indexAction()
     {
-        $this->view->tplInfo['tpl'] = 'homepage/home.tpl';
+        //$this->view->tplInfo['tpl'] = 'homepage/home.tpl';
     }
 
 
@@ -301,6 +246,7 @@ class BaseController
 
 
     /**
+     * @deprecated 
      * Resets Application Cache
      *
      * @throws \ErrorException
@@ -316,40 +262,6 @@ class BaseController
             $cache->deleteCache($key);
         }
 
-    }
-
-
-    /**
-     * Outputs json (response) for given array
-     *
-     * @param array $jsonArr
-     */
-    public function sendJson(array $jsonArr)
-    {
-        ob_start();
-
-        if (!headers_sent()) {
-            header('Content-Type: application/json; charset: UTF-8');
-            header('Cache-Control: must-revalidate');
-        } else {
-            trigger_error('Headers set before calling baseController::sendJson');
-        }
-
-        $json = json_encode($jsonArr);
-        echo $json;
-
-        ob_end_flush();
-    }
-
-    public function getIsSecure()
-    {
-        return $this->isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $_SERVER['SERVER_PORT'] == 443;
-    }
-
-    public function redirect($url, $statusCode = 303)
-    {
-        header('Location: ' . $url, true, $statusCode);
-        die();
     }
 
 }

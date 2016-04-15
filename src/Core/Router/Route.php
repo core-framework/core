@@ -9,9 +9,14 @@
 namespace Core\Router;
 
 
-class Route
+use Core\Contracts\CacheableContract;
+use Core\Request\Request;
+
+class Route implements CacheableContract
 {
     protected $uri;
+
+    protected $parsedUri;
 
     protected $methods = [];
 
@@ -19,11 +24,19 @@ class Route
 
     protected $controller;
 
+    protected $classMethod;
+
     protected $parameters = [];
+
+    protected $parameterValues = [];
 
     protected $parameterNames = [];
 
     protected $options = [];
+
+    protected $middleware = [];
+
+    protected $allowedOptions = ['middleware', 'prefix', 'cacheable', 'variables'];
 
     /**
      * Route constructor.
@@ -34,13 +47,14 @@ class Route
      */
     public function __construct($uri, $methods, $action, $options = [])
     {
-        $this->setUri($this->parseUri($uri));
+        $this->setUri($uri);
         $this->setMethods($methods);
-        $this->setAction($this->parseAction($action));
-
+        $this->parseAction($action);
         if (!empty($options)) {
-            $this->setOptions();
+            $this->setOptions($options);
         }
+
+        $this->parseUri();
     }
 
     /**
@@ -64,6 +78,27 @@ class Route
     /**
      * @return mixed
      */
+    public function getParsedUri()
+    {
+        if (!isset($this->parsedUri)) {
+            $this->parseUri($this->uri);
+        }
+        return $this->parsedUri;
+    }
+
+    /**
+     * @param $parsedUri
+     * @return $this
+     */
+    public function setParsedUri($parsedUri)
+    {
+        $this->parsedUri = $parsedUri;
+        return $this;
+    }
+
+    /**
+     * @return mixed
+     */
     public function getMethods()
     {
         return $this->methods;
@@ -75,7 +110,7 @@ class Route
      */
     public function setMethods($methods)
     {
-        if (!is_string($methods)) {
+        if (is_string($methods)) {
             $methods = [$methods];
         }
         $this->methods = $methods;
@@ -97,12 +132,6 @@ class Route
      */
     public function setAction($action)
     {
-        if (is_string($action)) {
-            $str = $action;
-            $action = [];
-            $action['controller'] = $str;
-        }
-
         $this->action = $action;
         return $this;
     }
@@ -154,11 +183,29 @@ class Route
     public function setController($controller)
     {
         if (!is_callable($controller) && !is_string($controller)) {
-            throw new \InvalidArgumentException("Invalid controller of type {${gettype($controller)}} given. Expect string or callable");
+            throw new \InvalidArgumentException(
+                "Invalid controller of type {${gettype($controller)}} given. Expect string or callable"
+            );
         }
 
         $this->controller = $controller;
         return $this;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getClassMethod()
+    {
+        return $this->classMethod;
+    }
+
+    /**
+     * @param mixed $classMethod
+     */
+    public function setClassMethod($classMethod)
+    {
+        $this->classMethod = $classMethod;
     }
 
     /**
@@ -176,53 +223,194 @@ class Route
     public function setOptions(array $options)
     {
         $this->options = $options;
+
+        foreach ($options as $key => $val) {
+            $method = 'set' . ucfirst($key);
+            if (in_array($key, $this->allowedOptions) && method_exists($this, $method)) {
+                $this->{$method}($val);
+            }
+        }
+
         return $this;
     }
 
-
-    public function parseUri($uri)
+    public function hasMiddleware()
     {
+        return !empty($this->middleware);
+    }
+
+    public function setMiddleware($middleware)
+    {
+        $this->middleware = $middleware;
+    }
+
+    public function getMiddleware()
+    {
+        return $this->middleware;
+    }
+
+    public function isInteger($param)
+    {
+        return isset($this->parameters[$param]['isInt']) ? $this->parameters[$param]['isInt'] : false;
+    }
+
+    public function isAlpha($param)
+    {
+        return isset($this->parameters[$param]['isAlpha']) ? $this->parameters[$param]['isAlpha'] : false;
+    }
+
+    public function isOptional($param)
+    {
+        return isset($this->parameters[$param]['isOptional']) ? $this->parameters[$param]['isOptional'] : false;
+    }
+
+    public function issetDefault($param)
+    {
+        return isset($this->parameters[$param]['default']);
+    }
+
+    public function getDefault($param)
+    {
+        return isset($this->parameters[$param]['default']) ? $this->parameters[$param]['default'] : null;
+    }
+
+    public function parseUri($uri = null)
+    {
+        if (is_null($uri)) {
+            $uri = $this->uri;
+        }
+
         if (preg_match_all('/\{([a-zA-Z0-9\:\?\=]+)\}/', $uri, $matches)) {
-            foreach($matches[1] as $match) {
+
+            foreach ($matches[1] as $index => $match) {
+                $pattern = '([^/]+)';
                 $matchArr = explode(':', $match);
                 $param = $matchArr[0];
                 $this->parameterNames[] = $param;
                 array_shift($matchArr);
-                foreach($matchArr as $option) {
-                    if ($option === '?') {
-                        $this->parameters[$param] = ['isOptional' => true];
+                foreach ($matchArr as $option) {
+                    if ($option === 'num' || $option === 'i') {
+                        $this->parameters[$param]['isInt'] = true;
+                        $pattern = '([0-9]+)';
                     }
-                    if ($option === 'num') {
-                        $this->parameters[$param] = ['isNum' => true];
+                    if ($option === 'alpha' || $option === 'a') {
+                        $this->parameters[$param]['isAlpha'] = true;
+                        $pattern = '([\w]+)';
+                    }
+                    if ($option === '?' || strpos($option, 'default') !== false) {
+                        $this->parameters[$param]['isOptional'] = true;
+                        $pattern .= '?';
                     }
                     if (strpos($option, 'default') !== false) {
-                        $this->parameters[$param] = ['default' => explode('=', $option)[1]];
+                        $this->parameters[$param]['default'] = explode('=', $option)[1];
                     }
                 }
+                $uri = preg_replace('#\{' . $matches[1][$index] . '\}#', '(?P<' . $param . '>' . $pattern . ')', $uri);
             }
         }
-        return $uri;
+
+        $this->setParsedUri('#^' . $uri . '$#');
+
+        return $this;
     }
 
     public function parseAction($action)
     {
         if (is_callable($action)) {
             $this->setController($action);
-        } elseif (isset($action['controller'])) {
+        } elseif (isset($action['controller']) && isset($action['method'])) {
             $this->setController($action['controller']);
+            $this->setClassMethod($action['method']);
+        } elseif (strpos($action, '@') !== false) {
+            $parts = explode('@', $action);
+            $this->setController($parts[0]);
+            $this->setClassMethod($parts[1]);
         }
 
-        if (is_array($action) && isset($action['prefix'])) {
-            $this->prefix($action['prefix']);
-        }
+        $this->setAction($action);
 
-        return $action;
-    }
-
-    public function prefix($prefix)
-    {
-        $this->uri = rtrim($prefix, '/') . '/' . ltrim($this->uri, '/');
         return $this;
     }
 
+    public function setPrefix($prefix, $uri = null)
+    {
+        if (is_null($uri)) {
+            $uri = $this->uri;
+        }
+        $this->uri = '/' . trim($prefix, '/') . '/' . ltrim($uri, '/');
+        return $this;
+    }
+
+    protected function bindValues(array $matches)
+    {
+        foreach ($this->parameterNames as $key) {
+            if (isset($matches[$key])) {
+                if ($matches[$key] === "" && $this->isOptional($key)) {
+                    $matches[$key] = $this->getDefault($key);
+                }
+                $value = $this->isInteger($key) ? intval($matches[$key]) : $matches[$key];
+                $this->setParameterValue($key, $value);
+            }
+        }
+    }
+
+    /**
+     * @return array
+     */
+    public function getParameterValues()
+    {
+        return $this->parameterValues;
+    }
+
+    /**
+     * @param $key
+     * @param $value
+     * @return $this
+     */
+    public function setParameterValue($key, $value)
+    {
+        $this->parameters[$key]['value'] = $value;
+        $this->parameterValues[$key] = $value;
+        return $this;
+    }
+
+    public function isMatch(Request $request)
+    {
+        if (preg_match($this->getParsedUri(), $request->getPath(), $matches)) {
+            $this->bindValues($matches);
+            return true;
+        }
+
+        return false;
+    }
+
+    public function setCacheable($val = true)
+    {
+        $this->options['cacheable'] = $val;
+    }
+
+    public function isCacheable()
+    {
+        return isset($this->options['cacheable']) ? $this->options['cacheable'] : false;
+    }
+
+    public function setVariables(array $variables = [])
+    {
+        return $this->options['variables'] = $variables;
+    }
+
+    public function getVariables()
+    {
+        return isset($this->options['variables']) ? $this->options['variables'] : [];
+    }
+    
+    public function __wakeup()
+    {
+        // TODO: Implement __wakeup() method.
+    }
+    
+    public function __sleep()
+    {
+        return ['uri', 'parsedUri', 'methods', 'action', 'controller', 'classMethod', 'parameters', 'parameterValues', 'parameterNames', 'options', 'middleware', 'allowedOptions'];
+    }
 }

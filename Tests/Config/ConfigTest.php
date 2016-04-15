@@ -119,11 +119,10 @@ class ConfigTest extends \PHPUnit_Framework_TestCase
         $this->assertSame('someChildValue', $content);
     }
 
-
     /**
      * @covers \Core\Config\Config::get
      * @runInSeparateProcess
-     */
+    */
     public function testConfigGetOverride()
     {
         $env = Config::getEnvironment();

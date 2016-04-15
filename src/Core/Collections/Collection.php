@@ -120,7 +120,7 @@ class Collection implements CollectionContract
     public static function find(array $parameters = null)
     {
         if (is_null($parameters) === false && is_array($parameters) === false) {
-            throw new \ErrorException('Invalid parameters for find');
+            throw new \ErrorException('Invalid collection for find');
         }
 
         $className = get_called_class();
@@ -139,7 +139,7 @@ class Collection implements CollectionContract
     public static function getCount(array $condition = null)
     {
         if (is_null($condition) === false && is_array($condition) === false) {
-            throw new \ErrorException('Invalid parameters for find');
+            throw new \ErrorException('Invalid collection for find');
         }
 
         $className = get_called_class();
@@ -167,7 +167,7 @@ class Collection implements CollectionContract
     public static function aggregate(array $pipeline)
     {
         if (is_null($pipeline) === false && is_array($pipeline) === false) {
-            throw new \ErrorException('Invalid parameters for find');
+            throw new \ErrorException('Invalid collection for find');
         }
 
 
@@ -193,7 +193,7 @@ class Collection implements CollectionContract
     public static function distinct(array $condition)
     {
         if (is_string($condition) === false) {
-            throw new \ErrorException('Invalid parameters for distinct');
+            throw new \ErrorException('Invalid collection for distinct');
         }
 
         /** @var Collection $collection */
@@ -339,7 +339,7 @@ class Collection implements CollectionContract
     public static function findOne(array $condition = [])
     {
         if (empty($condition) && is_array($condition) === false) {
-            throw new \ErrorException('Invalid parameters for find');
+            throw new \ErrorException('Invalid collection for find');
         }
         $condition['limit'] = 1;
 

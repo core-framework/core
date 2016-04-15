@@ -24,7 +24,7 @@ class DatabaseTestCase extends \PHPUnit_Extensions_Database_TestCase
      */
     private $conn = null;
     /**
-     * @var Array
+     * @var array
      */
     public $conf;
 

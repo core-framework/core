@@ -27,7 +27,7 @@ namespace Core\Container;
  *
  * <code>
  *  $di = new Container()
- *  $di->register('View', '\\Core\\Views\\View')
+ *  $di->register('View', '\\Core\\View\\View')
  *      ->setArguments(array('Smarty'));
  *  $di->register('Smarty', '')
  *      ->setDefinition(function() {
@@ -43,7 +43,7 @@ namespace Core\Container;
  *  $view = $di->get('View);
  * </code>
  *
- * @package Core\Views
+ * @package Core\Container
  * @version $Revision$
  * @license http://creativecommons.org/licenses/by-sa/4.0/
  * @link http://coreframework.in
@@ -91,12 +91,16 @@ class Container implements \ArrayAccess
      */
     public static function get($name)
     {
+        if (empty($name)) {
+            throw new \ErrorException("Service name cannot be empty");
+        }
+
         if (!is_string($name)) {
             throw new \ErrorException("Service name must be a valid string");
         }
 
         if (!self::serviceExists($name)) {
-            throw new \ErrorException("Service of type $name not found. Service $name must be registered before use.");
+            throw new \ErrorException("Service of type {$name} not found. Service {$name} must be registered before use.");
         }
 
         $definition = self::$services[$name]->getDefinition();
@@ -190,7 +194,7 @@ class Container implements \ArrayAccess
 
         foreach ($arguments as $key => $val) {
 
-            if (strpos($val, '::') > -1) {
+            if (is_string($val) && strpos($val, '::') > -1) {
                 $returnArguments[] = call_user_func($val);
             } elseif (is_string($val) && (class_exists($val) || self::serviceExists($val))) {
                 $returnArguments[] = self::get($val);
@@ -341,7 +345,7 @@ class Container implements \ArrayAccess
      */
     public function offsetUnset($offset)
     {
-        // TODO: Implement offsetUnset() method.
+        unset(self::$services[$offset]);
     }
 
 

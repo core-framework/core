@@ -604,14 +604,6 @@ abstract class CliApplication extends BaseApplication implements CLIContract
     }
 
     /**
-     * (Empty) Router not to be set for CliApplication
-     */
-    protected function setRouterConf()
-    {
-        /* EMPTY */
-    }
-
-    /**
      * @inheritdoc
      */
     protected function loadConfig()
@@ -626,7 +618,7 @@ abstract class CliApplication extends BaseApplication implements CLIContract
         if ($cache->cacheExists('cli.conf')) {
             $this->configArr = $cache->getCache('cli.conf');
         } else {
-            $this->configArr = $this->getConfig();
+            $this->configArr = $this->getConfigArr();
             $cache->cacheContent('cli.conf', $this->configArr, 0);
         }
     }

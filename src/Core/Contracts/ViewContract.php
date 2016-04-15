@@ -22,6 +22,9 @@
 
 namespace Core\Contracts;
 
+use Core\Application\Application;
+use Core\Config\Config;
+
 /**
  * Interface ViewContract
  * @package Core\ViewContract
@@ -29,64 +32,85 @@ namespace Core\Contracts;
 interface ViewContract {
 
     /**
-     * Initiates view template Engine
+     * @return Application
      */
-    public function init();
+    public function getApplication();
 
     /**
-     * Assigns new public parameters with given value
-     *
-     * @param $var
-     * @param $val
+     * @return Config
      */
-    public function set($var, $val);
+    public function getConfig();
 
     /**
-     * Loads the debug html with data to be displayed
-     *
-     * @param $bool
-     */
-    public function setDebugMode($bool);
-
-    /**
-     * Set Template directory
-     *
-     * @param $path
-     */
-    public function addTemplateDir($path);
-
-    /**
-     * Set template variables
-     *
-     * @param $var
-     * @param $val
-     */
-    public function setTemplateVars($var, $val);
-
-    /**
-     * Set template file to render
-     *
-     * @param $tpl
-     */
-    public function setTemplate($tpl);
-
-    /**
-     * Disables the view render method
-     */
-    public function disable();
-
-    /**
-     * Renders the final html output
-     *
      * @return bool
      */
-    public function render();
+    public function isShowHeader();
 
     /**
-     * Capture the html output
-     *
-     * @return mixed
+     * @return bool
+     */
+    public function isShowFooter();
+
+    /**
+     * @return string
+     */
+    public function getLayout();
+
+    /**
+     * @param string $layout
+     * @return void
+     */
+    public function setLayout($layout);
+
+    /**
+     * @return string
+     */
+    public function getTemplate();
+
+    /**
+     * @param string $template
+     * @return void
+     */
+    public function setTemplate($template);
+
+    /**
+     * @return TemplateEngineContract
+     */
+    public function getEngine();
+
+    /**
+     * @param $variable
+     * @param $value
+     * @return void
+     */
+    public function set($variable, $value);
+    
+    /**
+     * @return string
+     * @throws \Exception
+     * @throws \SmartyException
      */
     public function fetch();
 
+    /**
+     * @param string $templateDir
+     * @return void
+     */
+    public static function setTemplateDir($templateDir);
+
+    /**
+     * @return string
+     */
+    public static function getTemplateDir();
+
+    /**
+     * @return string
+     */
+    public static function getResourcesDir();
+
+    /**
+     * @param string $resourcesDir
+     * @return void
+     */
+    public static function setResourcesDir($resourcesDir);
 }

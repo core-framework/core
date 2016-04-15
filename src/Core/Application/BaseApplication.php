@@ -29,9 +29,11 @@ use Core\Contracts\BaseApplicationContract;
 use Core\Contracts\CacheContract;
 use Core\Contracts\ConfigContract;
 use Core\Contracts\ResponseContract;
-use Core\Response\Response;
-use Core\Router\Router;
 use Core\Contracts\ViewContract;
+use Core\Request\Request;
+use Core\Response\Response;
+use Core\Router\Route;
+use Core\Router\Router;
 
 /**
  * Base Application class
@@ -161,21 +163,21 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
      *
      * @var array
      */
-    public $baseServices = [];
+    protected $baseServices = [];
 
     /**
      * Contains the class maps
      *
      * @var array
      */
-    public static $classmap;
+    protected static $classmap;
 
     /**
      * Class map aliases
      *
      * @var array
      */
-    public static $alias = [
+    protected static $alias = [
         '@web' => '@base/web',
         '@app' => '@base/app'
     ];
@@ -192,28 +194,35 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
      *
      * @var AppCache
      */
-    public $cache;
+    protected $cache;
+
+    /**
+     * Request Instance
+     *
+     * @var \Core\Request\Request
+     */
+    protected $request;
 
     /**
      * Router instance
      *
      * @var \Core\Router\Router
      */
-    public $router;
+    protected $router;
 
     /**
-     * View instance
+     * Config Instance
      *
-     * @var \Core\Contracts\ViewContract
+     * @var \Core\Config\Config
      */
-    public $view;
+    protected $config;
 
     /**
      * Response instance
      *
      * @var \Core\Response\Response
      */
-    public $response;
+    protected $response;
 
     /**
      * When static::DEVELOPMENT_STATE or 'dev' ensures errors are displayed
@@ -322,7 +331,6 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
 
             if (!is_null($this->configArr)) {
                 $this->registerServicesFromConfig();
-                $this->setRouterConf();
             }
         }
     }
@@ -345,13 +353,19 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
      */
     public function loadBaseComponents()
     {
-        $this->registerAndLoad('Router', \Core\Router\Router::class);
-        $this->registerAndLoad(
+        $this->config = $this->registerAndMake('Config', \Core\Config\Config::class, [$this->getConfigDir()]);
+        $this->router = $this->registerAndMake(
+            'Router',
+            \Core\Router\Router::class,
+            [$this->getBasePath(), $this->getConfigArr()]
+        );
+        $this->cache = $this->registerAndMake(
             'Cache',
             \Core\Cache\AppCache::class,
             [$this->getAbsolutePath("/storage/framework/cache")]
         );
-        $this->registerAndLoad('Config', \Core\Config\Config::class, [$this->getConfigDir()]);
+
+        $this->request = Request::createFromGlobals();
     }
 
     /**
@@ -392,7 +406,7 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
         if ($cache->cacheExists('framework.conf')) {
             $this->configArr = $cache->getCache('framework.conf');
         } else {
-            $this->configArr = $this->getConfig();
+            $this->configArr = $this->getConfigArr();
             $cache->cacheContent('framework.conf', $this->configArr, 0);
         }
     }
@@ -404,7 +418,7 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
     {
         $env = !isset($_SERVER['REMOTE_ADDR']) || $_SERVER['REMOTE_ADDR'] == '127.0.0.1' ? static::DEVELOPMENT_STATE : static::PRODUCTION_STATE;
         $this->appEnv = $env;
-        putenv('environment='.$env);
+        putenv('environment=' . $env);
 
         return $this;
     }
@@ -414,7 +428,7 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
      *
      * @return array|mixed
      */
-    protected function getConfig()
+    protected function getConfigArr()
     {
         if (is_null($this->configArr)) {
             if ($this->config instanceof ConfigContract) {
@@ -428,15 +442,16 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
     }
 
     /**
-     * Get path to "framework.conf.php" file
-     *
-     * @return mixed
+     * @return Config
      */
-    public function getConfigPath()
+    public function getConfigInstance()
     {
-        return $this->getAbsolutePath('/config/framework.conf.php');
+        return $this->config;
     }
 
+    /**
+     * @return string
+     */
     public function getConfigDir()
     {
         return $this->getAbsolutePath('/config');
@@ -464,25 +479,13 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
     }
 
     /**
-     * @throws \ErrorException
-     */
-    protected function setRouterConf()
-    {
-        if (is_null($this->router)) {
-            $this->router = $this->get('Router');
-        }
-
-        $this->router->setConfig($this->getConfig());
-    }
-
-    /**
      * Run Application
      *
      * @return mixed
      */
     public function run()
     {
-        $this->response = $response = $this->handle($this->router);
+        $this->response = $response = $this->handle($this->request);
 
         // If controller does not return a response and if no headers were already sent, .i.e.
         // response was not handled by controller either, in which case we show "404 Page
@@ -500,14 +503,14 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
     /**
      * Handles current route
      *
-     * @param Router $router
+     * @param Request $request
      * @return null|Response
      * @throws \ErrorException
      */
-    protected function handle(Router $router)
+    protected function handle(Request $request)
     {
-        $this->requestedURI = $router->path;
-        $this->setCacheKeys($router);
+        $this->requestedURI = $request->getPath();
+        $this->setCacheKeys($request);
 
         if ($this->cache->cacheExists($this->responseKey)) {
             $this->setStatus(self::STATUS_LOADING_FROM_CACHE);
@@ -518,40 +521,69 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
             }
         }
 
-        if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) === true && $_SERVER['HTTP_X_REQUESTED_WITH'] !== 'XMLHttpRequest')
-        {
-            $router = $this->cache->getCache($this->routeKey);
+        if (!$request->isAjax()) {
+            $route = $this->cache->getCache($this->routeKey);
 
-            if ($router instanceof Router) {
-                $this->router = $router;
+            if ($route instanceof Route) {
+                return $this->router->run($route);
             }
         }
 
-        return $this->parseRoute();
+        return $this->parseRequest($request);
 
     }
 
     /**
-     * Parse current route in Router
-     *
+     * @param Request $request
+     * @return Response
+     */
+    protected function parseRequest(Request $request)
+    {
+        $this->setStatus(self::STATUS_HANDLING_REQUEST);
+        $response = $this->router->handle($request);
+
+        $route = $this->router->getCurrentRoute();
+        if (!is_null($route)) {
+            $this->cacheRoute($route);
+        }
+
+        return $this->prepareResponse($response);
+    }
+
+    /**
+     * @param $response
+     * @return Response
+     */
+    protected function prepareResponse($response)
+    {
+        if (!$response instanceof ViewContract && !$response instanceof ResponseContract) {
+            $response = $this->router->makeExceptionResponse(
+                new \RuntimeException("Cannot Prepare Response. Argument of type " . gettype($response) . " given.")
+            );
+        } elseif ($response instanceof ViewContract) {
+            $html = $response->fetch();
+            $response = new Response($html);
+        }
+        
+        $this->cacheResponse($response);
+
+        return $response;
+    }
+
+    protected function cacheResponse(Response $response)
+    {
+        $route = $this->router->getCurrentRoute();
+        if (!is_null($route) && !$this->request->isAjax() && !$route->isCacheable()) {
+            $this->cache->cacheContent($this->responseKey, $response, $this->getTtl());
+        }
+    }
+
+    /**
+     * @deprecated
+     * @param ViewContract|null $view
      * @return mixed
      * @throws \ErrorException
      */
-    protected function parseRoute()
-    {
-        $this->setStatus(self::STATUS_HANDLING_REQUEST);
-        $useAestheticRouting = isset($this->configArr['$global']['useAestheticRouting']) ? $this->configArr['$global']['useAestheticRouting'] : false;
-        $this->router->resolve($useAestheticRouting);
-        $this->cacheRouter();
-
-        if ($this->router->customServe === true ) {
-            return $this->handleCustomServe();
-        }
-
-        return $this->loadController();
-    }
-
-
     protected function handleCustomServe(ViewContract $view = null)
     {
         if (empty($this->router->resolvedArr)) {
@@ -604,6 +636,12 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
         return $this->loadController($this->view);
     }
 
+    /**
+     * @deprecated
+     * @param ViewContract|null $view
+     * @return mixed
+     * @throws \ErrorException
+     */
     protected function loadController(ViewContract $view = null)
     {
         if (is_null($view)) {
@@ -627,15 +665,12 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
     }
 
     /**
-     * Caches the current Router instance if not an ajax request OR if 'noCacheRoute' is not set in routes.conf
-     * for current route
-     *
-     * @throws \ErrorException
+     * @param Route $route
      */
-    protected function cacheRouter()
+    protected function cacheRoute(Route $route)
     {
-        if ((isset($routeParams['noCacheRoute']) === true && $routeParams['noCacheRoute'] === true) && $_SERVER['HTTP_X_REQUESTED_WITH'] !== 'XMLHttpRequest') {
-            $this->cache->cacheContent($this->routeKey, $this->router, $this->getTtl());
+        if (!$this->request->isAjax() && !$route->isCacheable()) {
+            $this->cache->cacheContent($this->routeKey, $route, $this->getTtl());
         }
     }
 
@@ -651,11 +686,11 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
     /**
      * Generates and sets Cache Keys for current Route
      *
-     * @param Router $router
+     * @param Request $request
      */
-    protected function setCacheKeys(Router $router)
+    protected function setCacheKeys(Request $request)
     {
-        $path = $router->path;
+        $path = $request->getPath();
         $this->routeKey = md5($path . '_route_' . session_id());
         $this->responseKey = md5($path . '_response_' . session_id());
     }
@@ -818,7 +853,7 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
     public static function addAlias($aliasName, $path)
     {
         if (strncmp($aliasName, '@', 1)) {
-            $aliasName = '@'.$aliasName;
+            $aliasName = '@' . $aliasName;
         }
         self::$alias[$aliasName] = $path;
     }
@@ -844,7 +879,7 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
     /**
      * @return string
      */
-    public function getAppPath()
+    public static function getAppPath()
     {
         return self::$appPath;
     }
@@ -884,6 +919,20 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
     }
 
     /**
+     * @return mixed|object
+     * @throws \ErrorException
+     */
+    public function getTemplateEngine()
+    {
+        $tplEngine = getOne(strtolower($this->config->get('templateEngine')), 'smarty');
+        if (isset($this->{$tplEngine})) {
+            return $this->{$tplEngine};
+        } else {
+            return $this->get(ucfirst($tplEngine));
+        }
+    }
+
+    /**
      * Method Returns current cache ttl
      *
      * @return int
@@ -910,7 +959,76 @@ abstract class BaseApplication extends Container implements BaseApplicationContr
             $service->setArguments($arguments);
         }
 
-        self::$app->{strtolower($name)} = $this->get($name);
+        static::$app->{strtolower($name)} = $this->get($name);
+    }
+
+    /**
+     * Register and return Class Instances
+     *
+     * @param $name
+     * @param $definition
+     * @param array|null $arguments
+     * @param bool $shared
+     * @return object
+     * @throws \ErrorException
+     */
+    public function registerAndMake($name, $definition, array $arguments = null, $shared = true)
+    {
+        $service = $this->register($name, $definition, $shared);
+
+        if (!is_null($arguments)) {
+            $service->setArguments($arguments);
+        }
+
+        return $this->get($name);
+    }
+
+    /**
+     * @return AppCache
+     */
+    public function getCache()
+    {
+        return $this->cache;
+    }
+
+    /**
+     * @param AppCache $cache
+     */
+    public function setCache($cache)
+    {
+        $this->cache = $cache;
+    }
+
+    /**
+     * @return Request
+     */
+    public function getRequest()
+    {
+        return $this->request;
+    }
+
+    /**
+     * @param Request $request
+     */
+    public function setRequest($request)
+    {
+        $this->request = $request;
+    }
+
+    /**
+     * @return Router
+     */
+    public function getRouter()
+    {
+        return $this->router;
+    }
+
+    /**
+     * @param Router $router
+     */
+    public function setRouter($router)
+    {
+        $this->router = $router;
     }
 
     /**

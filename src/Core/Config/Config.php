@@ -23,9 +23,11 @@
 namespace Core\Config;
 
 use Core\Contracts\ConfigContract;
+use Symfony\Component\Config\Definition\Exception\Exception;
 
 class Config implements ConfigContract
 {
+    protected static $instance;
     public static $confDir;
     public static $confFilesData = [];
 
@@ -73,9 +75,40 @@ class Config implements ConfigContract
 
             static::setConfDir($configDir);
             static::setUp();
+            static::setInstance($this);
         }
 
         return $this;
+    }
+
+    /**
+     * @param null $confDir
+     * @return Config
+     */
+    public static function getInstance($confDir = null)
+    {
+        if (!isset(static::$instance)) {
+            static::$instance = new static($confDir);
+        }
+
+        return static::$instance;
+    }
+
+    /**
+     * @param Config|null $confDir
+     * @return static
+     */
+    public static function getNewInstance($confDir = null)
+    {
+        return static::$instance = new static($confDir);
+    }
+
+    /**
+     * @param Config $instance
+     */
+    public static function setInstance(Config $instance)
+    {
+        static::$instance = $instance;
     }
 
     /**
@@ -166,21 +199,31 @@ class Config implements ConfigContract
     /**
      * @inheritdoc
      */
-    public static function get($confKey = null)
+    public static function get($confKey = null, $default = false)
     {
-        if (is_null($confKey)) {
-            return static::$allConf;
-        } elseif (strpos($confKey, ':') !== false) {
-            return self::getFromFile($confKey);
-        } else {
-            if (isset(static::$allConf[$confKey])) {
-                return static::$allConf[$confKey];
-            } elseif (strpos($confKey, '.') !== false) {
-                return dotGet($confKey, static::$allConf);
+        try {
+            if (is_null($confKey)) {
+                $return = static::$allConf;
+            } elseif (strpos($confKey, ':') !== false) {
+                $return = self::getFromFile($confKey);
             } else {
-                return searchArrayByKey(static::$allConf, $confKey);
+                if (isset(static::$allConf[$confKey])) {
+                    $return = static::$allConf[$confKey];
+                } elseif (strpos($confKey, '.') !== false) {
+                    $return = dotGet($confKey, static::$allConf);
+                } else {
+                    $return = searchArrayByKey(static::$allConf, $confKey);
+                }
             }
+        } catch (Exception $e) {
+            $return = $default;
         }
+        
+        if (empty($return) || $return == false) {
+            $return = $default;
+        }
+        
+        return $return;
     }
 
     /**
@@ -198,13 +241,14 @@ class Config implements ConfigContract
         $orgFilePath = static::getConfDir() . '/' . $fileName;
         $overrideFilePath = static::getConfDir() . '/' . $env . '/' . $fileName;
 
-        if (is_readable($overrideFilePath) && is_readable($orgFilePath)){
+        if (isset(static::$confFilesData[$fileName])) {
+            $array = static::$confFilesData[$fileName];
+        }
+        elseif (is_readable($overrideFilePath) && is_readable($orgFilePath)){
             $overrideArr = include($overrideFilePath);
             $orgFilePath = include($orgFilePath);
             $array = array_merge($orgFilePath, $overrideArr);
             static::$confFilesData[$fileName] = $array;
-        } elseif (isset(static::$confFilesData[$fileName])) {
-            $array = static::$confFilesData[$fileName];
         } elseif (is_readable($orgFilePath)) {
             $array = include $orgFilePath;
             static::$confFilesData[$fileName] = $array;
