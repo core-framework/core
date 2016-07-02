@@ -1,19 +1,33 @@
 <?php
 /**
- * Created by PhpStorm.
- * User: shalom.s
- * Date: 24/01/16
- * Time: 10:14 PM
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * This file is part of the Core Framework package.
+ *
+ * (c) Shalom Sam <shalom.s@coreframework.in>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
 
 namespace Core\Tests\Models;
 
-use Core\Database\Language\MySqlLanguage;
+use Core\Database\Mapper\MySqlMapper;
 use Core\Database\Table;
 use Core\Database\Where;
 use Core\Tests\Database\ConnectionTest;
 use Core\Database\QueryBuilder;
-use Core\Contracts\Database\LanguageContract;
+use Core\Contracts\Database\Mapper;
 use Core\Tests\Models\testModels\Comment;
 use Core\Tests\Models\testModels\Employee;
 use Core\Tests\Models\testModels\Phone;
@@ -23,9 +37,9 @@ use Core\Tests\Models\testModels\User;
 class ModelTest extends ConnectionTest
 {
     /**
-     * @var LanguageContract
+     * @var Mapper
      */
-    public $language;
+    public $mapping;
 
     public $data = [
         [1, 'Shalom', 'Sam', 'Shalom Sam', 29],
@@ -77,12 +91,12 @@ class ModelTest extends ConnectionTest
         [3,3]
     ];
 
-    public function getLanguage()
+    public function getMapping()
     {
-        if (!isset($this->language)) {
-            $this->language = new MySqlLanguage($this->getConfig());
+        if (!isset($this->mapping)) {
+            $this->mapping = new MySqlMapper($this->getConfig());
         }
-        return $this->language;
+        return $this->mapping;
     }
 
     public function getPhoneTableSchema()
@@ -201,7 +215,7 @@ class ModelTest extends ConnectionTest
      */
     public function setUp()
     {
-        $language = $this->getLanguage();
+        $language = $this->getMapping();
         $table = $this->getTableSchema();
         $table2 = $this->getTable2Schema();
         $phoneTable = $this->getPhoneTableSchema();
@@ -235,7 +249,7 @@ class ModelTest extends ConnectionTest
      */
     public function tearDown()
     {
-        $language = $this->getLanguage();
+        $language = $this->getMapping();
         $language->dropTable('model_test_user');
         $language->dropTable('soft_delete_test_user');
         $language->dropTable('comment');
@@ -266,7 +280,6 @@ class ModelTest extends ConnectionTest
             $this->assertObjectHasAttribute('age', $user);
             $this->assertAttributeGreaterThan(29, 'age', $user);
         }
-
 
     }
 

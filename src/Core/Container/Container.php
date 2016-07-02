@@ -64,7 +64,7 @@ class Container implements \ArrayAccess
      * @param $name
      * @param $definition
      * @param bool $shared
-     * @return mixed
+     * @return Service
      * @throws \ErrorException
      */
     public static function register($name, $definition, $shared = true)
@@ -74,11 +74,15 @@ class Container implements \ArrayAccess
         }
 
         if (!is_bool($shared)) {
-            throw new \ErrorException("Inncorrect parameter type.");
+            throw new \ErrorException("Incorrect parameter type.");
         }
 
         self::$services[$name] = new Service($name, $definition, $shared);
 
+        if (isset(self::$sharedInstances[$name])) {
+            unset(self::$sharedInstances[$name]);
+        }
+        
         return self::$services[$name];
     }
 
@@ -103,13 +107,14 @@ class Container implements \ArrayAccess
             throw new \ErrorException("Service of type {$name} not found. Service {$name} must be registered before use.");
         }
 
+        //self::$services[$name]->getShared() === true
+        if (empty(self::$sharedInstances[$name]) === false) {
+            return self::$sharedInstances[$name];
+        }
+
         $definition = self::$services[$name]->getDefinition();
         $arguments = self::$services[$name]->getArguments();
         $shared = self::$services[$name]->getShared();
-
-        if (!empty(self::$sharedInstances[$name]) && $shared === true) {
-            return self::$sharedInstances[$name];
-        }
 
         if ($definition instanceof \Closure) {
 
@@ -158,8 +163,72 @@ class Container implements \ArrayAccess
                 "Definition must either be a namespaced class or a Closure returning an object or a namespaced class."
             );
         }
+    }
 
+    /**
+     * @param $name
+     * @param $definition
+     * @param null $arguments
+     * @return object
+     * @throws \ErrorException
+     */
+    public static function make($definition, $arguments = null, $name = null)
+    {
+        if (!is_string($definition)) {
+            throw new \InvalidArgumentException('Definition must be a string representation of the class');
+        }
 
+        if (!class_exists($definition)) {
+            throw new \InvalidArgumentException("Given class:{$definition} does not exist or not found");
+        }
+
+        if (!is_null($name) && static::$sharedInstances[$name]) {
+            return static::$sharedInstances[$name];
+        }
+
+        if (is_string($definition) && self::findInstance($definition)) {
+            return self::findInstance($definition);
+        }
+
+        $r = new \ReflectionClass($definition);
+
+        if (is_null($name)) {
+            $name = ucfirst($r->getShortName());
+        }
+
+        if (is_null($arguments)) {
+            return self::$sharedInstances[$name] = $r->newInstance();
+        } else {
+            if (!is_array($arguments)) {
+                $arguments = [$arguments];
+            }
+            $arguments = self::checkIfIsDependent($arguments);
+            return self::$sharedInstances[$name] = $r->newInstanceArgs($arguments);
+        }
+    }
+
+    /**
+     * @param $definition
+     * @return bool|mixed
+     */
+    public static function findInstance($definition)
+    {
+        foreach(static::$sharedInstances as $name => $instance) {
+            if ($instance instanceof $definition) {
+                return $instance;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param $name
+     * @param $instance
+     */
+    public static function updateInstance($name, $instance)
+    {
+        static::$sharedInstances[$name] = $instance;
     }
 
     /**
@@ -170,7 +239,7 @@ class Container implements \ArrayAccess
      */
     public static function serviceExists($name)
     {
-        return isset(self::$services[$name]);
+        return isset(self::$services[$name]) || isset(self::$sharedInstances[$name]);
     }
 
     /**
@@ -183,27 +252,27 @@ class Container implements \ArrayAccess
     public static function checkIfIsDependent($arguments)
     {
         if (!is_array($arguments)) {
-            throw new \ErrorException("Argument(s) must be an Array.");
+            throw new \ErrorException("Argument(s) must be an Array of arguments.");
         }
 
         if (empty($arguments)) {
-            throw new \ErrorException("Argument(s) cannot be empty.");
+            //throw new \ErrorException("Argument(s) cannot be empty.");
+            return [];
         }
 
-        $returnArguments = [];
+        $return = [];
 
         foreach ($arguments as $key => $val) {
-
-            if (is_string($val) && strpos($val, '::') > -1) {
-                $returnArguments[] = call_user_func($val);
+            if (is_string($val) && strpos($val, '::') !== false) {
+                $return[] = call_user_func($val);
             } elseif (is_string($val) && (class_exists($val) || self::serviceExists($val))) {
-                $returnArguments[] = self::get($val);
+                $return[] = self::get($val);
             } else {
-                $returnArguments[] = $val;
+                $return[] = $val;
             }
         }
 
-        return $returnArguments;
+        return $return;
 
     }
 

@@ -1,35 +1,58 @@
 <?php
 /**
- * Created by PhpStorm.
- * User: shalom.s
- * Date: 21/03/16
- * Time: 1:08 AM
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * This file is part of the Core Framework package.
+ *
+ * (c) Shalom Sam <shalom.s@coreframework.in>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
 
 namespace Core\Tests\Router;
 
-
-use Core\Request\Request;
+use Core\Application\Application;
+use Core\Container\Container;
+use Core\Facades\Router;
 use Core\Response\Response;
-use Core\Router\Router;
 use Core\Router\Route;
+use Core\Tests\Mocks\MockPaths;
 
 class RouterTest extends \PHPUnit_Framework_TestCase
 {
     /**
-     * @var Router $router
+     * @var Application
      */
+    public $application;
+
     public $router;
 
     public function setUp()
     {
-        $this->router = new Router();
+        MockPaths::createMockPaths();
+        $this->application = new Application(MockPaths::$basePath);
+        $this->router = $this->application->make(\Core\Router\Router::class, $this->application, 'Router');
+        //$service = $this->application->register('Router', \Core\Router\Router::class);
+        //$service->setArguments([$this->application]);
         $this->setRoutes();
+        parent::setUp();
     }
 
     public function tearDown()
     {
-
+        Container::reset();
+        parent::tearDown();
     }
 
     // ----- Helpers -----
@@ -79,7 +102,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
 
     public function getRouterMock($controller = null)
     {
-        $router = $this->getMockBuilder('\Core\Router\Router')->setMethods(array('makeController'))->getMock();
+        $router = $this->getMockBuilder('\Core\Router\Router')->setConstructorArgs([$this->application])->setMethods(array('makeController'))->getMock();
         $router->expects($this->any())
             ->method("makeController")
             ->will($this->returnValue($controller));
@@ -128,6 +151,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
      */
     public function testRouter()
     {
+        $this->router = $this->application->get('Router');
         $this->assertInstanceOf('\Core\Router\Router', $this->router);
     }
 
@@ -165,6 +189,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         
         $controller = $this->getControllerStub($class, $method, $values);
         $router = $this->getRouterMock($controller);
+        $this->application->updateInstance('Router', $router);
         $request = $this->getRequestMock($path);
 
         $this->setRoutes();
@@ -178,17 +203,29 @@ class RouterTest extends \PHPUnit_Framework_TestCase
 
     /**
      * @runInSeparateProcess
+     *
+     * Running in a separate process ensures that the controller classes don't exist
+     * thus causing the 604 "Controller not Found" error
+     * Note: Controller is not passed/defined in getRouterMock
      */
     public function testRouterAlwaysReturnsResponse()
     {
         $router = $this->getRouterMock();
+        $this->application->updateInstance('Router', $router);
         $request = $this->getRequestMock('/test/2');
         $this->setRoutes();
 
+        /*
+         * Following matches route '/test/{id:default=1}' but since controller
+         * is not defined we get a "Controller not found" (604) error
+         */
         $response = $router->handle($request);
         $this->assertInstanceOf('\\Core\\Response\\Response', $response);
         $this->assertEquals(604, $response->getStatusCode());
 
+        /*
+         * Following does not match any route (hence response is a 404)
+         */
         $response = $router->handle($request = $this->getRequestMock('/asdasd/2'));
         $this->assertInstanceOf('\\Core\\Response\\Response', $response);
         $this->assertEquals(404, $response->getStatusCode());

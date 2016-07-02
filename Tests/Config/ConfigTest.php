@@ -1,138 +1,46 @@
 <?php
 /**
- * Created by PhpStorm.
- * User: shalom.s
- * Date: 13/10/15
- * Time: 11:27 AM
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * This file is part of the Core Framework package.
+ *
+ * (c) Shalom Sam <shalom.s@coreframework.in>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
 
 namespace Core\Tests\Config;
 
-use Core\Config\Config;
-use org\bovigo\vfs\vfsStream;
+use Core\Application\Application;
+use Core\Facades\Config;
 
 class ConfigTest extends \PHPUnit_Framework_TestCase
 {
-    /**
-     * @var $config Config
-     */
-    public $config;
-    public static $testConf;
-    public static $testConfOverrideArr = [
-        'testKey' => ['someChildKey' => 'overrideValue'],
-        'testing' => 'developer'
+    public static $config = [
+        'testKey' => 'testValue'
     ];
-    public static $testConfArr = [
-        'testKey' => ['someChildKey' => 'someChildValue'],
-        'testing' => 'tester'
-    ];
-    public static $frameworkConfArr = [
-        '$db' => [
-            'type' => 'mysql',
-            'db' => 'coreframework_db',
-            'host' => '127.0.0.1',
-            'user' => 'root',
-            'pass' => 'pass'
-        ],
-        '$global' => [],
-        '$routes' => []
-    ];
-    public static $frameworkConf;
-
-    public static $root;
 
     public function setUp()
     {
-        static::$root = vfsStream::setup('config', 0777);
-        vfsStream::newFile('testFile.conf.php', 0777)->at(static::$root);
-        static::$testConf = vfsStream::url('config/testFile.conf.php');
-        static::$frameworkConf = vfsStream::url('config/framework.conf.php');
-        static::_initConfFiles();
-        $this->config = new Config(vfsStream::url('config'));
+        $service = Application::register('Config', \Core\Config\Config::class, true);
+        $service->setArguments([static::$config]);
+        parent::setUp();
     }
 
-    public static function _initConfFiles()
+    public function testConfigStaticAccess()
     {
-        $data1 = '<?php return ' . var_export(static::$testConfArr, true) . ";\n ?>";
-        file_put_contents(static::$testConf, $data1);
-        $data2 = '<?php return ' . var_export(static::$frameworkConfArr, true) . ";\n ?>";
-        file_put_contents(static::$frameworkConf, $data2);
-    }
-
-    public function tearDown()
-    {
-
-    }
-
-    /**
-     * @covers \Core\Config\Config::__construct
-     * @expectedException \InvalidArgumentException
-     */
-    public function testExceptionOnCreation()
-    {
-        new Config([]);
-    }
-
-    /**
-     * @covers \Core\Config\Config::add
-     */
-    public function testAddConf()
-    {
-        Config::add('addArr', array('testKey' => 'testVal'));
-        $this->assertArrayHasKey('addArr', Config::$allConf);
-    }
-
-    /**
-     * @covers \Core\Config\Config::set
-     */
-    public function testSetConf()
-    {
-        Config::set(array('newArr' => array('testKey' => 'testVal')));
-        $this->assertArrayHasKey('newArr', Config::$allConf);
-        $this->assertArrayNotHasKey('addArr', Config::$allConf);
-    }
-
-    /**
-     * @covers \Core\Config\Config::get
-     */
-    public function testConfigGet()
-    {
-        $content = Config::get('$db.host');
-        $this->assertSame('127.0.0.1', $content);
-    }
-
-    /**
-     * @covers \Core\Config\Config::get
-     */
-    public function testConfigGetAsSearch()
-    {
-        $content = Config::get('user');
-        $this->assertSame('root', $content);
-    }
-
-    /**
-     * @covers \Core\Config\Config::get
-     */
-    public function testConfigGetFromFile()
-    {
-        $content = Config::get('testFile:testKey.someChildKey');
-        $this->assertSame('someChildValue', $content);
-    }
-
-    /**
-     * @covers \Core\Config\Config::get
-     * @runInSeparateProcess
-    */
-    public function testConfigGetOverride()
-    {
-        $env = Config::getEnvironment();
-        $dir = vfsStream::newDirectory($env, 0777)->at(static::$root);
-        vfsStream::newFile('testFile.conf.php', 0777)->at($dir);
-        $overrideConf = vfsStream::url('config/'.$env.'/testFile.conf.php');
-        $data2 = '<?php return ' . var_export(static::$testConfOverrideArr, true) . ";\n ?>";
-        file_put_contents($overrideConf, $data2);
-
-        $content = Config::get('testFile:testKey.someChildKey');
-        $this->assertSame('overrideValue', $content);
+        $testValue = Config::get('testKey');
+        $this->assertEquals('testValue', $testValue);
     }
 }

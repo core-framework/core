@@ -22,15 +22,15 @@
 
 namespace Core\Response;
 
-use Core\Contracts\CacheableContract;
-use Core\Contracts\ResponseContract;
-use Core\Contracts\ViewContract;
+use Core\Contracts\Cacheable;
+use Core\Contracts\Response\Response;
+use Core\Contracts\View;
 
 /**
  * Class BasesResponse
  * @package Core\Response
  */
-abstract class BaseResponse implements ResponseContract, CacheableContract
+abstract class BaseResponse implements Response, Cacheable
 {
     /**
      * Borrowed from @link https://github.com/symfony/symfony/blob/2.8/src/Symfony/Component/HttpFoundation/Response.php
@@ -176,7 +176,7 @@ abstract class BaseResponse implements ResponseContract, CacheableContract
     private $contentIsSet = false;
 
     /**
-     * @var $view ViewContract
+     * @var $view View
      */
     protected $view;
 
@@ -229,11 +229,11 @@ abstract class BaseResponse implements ResponseContract, CacheableContract
             return;
         }
 
-        if (!is_string($content) && !is_array($content) && !$content instanceof ViewContract && !$content instanceof \Serializable) {
+        if (!is_string($content) && !is_array($content) && !$content instanceof View && !$content instanceof \Serializable) {
             throw new \InvalidArgumentException("Content must be of type String or Array in case of JSON, " . gettype($content) . " given.");
         }
 
-        if ($content instanceof ViewContract) {
+        if ($content instanceof View) {
             $this->setView($content);
             return;
         }
@@ -286,9 +286,9 @@ abstract class BaseResponse implements ResponseContract, CacheableContract
     /**
      * Set View object
      *
-     * @param ViewContract $view
+     * @param View $view
      */
-    public function setView(ViewContract $view)
+    public function setView(View $view)
     {
         $this->view = $view;
         $this->useView = true;

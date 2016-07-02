@@ -1,46 +1,43 @@
 <?php
 /**
- * Created by PhpStorm.
- * User: shalom.s
- * Date: 11/01/15
- * Time: 10:44 AM
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * This file is part of the Core Framework package.
+ *
+ * (c) Shalom Sam <shalom.s@coreframework.in>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
 
 namespace Core\Tests\Console;
 
 use Core\Console\Console;
-use Core\Console\IOStream;
 use Core\Container\Container;
-use org\bovigo\vfs\vfsStream;
+use Core\Tests\Mocks\MockPaths;
 
 class ConsoleTest extends \PHPUnit_Framework_TestCase
 {
-    public static $basePath;
-    public static $frameworkConf;
-    public static $frameworkConfArr = [
-        '$db' => [],
-        '$global' => [],
-        '$routes' => []
-    ];
-    public static $structure = [
-        'storage' => [
-            'framework' => [
-                'cache' => [
-                    'emptyFile.php' => ""
-                ]
-            ]
-        ],
-        'config' => [
-            'cli.conf.php' => ""
-        ]
-    ];
 
-    public $io;
+    /**
+     * @var $cli Console
+     */
+    public $cli;
 
     public function setUp()
     {
-        $this->_createMockPaths();
-        $this->io = new IOStream();
+        MockPaths::createMockPaths();
+        $this->cli = new Console(MockPaths::$basePath);
         parent::setUp();
     }
 
@@ -50,29 +47,13 @@ class ConsoleTest extends \PHPUnit_Framework_TestCase
         parent::tearDown();
     }
 
-    public function _createMockPaths()
-    {
-        vfsStream::setup('root', 0777, self::$structure);
-        static::$frameworkConf = vfsStream::url('root/config/cli.conf.php');
-        static::$basePath = vfsStream::url('root');
-        static::_initConfFiles();
-    }
-
-    public static function _initConfFiles()
-    {
-        $data2 = '<?php return ' . var_export(static::$frameworkConfArr, true) . ";\n ?>";
-        file_put_contents(static::$frameworkConf, $data2);
-    }
-
     /**
      * @covers \Core\Console\CLI::__construct
      */
     public function testCLIConstructor()
     {
-        $cli = new Console(static::$basePath, $this->io);
-        $this->assertInstanceOf('\\Core\\Console\\Console', $cli);
-
-        $this->assertInstanceOf('\\Core\\Console\\IOStream', $cli->io);
+        $this->assertInstanceOf('\\Core\\Console\\Console', $this->cli);
+        $this->assertInstanceOf('\\Core\\Console\\IOStream', $this->cli->getIO());
     }
 
     /**
@@ -80,17 +61,7 @@ class ConsoleTest extends \PHPUnit_Framework_TestCase
      */
     public function testIfServiceIsSetWhenProvided()
     {
-        $conf = [
-            '$services' => [
-                'testService' => \stdClass::class
-            ]
-        ];
-
-        self::$frameworkConfArr = array_merge(self::$frameworkConfArr, $conf);
-        $this->_initConfFiles();
-
-        $testCLI = new Console(static::$basePath, $this->io);
-        $this->assertInstanceOf('\\stdClass', $testCLI->get('testService'));
+        $this->assertInstanceOf('\\stdClass', $this->cli->get('testService'));
     }
 
     /**
@@ -98,28 +69,9 @@ class ConsoleTest extends \PHPUnit_Framework_TestCase
      */
     public function testIfCommandExistsWhenProvided()
     {
-        $conf = [
-            '$commands' => [
-                0 => [
-                    'name' => 'hello:world',
-                    'shortName' => '',
-                    'description' => 'Simple Hello World Command',
-                    'definition' => '\\Core\\Console\\CliApplication::helloWorld',
-                    'arguments' => [
-                        'name' => 'name',
-                        'isRequired' => false,
-                        'description' => 'Your Name'
-                    ]
-                ]
-            ]
-        ];
-        self::$frameworkConfArr = array_merge(self::$frameworkConfArr, $conf);
-        $this->_initConfFiles();
-
-        $testCLI = new Console(self::$basePath, $this->io);
-        $this->assertArrayHasKey('hello:world', $testCLI->commands);
-        $this->assertInstanceOf('\\Core\\Console\\Command', $testCLI->commands['hello:world']);
-        $this->assertInternalType('callable', $testCLI->commands['hello:world']->getDefinition());
+        $this->assertArrayHasKey('hello:world', $this->cli->getCommand());
+        $this->assertInstanceOf('\\Core\\Console\\Command', $this->cli->getCommand('hello:world'));
+        $this->assertInternalType('callable', $this->cli->getCommand('hello:world')->getDefinition());
     }
 
     /**
@@ -127,21 +79,7 @@ class ConsoleTest extends \PHPUnit_Framework_TestCase
      */
     public function testIfOptionExistsWhenProvided()
     {
-        $conf = [
-            '$options' => [
-                0 => [
-                    'name' => 'hello:world',
-                    'shortName' => 'H',
-                    'description' => 'Simple Hello World Command',
-                    'definition' => '\\Core\\Console\\CliApplication::helloWorld'
-                ]
-            ]
-        ];
-        self::$frameworkConfArr = array_merge(self::$frameworkConfArr, $conf);
-        $this->_initConfFiles();
-
-        $testCLI = new Console(self::$basePath, $this->io);
-        $options = $testCLI->getOptions();
+        $options = $this->cli->getOptions();
         $this->assertInternalType('array', $options);
         $this->assertArrayHasKey('hello:world', $options);
         $this->assertInstanceOf('\\Core\\Console\\Options', $options['hello:world']);
@@ -153,9 +91,7 @@ class ConsoleTest extends \PHPUnit_Framework_TestCase
      */
     public function testIfDefaultOptionsAreSet()
     {
-        $testCLI = new Console(self::$basePath, $this->io);
-        $options = $testCLI->getOptions();
-        $this->assertArrayHasKey('help', $options);
+        $this->assertArrayHasKey('hello:world', $this->cli->getOptions());
     }
 
 }

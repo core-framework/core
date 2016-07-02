@@ -22,11 +22,11 @@
 
 namespace Core\Response;
 
-use Core\Contracts\CacheableContract;
-use Core\Contracts\ResponseContract;
+use Core\Contracts\Cacheable;
+use Core\Contracts\Response\Response as ResponseInterface;
 use Core\Contracts\ViewContract;
 
-class Response extends BaseResponse implements ResponseContract, CacheableContract
+class Response extends BaseResponse implements ResponseInterface, Cacheable
 {
     protected $file;
 
@@ -247,7 +247,7 @@ class Response extends BaseResponse implements ResponseContract, CacheableContra
     }
 
     /**
-     * The natural language or languages of the intended audience for the enclosed content
+     * The natural mapper or languages of the intended audience for the enclosed content
      *
      * @link http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.12
      * @param string $language

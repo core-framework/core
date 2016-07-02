@@ -25,15 +25,13 @@ namespace Core\Console;
 
 use Core\Application\Application;
 use Core\Application\BaseApplication;
-use Core\Config\Config;
-use Core\Contracts\CacheContract;
-use Core\Contracts\CLIContract;
+use Core\Contracts\Application as ApplicationInterface;
 
 /**
  * Class CliApplication
  * @package Core\Console
  */
-abstract class CliApplication extends BaseApplication implements CLIContract
+abstract class CliApplication extends BaseApplication implements ApplicationInterface
 {
     /**
      * @var bool Defines if verbosity is set
@@ -42,27 +40,27 @@ abstract class CliApplication extends BaseApplication implements CLIContract
     /**
      * @var Command[] Contains all assigned commands
      */
-    public $commands;
+    protected $commands;
     /**
      * @var IOStream $io Contains IO stream object
      */
-    public $io;
+    protected $io;
     /**
      * @inheritdoc
      */
-    public $config;
+    protected $config;
     /**
      * @var string The Tool name
      */
-    protected static $toolName = "Console";
+    protected $toolName = "core";
     /**
      * @var string Usage string
      */
-    protected $usage = "Console [globalOptions] command [arguments || [options]]";
+    protected $usage = "core [globalOptions] command [arguments || [options]]";
     /**
      * @var string Version no.
      */
-    protected static $version = "0.0.1";
+    protected $version = "0.0.1";
     /**
      * @var Options[] Contains an array of (global) options
      */
@@ -88,13 +86,19 @@ abstract class CliApplication extends BaseApplication implements CLIContract
     private $stopPropagation = false;
 
     /**
-     * @param null $basePath
-     * @param IOStream $io
+     * @var array $components
      */
-    public function __construct($basePath = null, IOStream $io)
+    protected $components = [
+        'io' => '\\Core\\Console\\IOStream'
+    ];
+
+    /**
+     * @param null $basePath
+     */
+    public function __construct($basePath = null)
     {
-        $this->io = $io;
         parent::__construct($basePath);
+        $this->loadConf();
         $this->loadCommands();
     }
 
@@ -105,43 +109,45 @@ abstract class CliApplication extends BaseApplication implements CLIContract
      */
     protected abstract function loadCommands();
 
-    /**
-     * @inheritdoc
-     */
-    public function loadBaseComponents()
-    {
-        $this->registerAndLoad(
-            'Cache',
-            \Core\Cache\AppCache::class,
-            [$this->getAbsolutePath("/storage/framework/cache")]
-        );
-        $this->registerAndLoad('Config', \Core\Config\Config::class, [$this->getConfigDir()]);
-    }
+//    /**
+//     * @inheritdoc
+//     */
+//    public function loadBaseComponents()
+//    {
+//        $this->registerAndLoad(
+//            'Cache',
+//            \Core\Cache\AppCache::class,
+//            [$this->getAbsolutePath("/storage/framework/cache")]
+//        );
+//        $this->registerAndLoad('Config', \Core\Config\Config::class, [$this->getConfigDir()]);
+//    }
 
-    /**
-     * @inheritdoc
-     */
-    public function getConfigPath()
-    {
-        return $this->getAbsolutePath('/config/cli.conf.php');
-    }
+//    /**
+//     * @inheritdoc
+//     */
+//    public function getConfigPath()
+//    {
+//        return $this->getAbsolutePath('/config/cli.conf.php');
+//    }
 
     /**
      * @return string Returns Tool name
      */
     public function getToolName()
     {
-        return static::$toolName;
+        return $this->toolName;
     }
 
     /**
-     * Sets Tool name
+     * Sets the cli application name
      *
      * @param $toolName
+     * @return $this
      */
     public function setToolName($toolName)
     {
-        static::$toolName = $toolName;
+        $this->toolName = $toolName;
+        return $this;
     }
 
     /**
@@ -166,25 +172,6 @@ abstract class CliApplication extends BaseApplication implements CLIContract
     }
 
     /**
-     * @return string Returns the Tool version
-     */
-    public function getVersion()
-    {
-        return static::$version;
-    }
-
-    /**
-     * Sets the tool version
-     *
-     * @param $version
-     * @return $this
-     */
-    public function setVersion($version)
-    {
-        static::$version = $version;
-    }
-
-    /**
      * Returns Command object by command name
      *
      * @param $command
@@ -194,7 +181,7 @@ abstract class CliApplication extends BaseApplication implements CLIContract
     public function getCommand($command = null)
     {
         if (empty($command)) {
-            $this->io->showErr("Missing Argument command name.", '\\LogicException');
+            return $this->commands;
         }
 
         if (!isset($this->commands[$command])) {
@@ -274,6 +261,11 @@ abstract class CliApplication extends BaseApplication implements CLIContract
         } else {
             $this->io->showErr("Command $argv[0] not found");
         }
+    }
+
+    public function run()
+    {
+        $this->parse();
     }
 
     /**
@@ -378,7 +370,7 @@ abstract class CliApplication extends BaseApplication implements CLIContract
                 }
 
                 $sym = $val->getIsRequired();
-                $shortName = $val->getShortname();
+                $shortName = $val->getShortName();
                 array_push($longOpts, $key . $sym);
                 $shortOpts .= $shortName . $sym;
             }
@@ -443,6 +435,7 @@ abstract class CliApplication extends BaseApplication implements CLIContract
         $command = $this->commands[$argv[0]];
         $def = $command->getDefinition();
         $options = $command->getOptions();
+        /** @var Argument[] $arguments */
         $arguments = $command->getArguments();
 
         array_shift($argv);
@@ -538,45 +531,45 @@ abstract class CliApplication extends BaseApplication implements CLIContract
         $this->stopPropagation = true;
     }
 
-    /**
-     * Allows the use of dot separated array key access
-     *
-     * @param $arr
-     * @param $path
-     * @param $value
-     */
-    public function assignArrayByPath(&$arr, $path, $value)
-    {
-        $keys = explode('.', $path);
+//    /**
+//     * Allows the use of dot separated array key access
+//     *
+//     * @param $arr
+//     * @param $path
+//     * @param $value
+//     */
+//    public function assignArrayByPath(&$arr, $path, $value)
+//    {
+//        $keys = explode('.', $path);
+//
+//        while ($key = array_shift($keys)) {
+//            $arr = &$arr[$key];
+//        }
+//
+//        if (is_array($arr)) {
+//            array_push($arr, $value);
+//        } else {
+//            $arr = $value;
+//        }
+//    }
 
-        while ($key = array_shift($keys)) {
-            $arr = &$arr[$key];
-        }
-
-        if (is_array($arr)) {
-            array_push($arr, $value);
-        } else {
-            $arr = $value;
-        }
-    }
-
-    /**
-     * Returns value of given path. Where path is a dot(.) separated array path
-     *
-     * @param $arr
-     * @param $path
-     * @return mixed
-     */
-    public function getArrayByPath(&$arr, $path)
-    {
-        $keys = explode('.', $path);
-
-        while ($key = array_shift($keys)) {
-            $arr = &$arr[$key];
-        }
-
-        return $arr;
-    }
+//    /**
+//     * Returns value of given path. Where path is a dot(.) separated array path
+//     *
+//     * @param $arr
+//     * @param $path
+//     * @return mixed
+//     */
+//    public function getArrayByPath(&$arr, $path)
+//    {
+//        $keys = explode('.', $path);
+//
+//        while ($key = array_shift($keys)) {
+//            $arr = &$arr[$key];
+//        }
+//
+//        return $arr;
+//    }
 
     /**
      * Test helloWorld
@@ -604,45 +597,15 @@ abstract class CliApplication extends BaseApplication implements CLIContract
     }
 
     /**
-     * @inheritdoc
-     */
-    protected function loadConfig()
-    {
-        /** @var \Core\Cache\AppCache $cache */
-        $cache = $this->cache;
-
-        if (!$this->cache instanceof CacheContract) {
-            throw new \ErrorException("Cache Service not found.");
-        }
-
-        if ($cache->cacheExists('cli.conf')) {
-            $this->configArr = $cache->getCache('cli.conf');
-        } else {
-            $this->configArr = $this->getConfigArr();
-            $cache->cacheContent('cli.conf', $this->configArr, 0);
-        }
-    }
-
-    /**
-     * @inheritdoc
-     */
-    protected function registerServicesFromConfig()
-    {
-        parent::registerServicesFromConfig();
-        $this->loadConf();
-        $this->setDefaultCommands();
-    }
-
-    /**
      * Load Configuration settings
      *
      * @throws \ErrorException
      */
     protected function loadConf()
     {
-        $config = $this->configArr;
-        if (isset($config['$commands']) && !empty($config['$commands'])) {
-            $commandsArr = $config['$commands'];
+        $config = $this->getConfig()->all();
+        if (isset($config['commands']) && !empty($config['commands'])) {
+            $commandsArr = $config['commands'];
             foreach ($commandsArr as $index => $arr) {
                 $command = $this->addCommand($arr['name'], $arr['description'], $arr['definition']);
                 if (isset($arr['arguments'])) {
@@ -652,8 +615,8 @@ abstract class CliApplication extends BaseApplication implements CLIContract
             }
         }
 
-        if (isset($config['$options']) && !empty($config['$options'])) {
-            $optionsArr = $config['$options'];
+        if (isset($config['options']) && !empty($config['options'])) {
+            $optionsArr = $config['options'];
             foreach ($optionsArr as $index => $arr) {
                 $this->setOptions($arr['name'], $arr['shortName'], $arr['description'], $arr['definition']);
             }
@@ -691,5 +654,16 @@ abstract class CliApplication extends BaseApplication implements CLIContract
             }
         );
         $this->setOptions("version", "v", "Display the version of this tool", get_class($this) . "::showVersion");
+    }
+
+    /**
+     * @return IOStream
+     */
+    public function getIO()
+    {
+        if (!isset($this->io)) {
+            $this->io = $this->get('io');
+        }
+        return $this->io;
     }
 }

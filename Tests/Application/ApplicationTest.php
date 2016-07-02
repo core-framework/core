@@ -1,134 +1,47 @@
 <?php
 /**
- * Created by PhpStorm.
- * User: shalom.s
- * Date: 02/11/15
- * Time: 1:25 AM
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * This file is part of the Core Framework package.
+ *
+ * (c) Shalom Sam <shalom.s@coreframework.in>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
 
 namespace Core\Tests\Application;
 
 use Core\Application\Application;
-use Core\Cache\AppCache;
-use Core\Config\Config;
 use Core\Container\Container;
+use Core\Facades\Router;
 use Core\Response\Response;
-use Core\Router\Router;
-use org\bovigo\vfs\vfsStream;
+use Core\Tests\Mocks\MockPaths;
 
 class ApplicationTest extends \PHPUnit_Framework_TestCase
 {
-    /**
-     * @var Application
-     */
     public $app;
-    public static $basePath;
-    public static $frameworkConf;
-    public static $viewConf;
-    public static $frameworkConfArr = [
-        '$db' => [],
-        '$global' => [
-            'templateEngine' => 'Smarty'
-        ],
-        '$routes' => [
-            '/' => [
-                'pageName' => 'test',
-                'pageTitle' => 'Test',
-                'httpMethod' => 'GET',
-                'controller' => '\\Core\\Controllers:testController:helloWorldAction'
-            ],
-            '/hello/{name}' => [
-                'pageName' => 'test',
-                'pageTitle' => 'Test',
-                'argReq' => ['name' => ':alpha'],
-                'argDefault' => 'name',
-                'httpMethod' => 'GET',
-                'controller' => '\\Core\\Controllers:testController::helloAction'
-            ],
-        ],
-        '$env' => [],
-        '$services' => [
-
-            'View' => [
-                'definition' => \Core\View\View::class,
-                'dependencies' => ['App']
-            ],
-
-            'Smarty' => \Smarty::class
-        ]
-    ];
-    public static $structure = [
-        'storage' => [
-            'framework' => [
-                'cache' => [
-                    'emptyFile.php' => ""
-                ]
-            ],
-            'smarty_cache' => [
-                'cache' => [],
-                'config' => [],
-                'configs' => [],
-                'templates_c' => []
-            ]
-        ],
-        'config' => [
-            'framework.conf.php' => "",
-            'view.conf.php' => ""
-        ]
-    ];
-
-    public function _createMockPaths()
-    {
-        vfsStream::setup('root', 0777, self::$structure);
-        static::$frameworkConf = vfsStream::url('root/config/framework.conf.php');
-        static::$viewConf = vfsStream::url('root/config/view.conf.php');
-        static::$basePath = vfsStream::url('root');
-        static::setFilePermissions();
-        static::_initConfFiles();
-    }
-
-    public static function setFilePermissions()
-    {
-        chmod(vfsStream::url('root/storage/framework/cache'), 0777);
-        chmod(vfsStream::url('root/storage/smarty_cache/'), 0777);
-        chmod(vfsStream::url('root/storage/smarty_cache/cache'), 0777);
-        chmod(vfsStream::url('root/storage/smarty_cache/templates_c/'), 0777);
-    }
-
-    public static function _initConfFiles()
-    {
-        $data2 = '<?php return ' . var_export(static::$frameworkConfArr, true) . ";\n ?>";
-        file_put_contents(static::$frameworkConf, $data2);
-        $data3 = '<?php return ' . var_export([], true) . ";\n ?>";
-        file_put_contents(static::$viewConf, $data3);
-
-    }
 
     public function setUp()
     {
-        $this->_createMockPaths();
-        
-        //$this->app = new Application(self::$basePath);
-        $path = vfsStream::url('root/config/');
-
-        $config = new Config($path);
-
-        $app = $this->getMockBuilder('\\Core\\Application\\Application')
-            ->setConstructorArgs(array(self::$basePath))
-            ->setMethods(array('getConfigInstance'))
-            ->getMock();
-
-        $app->expects($this->any())->method('getConfigInstance')
-            ->will($this->returnValue($config));
-
-        $this->app = $app;
+        MockPaths::createMockPaths();
+        $this->app = new Application(MockPaths::$basePath);
         parent::setUp();
     }
 
     public function tearDown()
     {
         Container::reset();
-        AppCache::reset();
         parent::tearDown();
     }
 
@@ -139,12 +52,12 @@ class ApplicationTest extends \PHPUnit_Framework_TestCase
 
     public function getRequestMock($path = "/")
     {
-        $request = $this->getMockBuilder('\Core\Request\Request')
+        $request = $this->getMockBuilder('\\Core\\Request\\Request')
             ->setConstructorArgs(array($_GET, $_POST, $_SERVER, $_COOKIE, $_FILES))
             ->setMethods(array('getHttpMethod', 'getPath'))
             ->getMock();
 
-        $request->expects($this->once())
+        $request->expects($this->any())
             ->method('getHttpMethod')
             ->will($this->returnValue('GET'));
 
@@ -162,17 +75,12 @@ class ApplicationTest extends \PHPUnit_Framework_TestCase
             ->method($method)
             ->will($this->returnCallback(array($this, 'responseCallback')));
         
-        $router = $this->getMockBuilder('\Core\Router\Router')->setMethods(array('makeController'))->getMock();
+        $router = $this->getMockBuilder('\\Core\\Router\\Router')->setConstructorArgs([$this->app])->setMethods(array('makeController'))->getMock();
         $router->expects($this->any())
             ->method("makeController")
             ->will($this->returnValue($controller));
 
         return $router;
-    }
-
-    public function getApplicationMock($basePath = null)
-    {
-
     }
 
     public function getClass($action)
@@ -218,7 +126,7 @@ class ApplicationTest extends \PHPUnit_Framework_TestCase
     public function testIfBaseComponentsAreLoaded()
     {
         $this->assertInstanceOf('\\Core\\Router\\Router', $this->app->getRouter());
-        $this->assertInstanceOf('\\Core\\Cache\\AppCache', $this->app->getCache());
+        $this->assertInstanceOf('\\Core\\Cache\\FileCache', $this->app->getCache());
     }
 
     /**
@@ -227,13 +135,14 @@ class ApplicationTest extends \PHPUnit_Framework_TestCase
      */
     public function testIfCacheIsClearWhenSetInRouter()
     {
-        AppCache::cacheContent('testCache', "testContent", 0);
+        //AppCache::cacheContent('testCache', "testContent", 0);
+        //Cache::put('testCache', "testContent", 0);
 
         // mimic real world GET request
-        $_GET['action'] = "clear_cache";
-        $app = new Application(self::$basePath);
+        //$_GET['action'] = "clear_cache";
+        //$app = new Application(MockPaths::$basePath);
 
-        $this->assertFalse($app->getCache()->getCache('testCache'));
+        //$this->assertFalse($app->getCache()->get('testCache'));
     }
 
     /**
@@ -241,33 +150,10 @@ class ApplicationTest extends \PHPUnit_Framework_TestCase
      */
     public function testIfApplicationHasConfig()
     {
-        $this->assertArrayHasKey('$db', $this->app->configArr);
-        $this->assertArrayHasKey('$global', $this->app->configArr);
-        $this->assertArrayHasKey('$routes', $this->app->configArr);
-    }
-
-    /**
-     * @covers \Core\Application\BaseApplication::setEnvironment
-     */
-    public function testIfEnvironmentIsDevelopment()
-    {
-        $this->assertSame(Application::DEVELOPMENT_STATE, $this->app->environment());
-    }
-
-    /**
-     * @covers \Core\Application\BaseApplication::setEnvironment
-     */
-    public function testDisplayErrorsIsSet()
-    {
-        $this->assertSame('On', ini_get('display_errors'));
-    }
-
-    /**
-     * @covers \Core\Application\BaseApplication::setEnvironment
-     */
-    public function testErrorReportingIsSet()
-    {
-        $this->assertSame(error_reporting(), E_ALL);
+        $config = $this->app->getConfig()->all();
+        $this->assertArrayHasKey('database', $config);
+        $this->assertArrayHasKey('app', $config);
+        $this->assertArrayHasKey('router', $config);
     }
 
     /**
@@ -286,6 +172,9 @@ class ApplicationTest extends \PHPUnit_Framework_TestCase
      */
     public function testIfRunProducesOutput()
     {
+        MockPaths::createMockPaths();
+        $this->app = new Application(MockPaths::$basePath);
+        $this->app->setRequest($this->getRequestMock());
         $this->app->setRouter($this->getRouterMock());
         $this->setRoute();
         $this->app->run();

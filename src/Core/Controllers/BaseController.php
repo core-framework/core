@@ -25,7 +25,7 @@ namespace Core\Controllers;
 
 use Core\Application\Application;
 use Core\Config\Config;
-use Core\Contracts\ResponseContract;
+use Core\Contracts\Response;
 use Core\Contracts\RouterContract;
 use Core\Contracts\ViewContract;
 use Core\Foundation\DataCollection;
@@ -196,7 +196,7 @@ class BaseController
             $response = Application::get('Response');
         }
 
-        if (!$response instanceof ResponseContract) {
+        if (!$response instanceof Response) {
             $response = new Response();
         }
 

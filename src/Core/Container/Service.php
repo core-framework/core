@@ -22,11 +22,13 @@
 
 namespace Core\Container;
 
+use Core\Contracts\Service as ServiceInterface;
+
 /**
  * Class Service
  * @package Core\Container
  */
-class Service implements serviceInterface
+class Service implements ServiceInterface
 {
     /**
      * @var string Service name

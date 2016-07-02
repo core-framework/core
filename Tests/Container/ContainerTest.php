@@ -1,93 +1,49 @@
 <?php
 /**
- * Created by PhpStorm.
- * User: shalom.s
- * Date: 22/11/14
- * Time: 8:47 AM
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * This file is part of the Core Framework package.
+ *
+ * (c) Shalom Sam <shalom.s@coreframework.in>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
 
 namespace Core\Tests\Container;
 
+use Core\Application\Application;
 use Core\Config\Config;
 use Core\Container\Container;
+use Core\Tests\Mocks\MockPaths;
 use Core\View\View;
 use org\bovigo\vfs\vfsStream;
 
 class ContainerTest extends \PHPUnit_Framework_TestCase {
 
-    public $config;
-
-    public static $root;
-    public static $viewConf;
-    public static $basePath;
-    public static $frameworkConf;
-
-    public static $structure = [
-        'storage' => [
-            'framework' => [
-                'cache' => [
-                    'emptyFile.php' => ""
-                ]
-            ],
-            'smarty_cache' => [
-                'cache' => [],
-                'config' => [],
-                'configs' => [],
-                'templates_c' => []
-            ]
-        ],
-        'config' => [
-            'framework.conf.php' => "",
-            'view.conf.php' => ""
-        ]
-    ];
+    public $app;
 
     public function setUp()
     {
-        vfsStream::setup('root', 0777, self::$structure);
-        static::$frameworkConf = vfsStream::url('root/config/framework.conf.php');
-        static::$viewConf = vfsStream::url('root/config/view.conf.php');
-        static::$basePath = vfsStream::url('root');
-        static::setFilePermissions();
-        static::_initConfFiles();
-    }
-
-    public static function setFilePermissions()
-    {
-        chmod(vfsStream::url('root/storage/framework/cache'), 0777);
-        chmod(vfsStream::url('root/storage/smarty_cache/'), 0777);
-        chmod(vfsStream::url('root/storage/smarty_cache/cache'), 0777);
-        chmod(vfsStream::url('root/storage/smarty_cache/templates_c/'), 0777);
-    }
-
-    public static function _initConfFiles()
-    {
-        $data2 = '<?php return ' . var_export([], true) . ";\n ?>";
-        file_put_contents(static::$frameworkConf, $data2);
-        $data3 = '<?php return ' . var_export([], true) . ";\n ?>";
-        file_put_contents(static::$viewConf, $data3);
+        MockPaths::createMockPaths();
+        $this->app = new Application(MockPaths::$basePath);
+        parent::setUp();
     }
 
     public function tearDown()
     {
         Container::reset();
         parent::tearDown();
-    }
-
-    public function getMockApplication()
-    {
-        $application = $this->getMockBuilder('\\Core\\Application\\Application')
-            ->setMethods(array('getConfigInstance'))
-            ->getMock();
-
-        $path = vfsStream::url('root/config');
-        $config = new Config($path);
-
-        $application->expects($this->any())
-            ->method('getConfigInstance')
-            ->will($this->returnValue($config));
-
-        return $application;
     }
 
     /**
@@ -100,7 +56,7 @@ class ContainerTest extends \PHPUnit_Framework_TestCase {
         $Container = new Container();
         $Container->register('_Container', $Container);
         $Container->register('Smarty', '\\Smarty');
-        $Container->register('Application', $this->getMockApplication());
+        $Container->register('Application', $this->app);
         $Container->register('View', '\\Core\\View\\View')->setArguments(array('Application'));
 
         /** @var View $a */
@@ -123,11 +79,11 @@ class ContainerTest extends \PHPUnit_Framework_TestCase {
     public function testCanRegisterClass()
     {
         $Container = new Container();
-        $Container->register('Cache', \Core\Cache\OPCache::class);
+        $Container->register('Cache', \Core\Cache\ApcCache::class);
 
         $cache = $Container->get('Cache');
 
-        $this->assertInstanceOf('\\Core\\Cache\\OPCache', $cache);
+        $this->assertInstanceOf('\\Core\\Cache\\ApcCache', $cache);
     }
 
 } 

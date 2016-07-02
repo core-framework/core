@@ -1,9 +1,23 @@
 <?php
 /**
- * Created by PhpStorm.
- * User: shalom.s
- * Date: 15/04/16
- * Time: 9:17 AM
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * This file is part of the Core Framework package.
+ *
+ * (c) Shalom Sam <shalom.s@coreframework.in>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
 
 namespace Core\View;
@@ -11,9 +25,9 @@ namespace Core\View;
 use Core\Application\Application;
 use Core\Config\Config;
 use Core\Contracts\TemplateEngineContract;
-use Core\Contracts\ViewContract;
+use Core\Contracts\View as ViewInterface;
 
-class View implements ViewContract
+class View implements ViewInterface
 {
     protected $application;
 
@@ -37,12 +51,8 @@ class View implements ViewContract
      * View constructor.
      * @param $application
      */
-    public function __construct(Application $application = null)
+    public function __construct(Application $application)
     {
-        if (!is_null($application)) {
-            $application = Application::$app;
-        }
-        
         $this->application = $application;
         $this->init();
     }
@@ -58,8 +68,8 @@ class View implements ViewContract
             $engine->right_delimiter = $config->get('view:rightDelimiter', '}>');
         }
 
-        $basePath = Application::getBasePath();
-        $appPath = Application::getAppPath();
+        $basePath = $this->application->basePath();
+        $appPath = $this->application->appPath();
         $engine->setCompileDir($basePath . '/storage/smarty_cache/templates_c/');
         $engine->setConfigDir($basePath . '/storage/smarty_cache/config/');
         $engine->setCacheDir($basePath . '/storage/smarty_cache/cache/');
@@ -70,7 +80,7 @@ class View implements ViewContract
 
         $engine->inheritance_merge_compiled_includes = false;
         $engine->caching = 1;
-        $engine->cache_lifetime = $this->application->getTtl();
+        $engine->cache_lifetime = $config->get('app.ttl', 60);
     }
 
     /**
@@ -90,14 +100,11 @@ class View implements ViewContract
     }
 
     /**
-     * @return mixed
+     * @return Config
      */
     public function getConfig()
     {
-        if (!$this->config instanceof Config) {
-            $this->config = Application::get('Config');
-        }
-        return $this->config;
+        return $this->application->getConfig();
     }
 
     /**
@@ -178,8 +185,8 @@ class View implements ViewContract
     public function getEngine()
     {
         if (!$this->engine instanceof TemplateEngineContract) {
-            $engineName = getOne($this->getConfig()->get('templateEngine'), 'Smarty');
-            $this->engine = Application::get($engineName);
+            $engineName = $this->getConfig()->get('templateEngine', 'Smarty');
+            $this->engine = $this->application->get($engineName);
         }
         return $this->engine;
     }

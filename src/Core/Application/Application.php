@@ -22,7 +22,7 @@
 
 namespace Core\Application;
 
-use Core\Contracts\ApplicationContract;
+use Core\Contracts\Application as ApplicationInterface;
 
 /**
  * Application Class
@@ -30,12 +30,11 @@ use Core\Contracts\ApplicationContract;
  * Class Application
  * @package Core\Application
  */
-class Application extends BaseApplication implements ApplicationContract
+class Application extends BaseApplication implements ApplicationInterface
 {
-    protected static $applicationName = "Core Framework";
-
-    protected static $version = "v1.0.0";
-
+    protected $applicationName = "Core Framework";
+    protected $version = "v1.0.0";
+    
+    
 }
 
-spl_autoload_register(['Core\\Application\\Application', 'autoload'], true, true);

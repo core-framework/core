@@ -1,19 +1,35 @@
 <?php
 /**
- * Created by PhpStorm.
- * User: shalom.s
- * Date: 28/06/15
- * Time: 12:59 AM
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * This file is part of the Core Framework package.
+ *
+ * (c) Shalom Sam <shalom.s@coreframework.in>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
 
 namespace Core\Model;
 
-use Core\Config\Config;
-use Core\Contracts\Database\LanguageContract;
+//use Core\Config\Config;
+use Core\Contracts\Database\Mapper;
 use Core\Contracts\ModelContract;
 use Core\Database\Connection;
 use Core\Database\Table;
 use Core\Database\Where;
+use Core\Facades\Config;
+use Symfony\Component\Config\Definition\Exception\Exception;
 
 abstract class BaseModel implements ModelContract
 {
@@ -56,9 +72,9 @@ abstract class BaseModel implements ModelContract
     protected static $returnRelationsAsBuilder = true;
 
     /**
-     * @var LanguageContract
+     * @var Mapper
      */
-    public static $language;
+    public static $mapper;
 
     /**
      * Save to database
@@ -117,16 +133,16 @@ abstract class BaseModel implements ModelContract
     abstract public function getTableSchema();
 
     /**
-     * @param LanguageContract|null $language
+     * @param Mapper|null $mapper
      */
-    public function __construct(LanguageContract $language = null)
+    public function __construct(Mapper $mapper = null)
     {
-        if (is_null($language)) {
-            $language = $this->getLanguage();
+        if (is_null($mapper)) {
+            $mapper = $this->getMapper();
         }
-        $language->setSaveableColumns(static::$saveable);
-        $this->setConfig($language->getConfig());
-        $this->setLanguage($language);
+        $mapper->setSaveableColumns(static::$saveable);
+        $this->setConfig($mapper->getConfig());
+        $this->setMapper($mapper);
     }
 
     /**
@@ -134,14 +150,14 @@ abstract class BaseModel implements ModelContract
      */
     public function getConnection()
     {
-        return $this->getLanguage()->getConnection();
+        return $this->getMapper()->getConnection();
     }
 
     /**
      * Configure object
      *
      * @param $object ModelContract
-     * @param $props Array must be of the format:
+     * @param $props array must be of the format:
      * array(
      *      'columnName' => 'columnValue',
      *      .....
@@ -168,48 +184,48 @@ abstract class BaseModel implements ModelContract
     }
 
     /**
-     * @return LanguageContract
+     * @return Mapper
      */
-    public static function getLanguage()
+    public static function getMapper()
     {
-        if (!isset(static::$language)) {
-            self::setLanguage(self::getLanguageFromConfig());
+        if (!isset(static::$mapper)) {
+            self::setMapper(self::getMapperFromConfig());
         }
-        return static::$language;
+        return static::$mapper;
     }
 
     /**
-     * @param mixed $language
+     * @param mixed $mapper
      */
-    public static function setLanguage(LanguageContract $language)
+    public static function setMapper(Mapper $mapper)
     {
-        self::$language = $language;
+        self::$mapper = $mapper;
     }
 
     /**
-     * @return LanguageContract
+     * @return Mapper
      */
-    public static function getLanguageFromConfig()
+    public static function getMapperFromConfig()
     {
         $config = self::getConfig();
         $type = isset($config['type']) ? $config['type'] : 'mysql';
-        $language = self::getLanguageClass($type);
-        return new $language();
+        $mapperClass = self::getMapperClass($type);
+        return new $mapperClass();
     }
 
     /**
      * @param $type
      * @return string
      */
-    public static function getLanguageClass($type)
+    public static function getMapperClass($type)
     {
         switch ($type) {
             case 'mysql':
-                return '\Core\Database\Language\MySqlLanguage';
+                return '\Core\Database\Mapper\MySqlMapper';
                 break;
 
             default:
-                return '\Core\Database\Language\\' . ucfirst($type) . 'Language';
+                return '\Core\Database\Mapper\\' . ucfirst($type) . 'Mapper';
                 break;
         }
     }
@@ -219,8 +235,13 @@ abstract class BaseModel implements ModelContract
      */
     public static function getConfig()
     {
-        if (empty(self::$config) && !empty(Config::getDatabase())) {
-            self::setConfig(Config::getDatabase());
+        try {
+            $dbConfig = Config::getDatabase();
+        } catch (\ErrorException $e) {
+            $dbConfig = [];
+        }
+        if (empty(self::$config) && !empty($dbConfig)) {
+            self::setConfig($dbConfig);
         }
 
         return self::$config;
@@ -299,7 +320,7 @@ abstract class BaseModel implements ModelContract
      */
     public static function get($query, $params = [], $resultAsArray = false)
     {
-        $prep = static::getLanguage()->getPrepared($query);
+        $prep = static::getMapper()->getPrepared($query);
         $prep->execute($params);
         $result = $prep->fetchAll(\PDO::FETCH_ASSOC);
         if ($resultAsArray === false) {
@@ -326,7 +347,7 @@ abstract class BaseModel implements ModelContract
         $isCount = false,
         $limit = false
     ) {
-        $result = static::getLanguage()->getAllRows(
+        $result = static::getMapper()->getAllRows(
             static::$tableName,
             $columns,
             $conditions,
@@ -348,7 +369,7 @@ abstract class BaseModel implements ModelContract
     public static function deleteRows($column, $matchValue, $matchType = '=')
     {
         $where = new Where($column, $matchValue, $matchType);
-        $result = static::getLanguage()->dropRows(self::getTableName(), [$where]);
+        $result = static::getMapper()->dropRows(self::getTableName(), [$where]);
         return $result;
     }
 
@@ -364,7 +385,7 @@ abstract class BaseModel implements ModelContract
             throw new \LogicException('Soft Delete must be explicitly set to true before you can use it.');
         }
         $where = new Where($column, $matchValue, $matchType);
-        return static::getLanguage()->update(static::getTableName(), ['deleted_at' => 'now()'], [$where]);
+        return static::getMapper()->update(static::getTableName(), ['deleted_at' => 'now()'], [$where]);
     }
 
     /**

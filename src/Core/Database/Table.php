@@ -1,15 +1,29 @@
 <?php
 /**
- * Created by PhpStorm.
- * User: shalom.s
- * Date: 09/01/16
- * Time: 6:17 PM
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * This file is part of the Core Framework package.
+ *
+ * (c) Shalom Sam <shalom.s@coreframework.in>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
 
 namespace Core\Database;
 
 
-use Core\Contracts\Database\LanguageContract;
+use Core\Contracts\Database\Mapper;
 
 class Table
 {
@@ -28,22 +42,22 @@ class Table
 
     protected $data = [];
 
-    protected $language;
+    protected $mapper;
 
     /**
      * Table constructor.
      * @param $name
      * @param $options
-     * @param $language LanguageContract
+     * @param $mapper Mapper
      */
-    public function __construct($name, array $options = [], LanguageContract $language = null)
+    public function __construct($name, array $options = [], Mapper $mapper = null)
     {
         $this->setName($name);
         if (!empty($options)) {
             $this->setOptions($options);
         }
-        if (!is_null($language)) {
-            $this->setLanguage($language);
+        if (!is_null($mapper)) {
+            $this->setMapper($mapper);
         }
         return $this;
     }
@@ -128,18 +142,18 @@ class Table
     /**
      * @return mixed
      */
-    public function getLanguage()
+    public function getMapper()
     {
-        return $this->language;
+        return $this->mapper;
     }
 
     /**
-     * @param $language
+     * @param $mapper
      * @return $this
      */
-    public function setLanguage($language)
+    public function setMapper($mapper)
     {
-        $this->language = $language;
+        $this->mapper = $mapper;
 
         return $this;
     }
@@ -264,7 +278,7 @@ class Table
         if ($referencedTable instanceof Table) {
             $foreignKey->setReferenceTable($referencedTable);
         } else {
-            $foreignKey->setReferenceTable(new Table($referencedTable, [], $this->language));
+            $foreignKey->setReferenceTable(new Table($referencedTable, [], $this->mapper));
         }
 
         $foreignKey->setColumns($columns);
@@ -278,7 +292,7 @@ class Table
 
     /**
      * @param array $columns Column Names
-     * @param $data Array of data of the form:
+     * @param $data array of data of the form:
      *     array(
      *          array("value1", "value2",.....),
      *          array("value1", "value2",.....),
@@ -357,8 +371,8 @@ class Table
      */
     public function addTimestamps()
     {
-        $this->addColumn(LanguageContract::CREATED_AT, 'timestamp', array('default' => 'CURRENT_TIMESTAMP'))
-            ->addColumn(LanguageContract::MODIFIED_AT, 'timestamp', array('default' => 'CURRENT_TIMESTAMP', 'update' => 'CURRENT_TIMESTAMP'));
+        $this->addColumn(Mapper::CREATED_AT, 'timestamp', array('default' => 'CURRENT_TIMESTAMP'))
+            ->addColumn(Mapper::MODIFIED_AT, 'timestamp', array('default' => 'CURRENT_TIMESTAMP', 'update' => 'CURRENT_TIMESTAMP'));
 
         return $this;
     }
@@ -368,7 +382,7 @@ class Table
      */
     public function addDelete()
     {
-        $this->addColumn(LanguageContract::DELETED_AT, 'timestamp', array('default' => null, 'null' => true));
+        $this->addColumn(Mapper::DELETED_AT, 'timestamp', array('default' => null, 'null' => true));
 
         return $this;
     }

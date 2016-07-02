@@ -146,17 +146,33 @@ if (!function_exists('searchArrayByKey')) {
      * Searches given array for given key and return the value of that key. Returns false if nothing was found
      *
      * @param array $array
-     * @param $search
+     * @param string $search
+     * @param mixed $default
      * @return bool|mixed
      */
-    function searchArrayByKey(array $array, $search)
+    function searchArrayByKey(array $array, $search, $default = false)
     {
         foreach (new RecursiveIteratorIterator(new RecursiveArrayIterator($array)) as $key => $value) {
             if ($search === $key) {
                 return $value;
             }
         }
-        return false;
+        return $default;
+    }
+}
+
+if (!function_exists('strContains')) {
+
+    /**
+     * Returns true if string contains searched string, else false.
+     *
+     * @param $search
+     * @param $string
+     * @return bool
+     */
+    function strContains($search, $string)
+    {
+        return strpos($string, $search) !== false ? true : false;
     }
 }
 

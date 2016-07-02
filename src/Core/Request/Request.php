@@ -22,7 +22,9 @@
 
 namespace Core\Request;
 
-use Core\Contracts\CacheableContract;
+use Core\Reactor\DataCollection;
+use Core\Reactor\HttpParameter;
+use Core\Contracts\Request\Request as RequestInterface;
 
 /**
  * The class that handles the incoming request to server
@@ -37,7 +39,7 @@ use Core\Contracts\CacheableContract;
  * @link http://coreframework.in
  * @author Shalom Sam <shalom.s@coreframework.in>
  */
-class Request implements CacheableContract
+class Request implements RequestInterface
 {
     public static $validHttpMethods = [
         'GET',
@@ -155,12 +157,12 @@ class Request implements CacheableContract
         array $files = [],
         $body = null
     ) {
-        $this->GET = $GET;
-        $this->POST = $POST;
-        $this->server = $server;
-        $this->headers = $this->getHeaders();
-        $this->cookies = $cookies;
-        $this->files = $files;
+        $this->GET = new DataCollection($GET);
+        $this->POST = new DataCollection($POST);
+        $this->server = new DataCollection($server);
+        $this->headers = new HttpParameter($this->getHeaders());
+        $this->cookies = new DataCollection($cookies);
+        $this->files = new DataCollection($files);
         $this->body = isset($body) ? (string)$body : null;
 
         $this->getServerRequest();
@@ -171,7 +173,7 @@ class Request implements CacheableContract
      */
     public static function createFromGlobals()
     {
-        return new static($_GET, $_POST, $_SERVER, $_COOKIE, $_FILES, null);
+        return new static($_GET, $_POST, $_SERVER, $_COOKIE, $_FILES);
     }
 
     /**
@@ -377,7 +379,7 @@ class Request implements CacheableContract
     }
 
     /**
-     * check for input (support for angular POST)
+     * check for input stream
      */
     public function checkInput()
     {
@@ -504,22 +506,5 @@ class Request implements CacheableContract
         return false;
     }
 
-    /**
-     * Sleep magic method
-     *
-     * @return array
-     */
-    public function __sleep()
-    {
-        return ['path', 'isAjax', 'illegal', 'devMode', 'config'];
-    }
-
-    /**
-     * Magic wakup method. Initializes on unserialize
-     */
-    public function __wakeup()
-    {
-        $this->getServerRequest();
-    }
 
 }

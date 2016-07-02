@@ -22,7 +22,7 @@
 
 namespace Core\Model;
 
-use Core\Contracts\Database\LanguageContract;
+use Core\Contracts\Database\Mapper;
 use Core\Contracts\ModelContract;
 use Core\Database\QueryBuilder;
 use Core\Database\Table;
@@ -67,14 +67,14 @@ class Model extends BaseModel implements ModelContract
 
     /**
      * @param array|null $data
-     * @param LanguageContract|null $language
+     * @param Mapper|null $mapper
      */
-    public function __construct(array $data = null, LanguageContract $language = null)
+    public function __construct(array $data = null, Mapper $mapper = null)
     {
         if (!empty($data)) {
             self::configure($this, $data);
         }
-        parent::__construct($language);
+        parent::__construct($mapper);
     }
 
     /**
@@ -92,9 +92,9 @@ class Model extends BaseModel implements ModelContract
         }
 
         if (self::$unsetDates === true) {
-            unset($this->{LanguageContract::CREATED_AT});
-            unset($this->{LanguageContract::MODIFIED_AT});
-            unset($this->{LanguageContract::DELETED_AT});
+            unset($this->{Mapper::CREATED_AT});
+            unset($this->{Mapper::MODIFIED_AT});
+            unset($this->{Mapper::DELETED_AT});
         }
     }
 
@@ -142,7 +142,7 @@ class Model extends BaseModel implements ModelContract
         $this->beforeSave();
         $table = $this->getTableSchema();
         try {
-            return $this->getLanguage()->insert($table, [$this->toArray()]);
+            return $this->getMapper()->insert($table, [$this->toArray()]);
         } catch (\PDOException $e) {
             throw new \ErrorException($e->getMessage(), $e->getCode(), 1, $e->getFile(), $e->getLine());
         }
@@ -153,7 +153,7 @@ class Model extends BaseModel implements ModelContract
         $primaryKey = $this->getPrimaryKey();
         $where = new Where($primaryKey, $this->{$primaryKey});
         $this->beforeSave();
-        return $this->getLanguage()->update($this->getTableName(), $this->toArray(), [$where]);
+        return $this->getMapper()->update($this->getTableName(), $this->toArray(), [$where]);
     }
 
     /**
@@ -164,7 +164,7 @@ class Model extends BaseModel implements ModelContract
         $primaryKey = $this->getPrimaryKey();
         $where = new Where($primaryKey, $this->$primaryKey);
         $this->beforeDelete();
-        return $this->getLanguage()->dropRows($this->getTableName(), [$where]);
+        return $this->getMapper()->dropRows($this->getTableName(), [$where]);
     }
 
     /**
@@ -178,7 +178,7 @@ class Model extends BaseModel implements ModelContract
         $this->beforeDelete();
         $primaryKey = $this->getPrimaryKey();
         $where = new Where($primaryKey, $this->{$primaryKey});
-        return $this->getLanguage()->update($this->getTableName(), ['deleted_at' => date('Y-m-d H:i:s')], [$where]);
+        return $this->getMapper()->update($this->getTableName(), ['deleted_at' => date('Y-m-d H:i:s')], [$where]);
     }
 
     /**
@@ -188,19 +188,19 @@ class Model extends BaseModel implements ModelContract
      */
     public function move($tableName = null, $delete = true)
     {
-        $this->getLanguage()->beginTransaction();
+        $this->getMapper()->beginTransaction();
         if (is_null($tableName)) {
             $tableName = $this->getTableName() . '_deleted';
         }
         $schema = $this->getTableSchema($tableName);
         try {
-            $this->getLanguage()->insert($schema, [$this->toArray()]);
+            $this->getMapper()->insert($schema, [$this->toArray()]);
             if ($delete === true) {
                 $this->delete();
             }
-            $this->getLanguage()->commit();
+            $this->getMapper()->commit();
         } catch (\PDOException $e) {
-            $this->getLanguage()->rollback();
+            $this->getMapper()->rollback();
         }
 
         return true;
@@ -283,7 +283,7 @@ class Model extends BaseModel implements ModelContract
         $tableName = $classObj->getTableName();
         $condition = $this->getRelationCondition($this, $foreignKey, $localKey);
         if (static::$returnRelationsAsBuilder) {
-            return QueryBuilder::make($this->getLanguage(), $tableName, [], $condition)->setModel($class);
+            return QueryBuilder::make($this->getMapper(), $tableName, [], $condition)->setModel($class);
         } else {
             $statement = $this->getStatement($tableName, $condition);
             return $statement->fetchObject($class);
@@ -338,7 +338,7 @@ class Model extends BaseModel implements ModelContract
         $primaryKeyVal = $this->{$primaryKey};
 
         $condition = [new Where($localForeignKey, $primaryKeyVal)];
-        $statement = $this->getLanguage()->getAll($joinTable, [$siblingForeignKey], $condition);
+        $statement = $this->getMapper()->getAll($joinTable, [$siblingForeignKey], $condition);
         $siblingKeyValues = $statement->fetchAll(\PDO::FETCH_NUM);
 
         $conditions = [];
@@ -347,7 +347,7 @@ class Model extends BaseModel implements ModelContract
         }
 
         if (static::$returnRelationsAsBuilder) {
-            return QueryBuilder::make($this->getLanguage(), $siblingTableName, [], $conditions)->setModel($class);
+            return QueryBuilder::make($this->getMapper(), $siblingTableName, [], $conditions)->setModel($class);
         } else {
             $statement2 = $this->getStatement($siblingTableName, $conditions);
             return $statement2->fetchObject($class);
@@ -388,7 +388,7 @@ class Model extends BaseModel implements ModelContract
 
     private function getStatement($tableName, array $conditions = [])
     {
-        $statement = $this->getLanguage()->getAll($tableName, [], $conditions);
+        $statement = $this->getMapper()->getAll($tableName, [], $conditions);
         if ($statement === false) {
             throw new \PDOException("SQL Error: {$this->getConnection()->errorCode()} : {$this->getConnection()->errorInfo()[2]}");
         }
