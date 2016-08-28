@@ -76,10 +76,12 @@ class DataCollection implements \IteratorAggregate, \Countable, \ArrayAccess, \S
      * @param $key string
      * @param $value mixed
      */
-    public function add($key, $value)
+    public function set($key, $value)
     {
         if (strpos($key, '.') !== false) {
             dotSet($key, $this->collection, $value);
+        } elseif (is_null($key)) {
+            $this->collection[] = $value;
         } else {
             $this->collection[$key] = $value;
         }
@@ -164,7 +166,11 @@ class DataCollection implements \IteratorAggregate, \Countable, \ArrayAccess, \S
      */
     public function offsetSet($offset, $value)
     {
-        $this->collection[$offset] = $value;
+        if (is_null($offset)) {
+            $this->collection[] = $value;
+        } else {
+            $this->collection[$offset] = $value;
+        }
     }
 
     /**
@@ -172,7 +178,7 @@ class DataCollection implements \IteratorAggregate, \Countable, \ArrayAccess, \S
      */
     public function offsetGet($offset)
     {
-        return $this->collection[$offset];
+        return isset($this->collection[$offset]) ? $this->collection[$offset] : null;
     }
 
     /**

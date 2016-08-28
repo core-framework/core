@@ -23,7 +23,8 @@
 namespace Core\Router;
 
 use Core\Contracts\Application;
-use Core\Contracts\MiddlewareContract;
+use Core\Contracts\Cacheable;
+use Core\Contracts\Middleware;
 use Core\Exceptions\ControllerMethodNotFoundException;
 use Core\Exceptions\ControllerNotFoundException;
 use Core\Exceptions\PageNotFoundException;
@@ -34,18 +35,36 @@ use Core\Contracts\Router\Route as RouteInterface;
 use Core\Contracts\Response\Response as ResponseInterface;
 use Core\Response\Response;
 
-class Router implements RouterInterface
+class Router implements RouterInterface, Cacheable
 {
+    /**
+     * @var RouteInterface $currentRoute
+     */
     protected $currentRoute;
 
+    /**
+     * @var array $routes
+     */
     protected $routes = [];
 
-    protected $middleware = [];
+//    /**
+//     * @var array $middleware
+//     */
+//    protected $middleware = [];
 
+    /**
+     * @var RequestInterface $request
+     */
     protected $request;
 
+    /**
+     * @var array $currentOptions
+     */
     protected $currentOptions = [];
 
+    /**
+     * @var array $defaultConfig
+     */
     protected $defaultConfig = [
         'controllerNamespace' => 'app\Controllers',
         'cacheRoutes' => true,
@@ -64,7 +83,6 @@ class Router implements RouterInterface
     public function __construct(Application $application)
     {
         $this->application = $application;
-        $this->bootstrap();
     }
 
     /**
@@ -72,20 +90,53 @@ class Router implements RouterInterface
      */
     public function bootstrap()
     {
-        $file = $this->application->appPath() . '/routes.php';
+        $cache = $this->application->getCache();
+        if ($cache->exists('routes')) {
+            /** @var Router $routerObj */
+            $routerObj = $cache->get('routes');
+            $this->routes = $routerObj->getRoutes();
+        } else {
+            $this->loadRoutes();
+            //$this->loadConfig();
+            $this->cacheRoutes();
+        }
+    }
+
+    /**
+     * Load Routes from routes file
+     *
+     * Important: loadRoutes must be called after Router instantiation to avoid cyclic search for a Router
+     * Instance.
+     */
+    public function loadRoutes()
+    {
+        $file = $this->application->appPath() . '/Routes/routes.php';
         if (is_readable($file)) {
             require($file);
         }
     }
-    
+
+    /**
+     * @deprecated
+     * Load Configurations
+     */
     public function loadConfig()
     {
         $config = $this->application->getConfig();
         foreach ($this->defaultConfig as $key => $value) {
             if (!$config->has($key)) {
-                $config->add($key, $value);
+                $config->set($key, $value);
             }
         }
+    }
+
+    /**
+     * Cache Routes
+     */
+    public function cacheRoutes()
+    {
+        $cache = $this->application->getCache();
+        return $cache->put('routes', $this);
     }
 
     /**
@@ -95,7 +146,7 @@ class Router implements RouterInterface
      */
     public function useAestheticRouting($bool = true)
     {
-        $this->application->getConfig()->add('router.useAestheticRouting', boolval($bool));
+        $this->application->getConfig()->set('router.useAestheticRouting', boolval($bool));
     }
 
     /**
@@ -115,7 +166,7 @@ class Router implements RouterInterface
      */
     public function getControllerNamespace()
     {
-        return $this->application->getConfig()->get('router.controller.namespace');
+        return $this->application->getConfig()->get('router.controller.namespace', '\\app\\Controllers');
     }
 
     /**
@@ -125,7 +176,7 @@ class Router implements RouterInterface
      */
     public function getRequest()
     {
-        return $this->request;
+        return $this->application->getRequest();
     }
 
     /**
@@ -351,7 +402,11 @@ class Router implements RouterInterface
      */
     public function makeExceptionResponse(\Exception $exception)
     {
-        return new Response($exception->getMessage(), $exception->getCode());
+        if ($this->getRequest()->isAjax()) {
+            return new Response(['status' => 'error', 'statusCode' => $exception->getCode(), 'message' => $exception->getMessage()], $exception->getCode());
+        } else {
+            return new Response($exception->getMessage(), $exception->getCode());
+        }
     }
 
     /**
@@ -383,7 +438,7 @@ class Router implements RouterInterface
     {
         if (class_exists($middleware, true)) {
             $middlewareObj = new $middleware();
-            if (!$middlewareObj instanceof MiddlewareContract) {
+            if (!$middlewareObj instanceof Middleware) {
                 throw new \RuntimeException("Given Middleware does not comply with the MiddlewareContract!", 600);
             }
             return $middlewareObj->run($this, $next);
@@ -399,7 +454,7 @@ class Router implements RouterInterface
      */
     protected function getControllerArgs()
     {
-        return [$this->application->basePath(), $this];
+        return [$this->application];
     }
 
     /**
@@ -422,7 +477,11 @@ class Router implements RouterInterface
                 return $controller($payload);
             };
         } else {
-            $class = $namespace . '\\' . $controller;
+            if (strContains('\\', $controller) && class_exists($controller, true)) {
+                $class = $controller;
+            } else {
+                $class = $namespace . '\\' . $controller;
+            }
             if (class_exists($class, true)) {
                 $next = function () use ($class, $args, $classMethod, $payload) {
                     return $this->runController($this->makeController($class, $args), $classMethod, $payload);
@@ -534,5 +593,15 @@ class Router implements RouterInterface
     {
         $uri = '/' . trim($prefix, '/') . '/' . ltrim($uri, '/');
         return $uri;
+    }
+
+    public function __sleep()
+    {
+        return ['routes', 'currentOptions'];
+    }
+
+    public function __wakeup()
+    {
+
     }
 }

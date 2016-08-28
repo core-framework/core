@@ -70,5 +70,9 @@ interface Route
     
     public function isCacheable();
     
-    public function getVariables();
+    public function getData();
+
+    public function mustBeCsrfProtected();
+
+    public function isCsrfProtected();
 }

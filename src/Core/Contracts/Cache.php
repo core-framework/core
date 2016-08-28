@@ -34,7 +34,7 @@ interface Cache
      * @param int $ttl In Seconds
      * @return bool
      */
-    public function put($key, $payload, $ttl);
+    public function put($key, $payload, $ttl = 0);
 
     /**
      * Get Cached File Contents

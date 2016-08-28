@@ -12,6 +12,7 @@ namespace Core\FileSystem;
 use Core\Iterators\Filters\DirectoryExcludeFilter;
 use Core\Iterators\Filters\DirectoryRegexFilter;
 use Core\Iterators\Filters\FilenameRegexFilter;
+use Core\Iterators\Filters\FilterIterator;
 
 class Explorer implements \IteratorAggregate, \Countable
 {
@@ -20,6 +21,7 @@ class Explorer implements \IteratorAggregate, \Countable
     const SEARCH_DIR = 'DirectoryFilter';
 
     protected $baseDir;
+    protected $filters = [];
     protected $searchFor;
     protected $pattern;
     protected $ignoreVcsFiles = true;
@@ -108,6 +110,31 @@ class Explorer implements \IteratorAggregate, \Countable
         $this->baseDir = $dir;
 
         return $this;
+    }
+
+    /**
+     * Add Date filter
+     *
+     * @param $target
+     * @param string $operator
+     * @return $this
+     */
+    public function date($target, $operator = '=')
+    {
+        $this->addFilter(\Core\Iterators\Filters\DateFilter::class, [$target, $operator]);
+
+        return $this;
+    }
+
+    /**
+     * Add Custom filters
+     *
+     * @param $filterIterator
+     * @param $params
+     */
+    public function addFilter($filterIterator, array $params = [])
+    {
+        $this->filters[] = ['class' => $filterIterator, 'args' => $params];
     }
 
     /**
@@ -202,10 +229,33 @@ class Explorer implements \IteratorAggregate, \Countable
         } else {
             $iterator = new DirectoryRegexFilter($iterator, $this->pattern);
         }
+
+        if (!empty($this->filters)) {
+            $iterator = $this->addFilters($iterator);
+        }
         
         $iterator = new \RecursiveIteratorIterator($iterator, \RecursiveIteratorIterator::SELF_FIRST);
 
         return $this->iterator = $iterator;
+    }
+
+    private function addFilters(\Iterator $iterator)
+    {
+        foreach ($this->filters as $index => $filter) {
+
+            if ($filter['class'] && $filter['args']) {
+                $r = new \ReflectionClass($filter['class']);
+                $args = array_merge([$iterator], $filter['args']);
+                $iterator =  $r->newInstanceArgs($args);
+                continue;
+            } elseif ($filter['class']) {
+                $r = new \ReflectionClass($filter['class']);
+                $iterator =  $r->newInstance();
+            }
+
+            $iterator = new $filter($iterator);
+        }
+        return $iterator;
     }
 
     /**

@@ -19,13 +19,13 @@ class HttpParameter extends DataCollection implements \IteratorAggregate, \Count
      */
     public function __construct(array $parameters)
     {
-        array_map(function($key, $value) use ($parameters) {
+        array_walk($parameters, function($value, $key) use ($parameters) {
             $parameters[str_replace('_', '-', strtolower($key))] = $value;
             
             if (!static::$preserveOriginal) {
                 unset($parameters[$key]);
             }
-        },$parameters);
+        });
         parent::__construct($parameters);
     }
 
@@ -43,10 +43,10 @@ class HttpParameter extends DataCollection implements \IteratorAggregate, \Count
      * @param $key string
      * @param $value mixed
      */
-    public function add($key, $value)
+    public function set($key, $value)
     {
         $key = str_replace('_', '-', strtolower($key));
-        parent::add($key, $value);
+        parent::set($key, $value);
     }
 
     /**

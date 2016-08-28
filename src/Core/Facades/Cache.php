@@ -28,7 +28,7 @@ use Core\Reactor\Facade;
 /**
  * Class Cache
  * @package Core\Cache
- * @method static bool put($key, $payload, $ttl)
+ * @method static bool put($key, $payload, $ttl = 0)
  * @method static mixed get($key)
  * @method static bool exists($key)
  * @method static bool delete($key)

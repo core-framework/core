@@ -23,16 +23,13 @@
 namespace Core\Controllers;
 
 
-use Core\Application\Application;
+use Core\Contracts\Application;
 use Core\Config\Config;
-use Core\Contracts\Response;
-use Core\Contracts\RouterContract;
-use Core\Contracts\ViewContract;
-use Core\Foundation\DataCollection;
+use Core\Contracts\Response\Response;
+use Core\Contracts\Router\Router;
+use Core\Contracts\View;
+use Core\Reactor\DataCollection;
 use Core\Request\Request;
-use Core\Response\Response;
-use Core\Router\Router;
-use Core\View\View;
 
 /**
  * Class BaseController
@@ -40,6 +37,11 @@ use Core\View\View;
  */
 class BaseController
 {
+
+    /**
+     * @var Application $application
+     */
+    protected $application;
 
     /**
      * Router object
@@ -103,14 +105,15 @@ class BaseController
     public $response;
 
     /**
-     * @param string $basePath
-     * @param RouterContract|Router $router
-     **/
-    public function __construct($basePath, RouterContract $router)
+     * BaseController constructor.
+     * @param Application $application
+     */
+    public function __construct(Application $application)
     {
-        $this->setPathBound($basePath);
-        $this->router = $router;
-        $this->request = $router->getRequest();
+        $this->application = $application;
+        $this->setPathBound($application->basePath());
+        $this->router = $application->getRouter();
+        $this->request = $application->getRequest();
         $this->POST = $this->request->POST;
         $this->GET = $this->request->GET;
         $this->method = $this->request->getHttpMethod();
@@ -134,17 +137,17 @@ class BaseController
     {
 
         // Add Page Title and Page Name (and other Variables defined in Router) to global
-        $globalVariables = $this->router->getCurrentRoute()->getVariables();
-        DataCollection::each($globalVariables, function($key, $value) {
-            View::addVariable($key, $value);
+        $globalVariables = $this->router->getCurrentRoute()->getData();
+        $view = $this->application->getView();
+        DataCollection::each($globalVariables, function($key, $value) use ($view) {
+            $view->set($key, $value);
         });
         
         
-        $config = Config::getInstance();
-        /** @var Request $request */
-        $request = $this->router->getRequest();
-        
-        
+        $config = $this->application->getConfig();
+        $cache = $this->application->getCache();
+        $request = $this->request;
+
         if ($config->get('metaAndTitleFromFile', false)) {
             $metaFilePath = $config->get('metaFile');
             $metaPath = $this->appPath . DS . ltrim($metaFilePath, "/");
@@ -160,10 +163,10 @@ class BaseController
 
             if (!empty($metas)) {
                 if (isset($metas['pageTitle'])) {
-                    View::addVariable('pageTitle', $metas['pageTitle']);
+                    $view->set('pageTitle', $metas['pageTitle']);
                     unset($metas['pageTitle']);
                 }
-                View::addVariable('metas', $metas);
+                $view->set('metas', $metas);
             }
 
         }
@@ -172,14 +175,19 @@ class BaseController
 
         if (isset($this->conf['$global']['websiteUrl'])) {
             //$this->view->setTemplateVars('websiteUrl', $this->conf['$global']['websiteUrl']);
-            View::addVariable('domainName', $this->conf['$global']['websiteUrl']);
+            $view->set('domainName', $this->conf['$global']['websiteUrl']);
         }
 
         if (isset($this->conf['$global']['domain'])) {
             //$this->view->setTemplateVars('domain', $this->conf['$global']['domain']);
-            View::addVariable('domain', $this->conf['$global']['websiteUrl']);
+            $view->set('domain', $this->conf['$global']['websiteUrl']);
         }
 
+        if ($cache->exists('csrf-token')) {
+            $view->set('csrfToken', $cache->get('csrf-token'));
+        } elseif (isset($_SESSION['csrf-token'])) {
+            $view->set('csrfToken', $_SESSION['csrf-token']);
+        }
     }
 
     /**
@@ -190,42 +198,8 @@ class BaseController
      */
     protected function setResponse()
     {
-        $response = null;
-
-        if (Application::serviceExists('Response')) {
-            $response = Application::get('Response');
-        }
-
-        if (!$response instanceof Response) {
-            $response = new Response();
-        }
-
-        $this->response = $response;
+        $this->response = $this->application->getResponse();
     }
-
-    /**
-     * @deprecated
-     * Generates CSRF key
-     */
-    private function generateCSRFKey()
-    {
-        $key = sha1(microtime());
-        $this->csrf = $_SESSION['csrf'] = empty($_SESSION['csrf']) ? $key : $_SESSION['csrf'];
-        //$this->view->setTemplateVars('csrf', $this->csrf);
-    }
-
-    /**
-     * @deprecated
-     *
-     * Default method for template rendering
-     *
-     * @return array
-     */
-    public function indexAction()
-    {
-        //$this->view->tplInfo['tpl'] = 'homepage/home.tpl';
-    }
-
 
     /**
      * Makes string UTF-8 compliant
@@ -244,24 +218,5 @@ class BaseController
         return $d;
     }
 
-
-    /**
-     * @deprecated 
-     * Resets Application Cache
-     *
-     * @throws \ErrorException
-     */
-    public function resetCache()
-    {
-        $routes = $this->conf['$routes'];
-        /** @var \Core\Cache\AppCache $cache */
-        $cache = Application::get('Cache');
-
-        foreach($routes as $route => $params) {
-            $key = md5($route . '_view_' . session_id());
-            $cache->deleteCache($key);
-        }
-
-    }
 
 }

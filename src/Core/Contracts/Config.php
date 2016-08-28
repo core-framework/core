@@ -65,7 +65,7 @@ interface Config
      * @param $value
      * @return mixed
      */
-    public function add($key, $value);
+    public function set($key, $value);
     
     /**
      * Calls callback on each item in given Array and makes a collection of all return values

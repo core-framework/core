@@ -27,6 +27,11 @@ use Core\Contracts\Cacheable;
 use Core\Contracts\Router\Route as RouteInterface;
 use Core\Request\Request;
 
+
+/**
+ * Class Route
+ * @package Core\Router
+ */
 class Route implements Cacheable, RouteInterface
 {
     protected $uri;
@@ -51,14 +56,23 @@ class Route implements Cacheable, RouteInterface
 
     protected $middleware = [];
 
-    protected $allowedOptions = ['middleware', 'prefix', 'cacheable', 'variables'];
+    protected $allowedOptions = ['middleware', 'prefix', 'cacheable', 'data', 'csrfProtected'];
 
     /**
      * Route constructor.
-     * @param $uri
-     * @param array $methods
-     * @param $action
-     * @param array $options
+     * @param string $uri
+     * @param string|array $methods
+     * @param callable|string|array $action
+     * @eg: Route('/', 'GET', 'controllerName@methodName')
+     * OR: Route('/', 'GET', ['controller' => 'controllerName', 'method' => 'methodName'])
+     * OR: Route('/', 'GET', function() { echo 'someAction'; })
+     *
+     * @param array $options Option are used to set existing or additional route information. They include -
+     * 'middleware' [array|string] The middleware class(es)
+     * 'prefix' [string] Route prefix
+     * 'cacheable' [bool] Is route cacheable
+     * 'data' [array] Array of add/custom data to be passed to view/controller (eg: pageTitle, metas, etc.)
+     * 'csrfProtected' [bool] Should route have csrf protection
      */
     public function __construct($uri, $methods, $action, $options = [])
     {
@@ -409,14 +423,29 @@ class Route implements Cacheable, RouteInterface
         return isset($this->options['cacheable']) ? $this->options['cacheable'] : false;
     }
 
-    public function setVariables(array $variables = [])
+    public function setCsrfProtected($bool = true)
     {
-        return $this->options['variables'] = $variables;
+        $this->options['csrfProtected'] = boolval($bool);
     }
 
-    public function getVariables()
+    public function isCsrfProtected()
     {
-        return isset($this->options['variables']) ? $this->options['variables'] : [];
+        return isset($this->options['csrfProtected']) ? $this->options['isCsrfProtected'] : false;
+    }
+
+    public function mustBeCsrfProtected()
+    {
+        return isset($this->options['csrfProtected']) ? $this->options['isCsrfProtected'] : false;
+    }
+
+    public function setData(array $variables = [])
+    {
+        return $this->options['data'] = $variables;
+    }
+
+    public function getData()
+    {
+        return isset($this->options['data']) ? $this->options['data'] : [];
     }
     
     public function __wakeup()

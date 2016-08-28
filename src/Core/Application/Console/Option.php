@@ -21,47 +21,28 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\Console;
+namespace Core\Application\Console;
 
-class Options
+class Option
 {
 
     protected $name;
     protected $shortName;
     protected $description;
-    protected $definition;
     protected $isRequired = false;
 
     /**
      * @param $name
      * @param null $shortName
      * @param null $description
-     * @param null $definition
      * @param null|bool $isRequired Permitted values are null|true|false null=no value, false=has value but not required & true=has value and required
      * @throws \ErrorException
      */
-    function __construct($name, $shortName = null, $description = null, $definition = null, $isRequired = null)
+    function __construct($name, $shortName = null, $description = null, $isRequired = false)
     {
-        if (!is_string($name) || empty($name)) {
-            throw new \ErrorException("Parameter name must be a valid string");
-        }
-        if (!is_null($shortName) && (!is_string($shortName) || empty($shortName))) {
-            throw new \ErrorException("Parameter shortName must be a valid string");
-        }
-        if (!is_null($description) && (!is_string($description) || empty($description))) {
-            throw new \ErrorException("Parameter description must be a valid string");
-        }
-        if (!is_null($definition) && (!is_callable($definition) && !($definition instanceof \Closure))) {
-            throw new \ErrorException("Parameter definition must be a callable string or Closure");
-        }
-        if (!is_null($isRequired) && !is_bool($isRequired)) {
-            throw new \ErrorException("Parameter isRequired must be either null|true|false.");
-        }
-
         $this->name = $name;
         $this->shortName = $shortName;
         $this->description = $description;
-        $this->definition = $definition;
         $this->isRequired = $isRequired;
     }
 
@@ -83,6 +64,14 @@ class Options
         $this->name = $name;
 
         return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function hasShortName()
+    {
+        return isset($this->shortName);
     }
 
     /**
@@ -126,23 +115,7 @@ class Options
     /**
      * @return mixed
      */
-    public function getDefinition()
-    {
-        return $this->definition;
-    }
-
-    /**
-     * @param mixed $definition
-     */
-    public function setDefinition($definition)
-    {
-        $this->definition = $definition;
-    }
-
-    /**
-     * @return mixed
-     */
-    public function getIsRequired()
+    public function isRequired()
     {
         return $this->isRequired;
     }
@@ -153,20 +126,6 @@ class Options
     public function setIsRequired($isRequired)
     {
         $this->isRequired = $isRequired;
-    }
-
-    /**
-     * @return string
-     */
-    public function getSymbol()
-    {
-        if ($this->isRequired === null) {
-            return "";
-        } elseif ($this->isRequired === true) {
-            return Command::REQUIRED;
-        } else {
-            return Command::OPTIONAL;
-        }
     }
 
 }

@@ -56,14 +56,22 @@ class BootConfiguration implements Bootsrapper
 
     public function loadFromFiles()
     {
-        $items = [];
+        $overrideItems = [];
         $app = $this->application;
-        $path = $app->configPath() . DIRECTORY_SEPARATOR . $app->environment();
+        $items = $this->readFromFile($app->configPath());
 
-        if (!file_exists($path)) {
-            $path = $app->configPath();
+        $path = $app->configPath() . DIRECTORY_SEPARATOR . $app->environment();
+        if (file_exists($path)) {
+            $overrideItems = $this->readFromFile($path);
         }
 
+        $items = array_merge($items, $overrideItems);
+        return $items;
+    }
+
+    private function readFromFile($path)
+    {
+        $items = [];
         Explorer::find()->files("*.php")->in($path)->map(function($key, $fileInfo) use (&$items) {
             /** @var \SplFileInfo $fileInfo */
             if ($path = $fileInfo->getPathname()) {

@@ -30,10 +30,13 @@ use Core\Contracts\Cache;
 use Core\Contracts\Config;
 use Core\Contracts\Events\Dispatcher;
 use Core\Contracts\Events\Subscriber;
-use Core\Contracts\Request\Request;
+use Core\Contracts\FileSystem\FileSystem;
+use Core\Contracts\Request\Request as RequestInterface;
 use Core\Contracts\Response\Response;
 use Core\Contracts\Router\Route;
 use Core\Contracts\Router\Router;
+use Core\Contracts\View;
+use Core\Request\Request;
 
 class BaseApplication extends Container implements ApplicationInterface, Subscriber
 {
@@ -139,6 +142,11 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     protected $event;
 
     /**
+     * @var FileSystem $fileSystem
+     */
+    protected $fileSystem;
+
+    /**
      * @var Cache $cache
      */
     protected $cache;
@@ -159,10 +167,18 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     protected $response;
 
     /**
-     * @var Request $request
+     * @var RequestInterface $request
      */
     protected $request;
 
+    /**
+     * @var View $view
+     */
+    protected $view;
+
+    /**
+     * @var array $cacheKeys
+     */
     protected $cacheKeys = [];
 
     /**
@@ -180,14 +196,13 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     protected $coreComponents = [
         'Event' => ['\Core\Events\Dispatcher', ['App']],
         'FileSystem' => '\Core\FileSystem\FileSystem',
-        'Cache' => ['\Core\Cache\FileCache', ['FileSystem', '@base/storage/cache/']],
+        'Cache' => ['\Core\Cache\FileCache', ['FileSystem', '@base/storage/framework/cache/']],
     ];
 
     /**
      * @var array $components
      */
     protected $components = [
-        'Request' => '\Core\Request\Request',
         'Router' => ['\Core\Router\Router', ['App']],
         'View' => ['\Core\View\View', ['App']]
     ];
@@ -250,7 +265,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     public function setAppPath($appPath = null)
     {
         $appPath = rtrim($appPath, "/");
-        $this->appPath = is_null($appPath) ? $this->basePath . "/app" : $appPath;
+        $this->appPath = empty($appPath) ? $this->basePath . "/app" : $appPath;
         $this->addAlias('@app', $this->appPath);
         return $this;
     }
@@ -274,11 +289,19 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
      */
     public function boot()
     {
+        $this->checkIfAppIsDown();
         $this->registerApp();
         $this->setEnvironment();
         /**/
         $this->loadBaseComponents();
         $this->bootstrap();
+    }
+
+    public function checkIfAppIsDown()
+    {
+        if ($this->isDown() && !$this->isCLI()) {
+
+        }
     }
 
     /**
@@ -298,14 +321,14 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         $responses = [];
         foreach($components as $name => $component) {
             if ($this->event) {
-                $responses['core.app.'.strtolower($name).'.preload'] = $this->dispatch('core.'.strtolower($name).'.preload', static::$app);
+                $responses['core.app.'.strtolower($name).'.preload'] = $this->dispatch('core.app.'.strtolower($name).'.preload', static::$app);
             }
             if (is_array($component)) {
                 $this->register($name, $component[0])->setArguments($this->parseArguments($component[1]));
             } else {
                 $this->register($name, $component);
             }
-            $responses['core.app.'.strtolower($name).'.postload'] = $this->dispatch('core.'.strtolower($name).'.postload', static::$app);
+            $responses['core.app.'.strtolower($name).'.postload'] = $this->dispatch('core.app.'.strtolower($name).'.postload', static::$app);
         }
         return $responses;
     }
@@ -334,9 +357,9 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
      */
     protected function bootstrap()
     {
-        /** @var Bootsrapper $bootstrapper */
         foreach ($this->bootstrappers as $bootstrapper)
         {
+            /** @var Bootsrapper $bootable */
             $bootable = new $bootstrapper();
             $bootable->bootstrap($this);
         }
@@ -351,7 +374,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     public function build($definition, $arguments = null, $name = null)
     {
         $this->{strtolower($name)} = $this->make($definition, $arguments, $name);
-        return $this->dispatch('core.'.strtolower($name).'.booted', $this->{strtolower($name)});
+        return $this->dispatch('core.app.'.strtolower($name).'.booted', $this->{strtolower($name)});
     }
 
     /**
@@ -361,11 +384,20 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
      */
     public function subscribe(Dispatcher $dispatcher)
     {
-        $dispatcher->on('core.config.booted', [$this, 'loadSubscribers'], 0);
-        $dispatcher->on('core.config.booted', [$this, 'loadServices'], 1);
-        $dispatcher->on('core.config.booted', [$this, 'cacheConfig'], 2);
+        $dispatcher->on('core.app.config.booted', [$this, 'loadSubscribers'], 0);
+        $dispatcher->on('core.app.config.booted', [$this, 'loadServices'], 1);
+        $dispatcher->on('core.app.config.booted', [$this, 'cacheConfig'], 2);
+        $dispatcher->on('core.app.router.postload', [$this, 'bootstrapRouter'], 0);
         $dispatcher->on('core.app.handle.pre', [$this, 'preHandle'], 0);
         $dispatcher->on('core.router.matched', [$this, 'cacheRoute'], 0);
+    }
+
+    /**
+     * Bootstrap Router
+     */
+    public function bootstrapRouter()
+    {
+        $this->getRouter()->bootstrap();
     }
 
     /**
@@ -396,8 +428,8 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     public function getCachedConfigItems()
     {
         $file = md5('framework.conf') . '.php';
-        if (file_exists($this->getAbsolutePath('/storage/cache/' . $file))) {
-            return require($this->getAbsolutePath('/storage/cache/' . $file));
+        if (file_exists($this->getAbsolutePath('/storage/framework/cache/' . $file))) {
+            return $this->getCache()->get('framework.conf');
         }
 
         return [];
@@ -408,7 +440,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
      */
     public function cacheConfig(Config $config)
     {
-        $this->getCache()->put('framework.conf', $config, $config->get('app.ttl', 60));
+        $this->getCache()->put('framework.conf', $config->all(), $config->get('app.ttl', 60));
     }
 
     /**
@@ -424,8 +456,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     }
 
     /**
-     * @return Dispatcher|object
-     * @throws \ErrorException
+     * @inheritdoc
      */
     public function getDispatcher()
     {
@@ -434,6 +465,18 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         }
 
         return $this->event = $this->get('Event');
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getFileSystem()
+    {
+        if ($this->fileSystem) {
+            return $this->fileSystem;
+        }
+
+        return $this->fileSystem = $this->get('FileSystem');
     }
 
     /**
@@ -490,6 +533,16 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         return $this;
     }
 
+    public function name()
+    {
+        return $this->applicationName;
+    }
+
+    public function isCLI()
+    {
+        return (php_sapi_name() === 'cli');
+    }
+
     /**
      * @inheritDoc
      */
@@ -510,12 +563,18 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
 
     public function cachePath()
     {
-        return $this->getAbsolutePath('/storage/cache');
+        return $this->getAbsolutePath('/storage/framework/cache');
     }
 
     public function storagePath()
     {
         return $this->getAbsolutePath('/storage');
+    }
+
+    public function publicFolder()
+    {
+        $publicFolderName = $this->getConfig()->get('app.publicFolderName', 'web');
+        return $this->getAbsolutePath('/'.$publicFolderName);
     }
 
     /**
@@ -534,13 +593,20 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         return file_exists($this->getAbsolutePath('/storage/framework/down.php'));
     }
 
+    public function showMaintenance()
+    {
+        require $this->getAbsolutePath('/storage/framework/down.php');
+        $this->terminate();
+        exit;
+    }
+
     /**
      * Get complete path relative to base/root path
      *
      * @param $relativePath
      * @return string
      */
-    protected function getAbsolutePath($relativePath)
+    public function getAbsolutePath($relativePath)
     {
         return $this->basePath . $relativePath;
     }
@@ -589,7 +655,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     }
 
     /**
-     * @return Request
+     * @return RequestInterface
      * @throws \ErrorException
      */
     public function getRequest()
@@ -599,18 +665,59 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
                 $this->request = $this->get('Request');
             } else {
                 $this->setRequest(Request::createFromGlobals());
+                $this->register('Request', $this->request);
             }
         }
         return $this->request;
     }
 
     /**
-     * @param Request $request
+     * @param RequestInterface $request
      */
-    public function setRequest(Request $request)
+    public function setRequest(RequestInterface $request)
     {
         $this->register('Request', $request);
         $this->request = $request;
+    }
+
+    /**
+     * @return Response|object
+     * @throws \ErrorException
+     */
+    public function getResponse()
+    {
+        if (!isset($this->response)) {
+            $this->response = $this->get('Response');
+        }
+        return $this->response;
+    }
+
+    /**
+     * @param Response $response
+     */
+    public function setResponse(Response $response)
+    {
+        $this->response = $response;
+    }
+
+    /**
+     * @return View|object
+     * @throws \ErrorException
+     */
+    public function getView()
+    {
+        if (!isset($this->view)) {
+            $this->view = $this->get('View');
+        }
+        return $this->view;
+    }
+
+    /**
+     * @param View $view
+     */
+    public function setView(View $view)
+    {
+        $this->view = $view;
     }
 
     /**
@@ -625,10 +732,10 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     }
 
     /**
-     * @param Request $request
+     * @param RequestInterface $request
      * @return array|mixed
      */
-    protected function handle(Request $request)
+    protected function handle(RequestInterface $request)
     {
         $response = $this->dispatch('core.app.handle.pre', $this);
 
@@ -640,10 +747,10 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     }
 
     /**
-     * @param Request $request
+     * @param RequestInterface $request
      * @return mixed
      */
-    protected function parseRequest(Request $request)
+    protected function parseRequest(RequestInterface $request)
     {
         $router = $this->getRouter();
         $response = $router->handle($request);
@@ -680,9 +787,9 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     /**
      * Generates and sets Cache Keys for current Route
      *
-     * @param Request $request
+     * @param RequestInterface $request
      */
-    public function setCacheKeys(Request $request)
+    public function setCacheKeys(RequestInterface $request)
     {
         $path = $request->getPath();
         $this->cacheKeys['route'] = md5($path . '_route_' . session_id());
@@ -711,7 +818,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     public function cacheRoute(Router $router)
     {
         $route = $router->getCurrentRoute();
-        if (!is_null($route) && !$this->request->isAjax() && !$route->isCacheable()) {
+        if (!is_null($route) && !$this->request->isAjax() && $route->isCacheable()) {
             $this->getCache()->put($this->getCacheKey('route'), $route, $this->getConfig()->get('ttl'));
             //$this->cache->cacheContent($this->routeKey, $route, $this->getTtl());
         }
@@ -753,11 +860,14 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
      */
     public function getRealPath($aliasPath)
     {
+        if (!strContains('@', $aliasPath)) {
+            return $aliasPath;
+        }
         $alias = substr($aliasPath, 0, strpos($aliasPath, '/'));
         $relativePath = substr($aliasPath, strpos($aliasPath, '/'));
 
         $realPath = $this->getAlias($alias) . $relativePath;
-        if (!is_dir($realPath)) {
+        if (!is_dir($realPath) && substr($realPath,-1) != '/') {
             $realPath .= '.php';
         }
         return $realPath;
@@ -793,7 +903,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     /**
      * Dispatch application termination
      */
-    protected function terminate()
+    public function terminate()
     {
         $this->dispatch('core.app.terminate', $this);
     }

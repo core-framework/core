@@ -20,7 +20,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\Console;
+namespace Core\Application\Console;
 
 
 class Table
@@ -187,14 +187,14 @@ class Table
             return false;
         }
 
-        $table = new Table();
-        $table->setHeaders($headers);
+        //$table = new Table();
+        $this->setHeaders($headers);
 
         foreach ($data as $row) {
-            $table->addRow($row);
+            $this->addRow($row);
         }
 
-        return $returnObject ? $table : $table->getTable();
+        return $returnObject ? $this : $this->getTable();
     }
 
     /**

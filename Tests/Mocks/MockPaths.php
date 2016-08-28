@@ -49,31 +49,16 @@ class MockPaths
         'testService' => \stdClass::class
     ];
     public static $commandsConf = [
-        [
-            'name' => 'hello:world',
-            'shortName' => '',
-            'description' => 'Simple Hello World Command',
-            'definition' => '\\Core\\Console\\CliApplication::helloWorld',
-            'arguments' => [
-                'name' => 'name',
-                'isRequired' => false,
-                'description' => 'Your Name'
-            ]
-        ]
+        'test' => \Core\Tests\Stubs\Commands\TestCommand::class
     ];
-    public static $optionsConf = [
-        [
-            'name' => 'hello:world',
-            'shortName' => 'H',
-            'description' => 'Simple Hello World Command',
-            'definition' => '\\Core\\Console\\CliApplication::helloWorld'
-        ]
-    ];
+    public static $optionsConf = [];
 
     public static $structure = [
         'storage' => [
-            'cache' => [
-                'emptyFile.php' => ""
+            'framework' => [
+                'cache' => [
+                    'emptyFile.php' => ""
+                ]
             ],
             'smarty_cache' => [
                 'cache' => [],

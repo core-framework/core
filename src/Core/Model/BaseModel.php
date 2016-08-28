@@ -210,7 +210,7 @@ abstract class BaseModel implements ModelContract
         $config = self::getConfig();
         $type = isset($config['type']) ? $config['type'] : 'mysql';
         $mapperClass = self::getMapperClass($type);
-        return new $mapperClass();
+        return new $mapperClass(self::getConfig());
     }
 
     /**
@@ -219,15 +219,16 @@ abstract class BaseModel implements ModelContract
      */
     public static function getMapperClass($type)
     {
-        switch ($type) {
-            case 'mysql':
-                return '\Core\Database\Mapper\MySqlMapper';
-                break;
+        $class = '\Core\Database\Mapper\MySqlMapper';
 
-            default:
-                return '\Core\Database\Mapper\\' . ucfirst($type) . 'Mapper';
-                break;
+        if (!empty($type)) {
+            $mapper = '\Core\Database\Mapper\\' . ucfirst($type) . 'Mapper';
+            if (class_exists($mapper)) {
+                $class = $mapper;
+            }
         }
+
+        return $class;
     }
 
     /**
@@ -309,9 +310,9 @@ abstract class BaseModel implements ModelContract
     /**
      * {@inheritdoc}
      */
-    public static function getCount($conditions = [], $columns = [], $orderBy = [], $groupBy = [])
+    public static function getCount($conditions = [], $columns = [])
     {
-        $result = static::query($conditions, $columns, $orderBy, $groupBy, true, true);
+        $result = static::query($conditions, $columns, [], [], true, true);
         return array_values($result[0])[0];
     }
 

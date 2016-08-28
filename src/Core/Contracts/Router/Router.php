@@ -37,6 +37,20 @@ interface Router
     public function bootstrap();
 
     /**
+     * Load defined routes
+     *
+     * @return void
+     */
+    public function loadRoutes();
+
+    /**
+     * Cache Routes
+     *
+     * @return bool
+     */
+    public function cacheRoutes();
+
+    /**
      * Use aesthetic routing (/{controller}/{method}/[{argument1}/..])
      *
      * @param bool $bool

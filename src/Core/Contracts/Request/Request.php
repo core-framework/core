@@ -24,6 +24,8 @@
 namespace Core\Contracts\Request;
 
 
+use Core\Reactor\DataCollection;
+
 interface Request
 {
 
@@ -33,6 +35,30 @@ interface Request
      * @return Request
      */
     public static function createFromGlobals();
+
+    /**
+     * Retrieves the $_GET global variables
+     *
+     * @param null $key
+     * @return mixed
+     */
+    public function GET($key = null);
+
+    /**
+     * Retrieves the $_POST global variables
+     *
+     * @param null $key
+     * @return mixed
+     */
+    public function POST($key = null);
+
+    /**
+     * Retrieves set $COOKIES
+     *
+     * @param null $key
+     * @return mixed
+     */
+    public function cookies($key = null);
 
     /**
      * Returns Request body
@@ -52,23 +78,23 @@ interface Request
      */
     public function getHeaders();
 
-    
+
     /**
      * Returns true if domain is secure
      *
      * @return bool
      */
     public function isSecure();
-    
-    
+
+
     /**
      * Returns the requester's IP
      *
      * @return mixed
      */
     public function ip();
-    
-    
+
+
     /**
      * Returns the User Agent string
      *
@@ -78,32 +104,26 @@ interface Request
 
     /**
      * Returns true if current request is an ajax call
-     * 
+     *
      * @return bool
      */
     public function isAjax();
-    
+
     /**
      * Returns an array of server info
      *
+     * @param null|string $key
      * @return array
      */
-    public function getServer();
-    
-    /**
-     * Returns an array of Cookies set
-     *
-     * @return array
-     */
-    public function getCookies();
-    
+    public function server($key = null);
+
     /**
      * Returns the httpMethod used for the current request
      *
      * @return string
      */
     public function getHttpMethod();
-    
+
     /**
      * Sets the http Method
      *
@@ -111,14 +131,14 @@ interface Request
      * @return $this
      */
     public function setHttpMethod($httpMethod);
-    
+
     /**
      * Returns the url path/query string
      *
      * @return string
      */
     public function getPath();
-    
+
     /**
      * Set the url path/query string
      *
@@ -126,7 +146,10 @@ interface Request
      * @return void
      */
     public function setPath($path);
-    
-    
-    
+
+    /**
+     * @param null|string $key
+     * @return array|DataCollection
+     */
+    public function headers($key = null);
 }

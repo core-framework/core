@@ -52,4 +52,16 @@ class ExplorerTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals('ExplorerTest.php', $explorer->getIterator()->current()->getFilename());
         $this->assertFileExists($explorer->getIterator()->current()->getPathname());
     }
+
+    public function testFileSearchWithDate()
+    {
+        $explorer = Explorer::find()->in(__DIR__)->date('1470157800', '<');
+        $this->assertInstanceOf('Core\\FileSystem\\Explorer', $explorer);
+        //$this->assertCount(1, $explorer);
+
+        foreach ($explorer as $file) {
+            /** @var \SplFileInfo $file */
+            $this->assertTrue($file->getMTime() < 1470157800);
+        }
+    }
 }

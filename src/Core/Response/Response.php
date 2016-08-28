@@ -24,7 +24,7 @@ namespace Core\Response;
 
 use Core\Contracts\Cacheable;
 use Core\Contracts\Response\Response as ResponseInterface;
-use Core\Contracts\ViewContract;
+use Core\Contracts\View;
 
 class Response extends BaseResponse implements ResponseInterface, Cacheable
 {
@@ -445,7 +445,7 @@ class Response extends BaseResponse implements ResponseInterface, Cacheable
      */
     public function sendOutput()
     {
-        if ($this->useView === true && !$this->content instanceof ViewContract) {
+        if ($this->useView === true && !$this->content instanceof View) {
             $this->content = $this->view->fetch();
         }
 

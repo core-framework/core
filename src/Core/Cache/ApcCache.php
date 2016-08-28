@@ -33,7 +33,7 @@ use Core\Contracts\Cache as CacheInterface;
 class ApcCache implements CacheInterface
 {
 
-    public function put($key, $payload, $ttl)
+    public function put($key, $payload, $ttl = 0)
     {
         return apc_store($key, $payload, $ttl);
     }

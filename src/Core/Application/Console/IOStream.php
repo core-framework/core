@@ -20,8 +20,9 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\Console;
+namespace Core\Application\Console;
 
+use Core\Contracts\Application\Console\IOStream as IOStreamInterface;
 
 /**
  * Class to handle the input output stream for the console commands
@@ -32,7 +33,7 @@ namespace Core\Console;
  * @link http://coreframework.in
  * @author Shalom Sam <shalom.s@coreframework.in>
  */
-class IOStream extends ConsoleStyles
+class IOStream extends ConsoleStyles implements IOStreamInterface
 {
     /**
      * @var resource Input stream
@@ -191,8 +192,8 @@ class IOStream extends ConsoleStyles
     /**
      * Prints error message with specific formatting
      *
-     * @param $msg
-     * @param $exception
+     * @param string $msg
+     * @param string|\Exception $exception
      * @throws \ErrorException
      */
     public function showErr($msg, $exception = null)
@@ -206,8 +207,19 @@ class IOStream extends ConsoleStyles
         } elseif (!is_null($exception)) {
             $lines[] = "[" . (string) $exception . "]";
         }
-        $lines[] = $msg;
-        $lines[] = " ";
+
+        if (strContains("\n", $msg)) {
+            $_lines = explode("\n", $msg);
+            $lines[] = " ";
+            foreach ($_lines as $line) {
+                $lines[] = $line;
+            }
+            $lines[] = " ";
+        } else {
+            $lines[] = " ";
+            $lines[] = $msg;
+            $lines[] = " ";
+        }
 
         $formattedLinesArr = $this->addPadding($lines, 5);
         $formattedLinesArr = $this->addPadding($formattedLinesArr, 5, STR_PAD_LEFT);
@@ -248,7 +260,7 @@ class IOStream extends ConsoleStyles
      * @param null $backColor - the background color
      * @param int $options - Display options like bold, underscore, blink, etc;
      */
-    public function writeln($msg, $foreColor = null, $backColor = null, $options = null)
+    public function writeln($msg = "", $foreColor = null, $backColor = null, $options = null)
     {
         $coloredMsg = $msg;
         $format = "%s\n";
@@ -351,6 +363,17 @@ class IOStream extends ConsoleStyles
         $format = empty($format) ? "%s" . PHP_EOL : $format;
         $decoratedLine = rtrim($decoratedLine, " ");
         $this->writeln($decoratedLine, null, null, $format);
+    }
+
+    public function getInputLine()
+    {
+        return trim(fgets(static::$input), "\n");
+    }
+
+    public function getInputMultiLine()
+    {
+        $this->writeln('[Hit Enter/Return twice to exit]', 'Yellow');
+        return trim(fgets(static::$input), "\n\n");
     }
 
 } 

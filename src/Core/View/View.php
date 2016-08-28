@@ -23,7 +23,7 @@
 namespace Core\View;
 
 use Core\Application\Application;
-use Core\Config\Config;
+use Core\Contracts\Config;
 use Core\Contracts\TemplateEngineContract;
 use Core\Contracts\View as ViewInterface;
 
@@ -33,9 +33,9 @@ class View implements ViewInterface
 
     protected $config;
 
-    protected $showHeader;
+    protected $showHeader = true;
 
-    protected $showFooter;
+    protected $showFooter = true;
 
     protected $layout = 'root.tpl';
 
@@ -62,10 +62,10 @@ class View implements ViewInterface
         $config = $this->getConfig();
         $engine = $this->getEngine();
 
-        if ($config->get('view:leftDelimiter', false))
+        if ($config->get('template.leftDelimiter', false))
         {
-            $engine->left_delimiter = $config->get('view:leftDelimiter', '<{');
-            $engine->right_delimiter = $config->get('view:rightDelimiter', '}>');
+            $engine->left_delimiter = $config->get('template.leftDelimiter', '<{');
+            $engine->right_delimiter = $config->get('template.rightDelimiter', '}>');
         }
 
         $basePath = $this->application->basePath();
@@ -73,14 +73,36 @@ class View implements ViewInterface
         $engine->setCompileDir($basePath . '/storage/smarty_cache/templates_c/');
         $engine->setConfigDir($basePath . '/storage/smarty_cache/config/');
         $engine->setCacheDir($basePath . '/storage/smarty_cache/cache/');
-        $engine->setTemplateDir($appPath . '/Templates/');
+        $engine->setTemplateDir(
+            $this->application->getRealPath(
+                $config->get('template.dir', $basePath . '/web/Templates/')
+            )
+        );
         $engine->addTemplateDir(__DIR__ . '/Resources/BaseTemplates/');
+        $this->addTemplateDirs($config->get('template.dirs', []));
+        
         $engine->assign('basePath', $basePath);
         $engine->assign('appPath', $appPath);
+        $engine->assign('layout', $this->layout);
+        $engine->assign('showHeader', $this->showHeader);
+        $engine->assign('showFooter', $this->showFooter);
 
-        $engine->inheritance_merge_compiled_includes = false;
-        $engine->caching = 1;
+        $engine->inheritance_merge_compiled_includes = $config->get('template.mergeCompiled', false);
+        $engine->caching = $config->get('template.caching', 1);
+        $engine->compile_check = $config->get('template.compileCheck', true);
         $engine->cache_lifetime = $config->get('app.ttl', 60);
+    }
+
+    /**
+     * Bulk add Template directories
+     *
+     * @param array $dirs
+     */
+    public function addTemplateDirs(array $dirs)
+    {
+        foreach($dirs as $i => $dir) {
+            $this->getEngine()->addTemplateDir($this->application->getRealPath($dir));
+        }
     }
 
     /**
@@ -184,7 +206,7 @@ class View implements ViewInterface
      */
     public function getEngine()
     {
-        if (!$this->engine instanceof TemplateEngineContract) {
+        if (!$this->engine instanceof TemplateEngineContract || !$this->engine instanceof \Smarty) {
             $engineName = $this->getConfig()->get('templateEngine', 'Smarty');
             $this->engine = $this->application->get($engineName);
         }
@@ -197,7 +219,38 @@ class View implements ViewInterface
      */
     public function set($variable, $value)
     {
-        $this->getEngine()->assign($variable, $value);
+        if (strContains('.', $variable)) {
+            $this->dotAssign($variable, $value);
+        } else {
+            $this->getEngine()->assign($variable, $value);
+        }
+    }
+
+    protected function dotAssign($var, $val)
+    {
+        $vars = explode('.',$var);
+        $currentVal = $this->getEngine()->getTemplateVars($vars[0]);
+        if (is_array($currentVal)) {
+            $currentVal[$vars[1]] = $val;
+        } else {
+            $currentVal = [$vars[1] => $val];
+        }
+
+        $this->getEngine()->assign($vars[0], $currentVal);
+    }
+
+    public function clearCache($tpl = null)
+    {
+        if (is_null($tpl)) {
+            $this->getEngine()->clearAllCache();
+        } else {
+            $this->getEngine()->clearCache($tpl);
+        }
+    }
+
+    public function clearCompiled($tpl = null, $compileId = null, $expires = null)
+    {
+        $this->getEngine()->clearCompiledTemplate($tpl, $compileId, $expires);
     }
 
     /**

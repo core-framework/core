@@ -27,7 +27,6 @@ namespace Core\Cache;
 use Core\Contracts\Cache as CacheInterface;
 use Core\Contracts\Cacheable;
 use Core\FileSystem\FileSystem;
-use Symfony\Component\Config\Definition\Exception\Exception;
 
 class FileCache implements CacheInterface
 {
@@ -57,7 +56,7 @@ class FileCache implements CacheInterface
     /**
      * @inheritDoc
      */
-    public function put($key, $payload, $ttl)
+    public function put($key, $payload, $ttl = 0)
     {
         $path = $this->path($key);
 
@@ -126,7 +125,7 @@ class FileCache implements CacheInterface
 
             return $cache['content'];
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return false;
         }
         

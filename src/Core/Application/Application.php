@@ -32,9 +32,8 @@ use Core\Contracts\Application as ApplicationInterface;
  */
 class Application extends BaseApplication implements ApplicationInterface
 {
-    protected $applicationName = "Core Framework";
+    protected $applicationName = "Core PHP Framework";
     protected $version = "v1.0.0";
-    
-    
+
 }
 

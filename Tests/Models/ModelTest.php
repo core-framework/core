@@ -363,6 +363,18 @@ class ModelTest extends ConnectionTest
         $user = User::findOrFail(['age' => 100]);
     }
 
+    public function testCountWithCondition()
+    {
+        $count = User::getCount(['fname' => 'Shalom']);
+        $this->assertEquals($count, 1);
+    }
+
+    public function testCountWithFalseCondition()
+    {
+        $count = User::getCount(['fname' => 'gib']);
+        $this->assertEquals($count, 0);
+    }
+
     /**
      * @covers \Core\Contracts\ModelContract::getCount
      * @covers \Core\Contracts\ModelContract::findOne

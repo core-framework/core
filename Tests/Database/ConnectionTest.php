@@ -43,12 +43,7 @@ class ConnectionTest extends \PHPUnit_Extensions_Database_TestCase
     public static function getConfig()
     {
         if (!isset(self::$conf)) {
-            $dbConfPath = _ROOT . '/config/db.conf.php';
-            if (is_readable($dbConfPath)) {
-                self::$conf = $conf = require($dbConfPath);
-            } else {
-                self::$conf = $conf = require('config.php');
-            }
+            self::$conf = $conf = require('config.php');
         }
 
         return self::$conf;

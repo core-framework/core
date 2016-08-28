@@ -172,6 +172,8 @@ if (!function_exists('strContains')) {
      */
     function strContains($search, $string)
     {
+        $string = strtolower($string);
+        $search = strtolower($search);
         return strpos($string, $search) !== false ? true : false;
     }
 }

@@ -27,7 +27,7 @@ use Core\Reactor\Facade;
 /**
  * Class Config
  * @method static mixed get($key = null, $default = false)
- * @method static mixed add($key, $value)
+ * @method static mixed set($key, $value)
  * @method static mixed map(\Closure $callback, $default = false)
  * @method static mixed all()
  * @method static mixed getServices()

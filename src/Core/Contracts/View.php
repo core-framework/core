@@ -84,6 +84,20 @@ interface View {
      * @return void
      */
     public function set($variable, $value);
+
+    /**
+     * @param $tpl
+     * @return void
+     */
+    public function clearCache($tpl = null);
+
+    /**
+     * @param null|string $tpl
+     * @param null|string $compileId
+     * @param null|int $expires
+     * @return void
+     */
+    public function clearCompiled($tpl = null, $compileId = null, $expires = null);
     
     /**
      * @return string

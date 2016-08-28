@@ -23,8 +23,10 @@
 namespace Core\Contracts;
 
 use Core\Contracts\Events\Dispatcher;
+use Core\Contracts\FileSystem\FileSystem;
 use Core\Contracts\Reactor\Runnable;
 use Core\Contracts\Request\Request;
+use Core\Contracts\Response\Response;
 use Core\Contracts\Router\Router;
 
 interface Application extends Runnable
@@ -35,6 +37,20 @@ interface Application extends Runnable
      * @return string
      */
     public function version();
+
+    /**
+     * Get Application name
+     *
+     * @return string
+     */
+    public function name();
+
+    /**
+     * Returns true if application is currently running from CLI (console)
+     *
+     * @return bool
+     */
+    public function isCLI();
 
     /**
      * Set current application version
@@ -80,6 +96,13 @@ interface Application extends Runnable
     public function storagePath();
 
     /**
+     * Returns the public folder path
+     *
+     * @return string
+     */
+    public function publicFolder();
+
+    /**
      * Get current Environment state
      *
      * @return string
@@ -92,6 +115,13 @@ interface Application extends Runnable
      * @return bool
      */
     public function isDown();
+
+    /**
+     * Show (Serve) Maintenance file
+     *
+     * @return mixed
+     */
+    public function showMaintenance();
 
     /**
      * Method to register services
@@ -110,6 +140,13 @@ interface Application extends Runnable
      * @return void
      */
     public function boot();
+
+    /**
+     * Terminat
+     *
+     * @return void
+     */
+    public function terminate();
 
     /**
      * Dispatch Application Event
@@ -141,6 +178,18 @@ interface Application extends Runnable
      * @throws \ErrorException
      */
     public function getRequest();
+
+    /**
+     * @return Response|object
+     * @throws \ErrorException
+     */
+    public function getResponse();
+
+    /**
+     * @return View
+     * @throws \ErrorException
+     */
+    public function getView();
     
     /**
      * Generates and sets Cache Keys for current Route
@@ -161,6 +210,11 @@ interface Application extends Runnable
      * @throws \ErrorException
      */
     public function getDispatcher();
+
+    /**
+     * @return FileSystem|object
+     */
+    public function getFileSystem();
 
     /**
      * @param $definition

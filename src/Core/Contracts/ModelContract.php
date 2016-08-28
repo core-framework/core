@@ -129,11 +129,9 @@ interface ModelContract
     /**
      * @param array $conditions
      * @param array $columns
-     * @param array $orderBy
-     * @param array $groupBy
      * @return mixed
      */
-    public static function getCount($conditions = [], $columns = [], $orderBy = [], $groupBy = []);
+    public static function getCount($conditions = [], $columns = []);
 
     /**
      * @param $column

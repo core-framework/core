@@ -22,9 +22,9 @@
 
 namespace Core\Request;
 
+use Core\Contracts\Request\Request as RequestInterface;
 use Core\Reactor\DataCollection;
 use Core\Reactor\HttpParameter;
-use Core\Contracts\Request\Request as RequestInterface;
 
 /**
  * The class that handles the incoming request to server
@@ -191,31 +191,6 @@ class Request implements RequestInterface
     }
 
     /**
-     * Get our headers from our server data collection
-     *
-     * PHP is weird... it puts all of the HTTP request
-     * headers in the $_SERVER array. This handles that
-     *
-     * @return array
-     */
-    public function getHeaders()
-    {
-        // Define a headers array
-        $headers = array();
-        foreach ($this->server as $key => $value) {
-            // Does our server attribute have our header prefix?
-            if (self::hasPrefix($key, self::$http_header_prefix)) {
-                // Add our server attribute to our header array
-                $headers[substr($key, strlen(self::$http_header_prefix))] = $value;
-            } elseif (in_array($key, self::$http_nonprefixed_headers)) {
-                // Add our server attribute to our header array
-                $headers[$key] = $value;
-            }
-        }
-        return $headers;
-    }
-
-    /**
      * Returns true if domain is secure
      *
      * @return bool
@@ -246,7 +221,52 @@ class Request implements RequestInterface
     }
 
     /**
-     * Builds the $_GET, $_POST, $_SERVER and $_COOKIE object properties
+     * @inheritdoc
+     */
+    public function isAjax()
+    {
+        return $this->isAjax;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function server($key = null)
+    {
+        if (!empty($key)) {
+            return $this->server[$key];
+        }
+        return $this->server;
+    }
+
+
+    /**
+     * Get our headers from our server data collection
+     *
+     * PHP is weird... it puts all of the HTTP request
+     * headers in the $_SERVER array. This handles that
+     *
+     * @return array
+     */
+    public function getHeaders()
+    {
+        // Define a headers array
+        $headers = array();
+        foreach ($this->server as $key => $value) {
+            // Does our server attribute have our header prefix?
+            if (self::hasPrefix($key, self::$http_header_prefix)) {
+                // Add our server attribute to our header array
+                $headers[substr($key, strlen(self::$http_header_prefix))] = $value;
+            } elseif (in_array($key, self::$http_nonprefixed_headers)) {
+                // Add our server attribute to our header array
+                $headers[$key] = $value;
+            }
+        }
+        return $headers;
+    }
+
+    /**
+     *
      */
     private function getServerRequest()
     {
@@ -259,7 +279,7 @@ class Request implements RequestInterface
             $this->setHttpMethod("GET");
         }
 
-        if (filter_input(INPUT_SERVER, 'HTTP_X_REQUESTED_WITH') === 'xmlhttprequest') {
+        if (strtolower(filter_input(INPUT_SERVER, 'HTTP_X_REQUESTED_WITH')) === 'xmlhttprequest') {
             $this->isAjax = true;
         }
 
@@ -270,28 +290,6 @@ class Request implements RequestInterface
         str_replace($this->illegal, '', $rawPath);
         $this->path = isset($rawPath) && $rawPath != 'index.php' ? '/' . $rawPath : '';
 
-    }
-
-
-    /**
-     * @deprecated
-     */
-    public function sanitizeGlobals()
-    {
-        $this->GET = $this->inputSanitize($_GET);
-
-        $this->POST = $this->inputSanitize($_POST);
-
-        $this->server = $_SERVER;
-
-        foreach ($_COOKIE as $key => $value) {
-            $this->cookies[$key] = htmlentities(
-                filter_var(trim($value), FILTER_SANITIZE_STRING),
-                ENT_COMPAT,
-                'UTF-8',
-                false
-            );
-        }
     }
 
     /**
@@ -395,25 +393,8 @@ class Request implements RequestInterface
         }
     }
 
-    public function isAjax()
-    {
-        return $this->isAjax;
-    }
-
     /**
-     * Returns an array of server info
-     *
-     * @return array
-     */
-    public function getServer()
-    {
-        return $this->server;
-    }
-
-    /**
-     * Returns an array of Cookies set
-     *
-     * @return array
+     * @return array|DataCollection
      */
     public function getCookies()
     {
@@ -462,36 +443,6 @@ class Request implements RequestInterface
     }
 
     /**
-     * Find variable value in global $_GET
-     *
-     * @param null|string $variable
-     * @return string|bool
-     */
-    public static function _GET($variable = null)
-    {
-        if (is_null($variable)) {
-            return $_GET;
-        }
-
-        return isset($_GET[$variable]) ? $_GET[$variable] : false;
-    }
-
-    /**
-     * Find variable value in global $_POST
-     *
-     * @param null|string $variable
-     * @return string|bool
-     */
-    public static function _POST($variable = null)
-    {
-        if (is_null($variable)) {
-            return $_POST;
-        }
-
-        return isset($_POST[$variable]) ? $_POST[$variable] : false;
-    }
-
-    /**
      * Quickly check if a string has a passed prefix
      *
      * @param string $string The string to check
@@ -506,5 +457,47 @@ class Request implements RequestInterface
         return false;
     }
 
+    /**
+     * @inheritDoc
+     */
+    public function GET($key = null)
+    {
+        if (!empty($key)) {
+            return $this->GET[$key];
+        }
+        return $this->GET;
+    }
 
+    /**
+     * @inheritdoc
+     */
+    public function POST($key = null)
+    {
+        if (!empty($key)) {
+            return $this->POST[$key];
+        }
+        return $this->POST;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function cookies($key = null)
+    {
+        if (!empty($key)) {
+            return $this->cookies[$key];
+        }
+        return $this->cookies;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function headers($key = null)
+    {
+        if (!empty($key)) {
+            return $this->headers->get($key, false);
+        }
+        return $this->headers;
+    }
 }

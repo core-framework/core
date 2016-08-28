@@ -98,7 +98,7 @@ class MySqlMapper extends Mapper implements MapperInterface
      */
     public function getConnection()
     {
-        if ($this->connection === null) {
+        if (!$this->connection instanceof Connection) {
             $this->connect();
         }
 
@@ -195,13 +195,13 @@ class MySqlMapper extends Mapper implements MapperInterface
         if (!empty($params)) {
             $prepared = $this->getPrepared($sql);
             $result = $prepared->execute($params);
-            if ($result === false) {
+            if ($result === false && $this->getConnection()->errorCode() !== '00000') {
                 throw new \PDOException("SQL Error: {$this->getConnection()->errorCode()} : {$this->getConnection()->errorInfo()[2]}");
             }
             return $prepared->fetchAll(\PDO::FETCH_ASSOC);
         } else {
             $result = $this->query($sql);
-            if ($result === false) {
+            if ($result === false && $this->getConnection()->errorCode() !== '00000') {
                 throw new \PDOException("SQL Error: {$this->getConnection()->errorCode()} : {$this->getConnection()->errorInfo()[2]}");
             }
             return $result->fetchAll(\PDO::FETCH_ASSOC);
@@ -842,7 +842,7 @@ class MySqlMapper extends Mapper implements MapperInterface
         return $this->execute($query, $params);
     }
 
-    /**`
+    /**
      * {@inheritdoc}
      */
     public function getAll($tableName, $columns = [], $conditions = [], $orderBy = [], $groupBy = [], $isCount = false, $limit = false)

@@ -22,6 +22,7 @@
 
 namespace Core\Reactor;
 
+use Core\Application\Application;
 use Core\Container\Container;
 use Core\Contracts\Reactor\Facade as FacadeInterface;
 
@@ -61,6 +62,6 @@ abstract class Facade implements FacadeInterface
      */
     public static function kernel()
     {
-        return Container::get(static::getName());
+        return Application::get(static::getName());
     }
 }

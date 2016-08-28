@@ -20,11 +20,25 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\Contracts;
 
-use Core\Router\Router;
+namespace Core\Application\Console\Options;
 
-interface MiddlewareContract
+
+use Core\Contracts\Application\CliApplication;
+use Core\Contracts\Reactor\Runnable;
+
+class GlobalOptions implements Runnable
 {
-    public function run(Router $router, \Closure $next);
+    private $application;
+
+    public function __construct(CliApplication $application)
+    {
+        $this->application = $application;
+    }
+
+    public function run()
+    {
+        $this->application->addGlobalOptions('verbose', 'v', 'Adds verbosity to current command.');
+        $this->application->addGlobalOptions('help', 'h', 'Lists available commands OR provides help for a given command.');
+    }
 }

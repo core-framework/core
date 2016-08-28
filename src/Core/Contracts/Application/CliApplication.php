@@ -20,90 +20,66 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\Console;
+
+namespace Core\Contracts\Application;
 
 
-/**
- * Class Argument
- * @package Core\Console
- */
-class Argument {
+use Core\Application\Console\IOStream;
+use Core\Contracts\Application;
+use Core\Contracts\Cache;
+use Core\Contracts\Config;
+use Core\Contracts\Events\Dispatcher;
+use Core\Contracts\Reactor\Runnable;
 
+interface CliApplication extends Application
+{
     /**
-     * @var
-     */
-    protected $name;
-    /**
-     * @var
-     */
-    protected $required;
-    /**
-     * @var
-     */
-    protected $description;
-
-    /**
-     * Argument constructor
-     *
      * @param $name
-     * @param $required
-     * @param null $description
-     */
-    function __construct($name, $required = true, $description = null)
-    {
-        $this->name = $name;
-        $this->required = $required;
-        $this->description = $description;
-    }
-
-
-    /**
-     * @return string
-     */
-    public function getName()
-    {
-        return $this->name;
-    }
-
-    /**
-     * @param mixed $name
-     */
-    public function setName($name)
-    {
-        $this->name = $name;
-    }
-
-    /**
+     * @param $shortName
+     * @param $description
+     * @param $isRequired
      * @return mixed
      */
-    public function getRequired()
-    {
-        return $this->required;
-    }
+    public function addGlobalOptions($name, $shortName, $description, $isRequired = false);
 
     /**
-     * @param mixed $required
+     * @return array
      */
-    public function setRequired($required)
-    {
-        $this->required = $required;
-    }
+    public function getGlobalOptions();
 
     /**
+     * @param $name
+     * @param $class
+     * @return void
+     */
+    public function addCommand($name, $class);
+
+    /**
+     * @param $name
+     * @return bool
+     */
+    public function hasCommand($name);
+
+    /**
+     * @param $name
      * @return mixed
      */
-    public function getDescription()
-    {
-        return $this->description;
-    }
+    public function getCommand($name);
 
     /**
-     * @param mixed $description
+     * @param null|string $argumentName
+     * @return mixed|array
      */
-    public function setDescription($description)
-    {
-        $this->description = $description;
-    }
+    public function input($argumentName = null);
 
+    /**
+     * @param null|string $optionName
+     * @return mixed|array
+     */
+    public function inputOptions($optionName = null);
 
+    /**
+     * @return void
+     */
+    public function showHelp();
 }

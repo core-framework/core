@@ -20,7 +20,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Core\Console;
+namespace Core\Application\Console;
 
 /**
  * Class to handle color formatting of outputs on a console or command line
