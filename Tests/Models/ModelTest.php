@@ -22,12 +22,14 @@
 
 namespace Core\Tests\Models;
 
+use Core\Application\Application;
 use Core\Database\Mapper\MySqlMapper;
 use Core\Database\Table;
 use Core\Database\Where;
 use Core\Tests\Database\ConnectionTest;
 use Core\Database\QueryBuilder;
 use Core\Contracts\Database\Mapper;
+use Core\Tests\Mocks\MockPaths;
 use Core\Tests\Models\testModels\Comment;
 use Core\Tests\Models\testModels\Employee;
 use Core\Tests\Models\testModels\Phone;
@@ -40,6 +42,10 @@ class ModelTest extends ConnectionTest
      * @var Mapper
      */
     public $mapping;
+    /**
+     * @var Application
+     */
+    public $app;
 
     public $data = [
         [1, 'Shalom', 'Sam', 'Shalom Sam', 29],
@@ -215,6 +221,10 @@ class ModelTest extends ConnectionTest
      */
     public function setUp()
     {
+        MockPaths::createMockPaths();
+        $this->app = new Application(MockPaths::$basePath);
+        $this->app->setEnvironment('test');
+
         $language = $this->getMapping();
         $table = $this->getTableSchema();
         $table2 = $this->getTable2Schema();

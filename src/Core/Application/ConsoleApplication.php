@@ -36,6 +36,8 @@ use Core\Reactor\DataCollection;
 
 class ConsoleApplication extends BaseApplication implements CliApplication
 {
+
+    protected $validOptionTypes = ['-', '--'];
     protected $applicationName = "Core PHP Framework Console";
     protected $version = "v1.0.0";
 
@@ -58,7 +60,10 @@ class ConsoleApplication extends BaseApplication implements CliApplication
         'server' => \Core\Application\Console\Commands\ServerCommand::class,
         'optimize' => \Core\Application\Console\Commands\OptimizeCommand::class,
         'create' => \Core\Application\Console\Commands\CreateCommand::class,
-        'router' => \Core\Application\Console\Commands\RouterCommand::class
+        'router' => \Core\Application\Console\Commands\RouterCommand::class,
+        'migrate:install' => \Core\Application\Console\Commands\MigrateInstallCommand::class,
+        'migrate:run' => \Core\Application\Console\Commands\MigrateRunCommand::class,
+        'seeder:run' => \Core\Application\Console\Commands\SeederCommand::class,
     ];
 
     /**
@@ -161,7 +166,7 @@ class ConsoleApplication extends BaseApplication implements CliApplication
     /**
      * @inheritdoc
      */
-    public function addGlobalOptions($name, $shortName, $description, $isRequired = false)
+    public function addGlobalOptions($name, $shortName, $description, $isRequired = Option::OPTION_OPTIONAL)
     {
         $this->options[$name] = new Option($name, $shortName, $description, $isRequired);
     }
@@ -169,21 +174,17 @@ class ConsoleApplication extends BaseApplication implements CliApplication
     /**
      * @inheritdoc
      */
-    public function getGlobalOptions()
+    public function getGlobalOptions(array $pipeline = [])
     {
-        if (!isset($this->inputArguments['options'])) {
-            $shortOptions = "";
-            $longOptions = [];
-            /** @var Option $option */
-            foreach($this->options as $option) {
-                $shortOptions .= "{$option->getShortName()}" . $option->isRequired() ? ':' : '';
-                $longOptions[] =  "{$option->getName()}" . $option->isRequired() ? ':' : '';
+        while (strContains('-', null !== $argument = array_shift($pipeline))) {
+            if (strContains('--', $argument)) {
+                $this->parseOption($argument, Option::OPTION_LONG);
+            } elseif (strContains('-', $argument)) {
+                $this->parseOption($argument, Option::OPTION_SHORT);
             }
-
-            $this->inputArguments['options'] = getopt($shortOptions, $longOptions);
         }
 
-        return $this->inputArguments['options'];
+        return $this->inputArguments->get('options');
     }
 
     /**
@@ -216,15 +217,15 @@ class ConsoleApplication extends BaseApplication implements CliApplication
     /**
      * @inheritdoc
      */
-    public function input($argumentName = null)
+    public function input($argumentName = null, $default = [])
     {
-        return $this->inputArguments->get($argumentName, []);
+        return $this->inputArguments->get($argumentName, $default);
     }
 
     /**
      * @inheritdoc
      */
-    public function inputOptions($optionName = null)
+    public function inputOptions($optionName = null, $default = false)
     {
         $optionName = is_null($optionName) ? '' : ".{$optionName}";
         if ($this->inputArguments->has('options'.$optionName)) {
@@ -232,10 +233,10 @@ class ConsoleApplication extends BaseApplication implements CliApplication
         } else {
             if (isset($this->options[$optionName])) {
                 $shortName = "." .$this->options[$optionName]->getShortName();
-                return $this->inputArguments->get('options'.$shortName, false);
+                return $this->inputArguments->get('options'.$shortName, $default);
             }
         }
-        return false;
+        return $default;
     }
 
     /**
@@ -269,14 +270,18 @@ class ConsoleApplication extends BaseApplication implements CliApplication
         $this->dispatch('core.app.parse.pre', $this);
 
         $this->pipeline = $argv;
-        $this->parseGlobalOptions();
-
+        
         while (null !== $argument = array_shift($this->pipeline)) {
-            if (!strContains('--', $argument) || !strContains('-', $argument)) {
+            if (!strContains('--', $argument) && !strContains('-', $argument)) {
                 $this->parseConsoleArgument($argument);
+            } elseif (strContains('--', $argument)) {
+                $this->parseOption($argument, Option::OPTION_LONG);
+            } elseif (strContains('-', $argument)) {
+                $this->parseOption($argument, Option::OPTION_SHORT);
             }
         }
 
+        $this->parseGlobalOptions();
         $this->execute();
         $this->terminate();
     }
@@ -291,6 +296,96 @@ class ConsoleApplication extends BaseApplication implements CliApplication
         } elseif (isset($this->currentCommand)) {
             $this->inputArguments[] = $argument;
         }
+    }
+
+    /**
+     * Parse Console Options
+     *
+     * @param string $argument The Option string as argument
+     * @param string $type The Option type (Long Option || short Option)
+     */
+    public function parseOption($argument, $type = Option::OPTION_LONG)
+    {
+        if (!in_array($type, $this->validOptionTypes)) {
+            throw new \InvalidArgumentException("Invalid Option type {$type}");
+        }
+
+        $value = null;
+
+        if (!strContains('=', $argument)) {
+            $optionName = str_replace($type, '', $argument);
+        } else {
+            $argument = str_replace($type, '', $argument);
+            list($optionName, $value) = explode("=", $argument);
+        }
+
+        if ($type === Option::OPTION_SHORT) {
+            if ($currentCommand = $this->currentCommand) {
+                $this->parseShortOption($optionName, $currentCommand->getOptions(), $value);
+            } else {
+                $this->parseShortOption($optionName, $this->options, $value);
+            }
+        } elseif ($type === Option::OPTION_LONG) {
+            if ($currentCommand = $this->currentCommand) {
+                $this->parseLongOption($optionName, $currentCommand->getOptions(), $value);
+            } else {
+                $this->parseLongOption($optionName, $this->options, $value);
+            }
+        }
+
+    }
+
+    /**
+     * Parse short option and assign value (if required)
+     *
+     * @param $optionName
+     * @param array $options
+     * @param null $value
+     */
+    private function parseShortOption($optionName, array $options, $value = null)
+    {
+        foreach($options as $name => $option) {
+            /** @param Option $option */
+            if ($option->getShortName() === $optionName) {
+                $value = $this->parseOptionValue($option, $value);
+            }
+        }
+    }
+
+    /**
+     * Parse long option and assign value (if required)
+     *
+     * @param $optionName
+     * @param array $options
+     * @param null $value
+     */
+    private function parseLongOption($optionName, array $options, $value = null)
+    {
+        foreach($options as $name => $option) {
+            /** @param Option $option */
+            if ($option->getName() === $optionName) {
+                $value = $this->parseOptionValue($option, $value);
+            }
+        }
+    }
+
+    /**
+     * Parse option to determine correct value
+     *
+     * @param Option $option
+     * @param null $value
+     */
+    private function parseOptionValue(Option $option, $value = null)
+    {
+        $optionName = $option->getName();
+        if ($option->isFlag()) {
+            $value = true;
+        } elseif ($option->isOptional()) {
+            $value = !is_null($value) ? $value : $option->getDefault();
+        } elseif ($option->isRequired()) {
+            $value = !is_null($value) ? $value : array_shift($this->pipeline);
+        }
+        $this->inputArguments->set('options.'.$optionName, $value);
     }
 
     /**
@@ -320,12 +415,17 @@ class ConsoleApplication extends BaseApplication implements CliApplication
         }
 
         $this->bindArguments();
-        $this->inputArguments['options'] = $this->currentCommand->parseOptions();
         $this->currentCommand->execute($this->io());
 
         $this->dispatch('core.app.execute.post', $this);
     }
 
+    /**
+     * Finds closest command matching input (typo) string
+     *
+     * @param array $argv
+     * @return bool
+     */
     public function closestCommand(array $argv)
     {
         $keys = array_keys($this->commands);
@@ -344,9 +444,10 @@ class ConsoleApplication extends BaseApplication implements CliApplication
      */
     protected function bindArguments()
     {
+        /** @var Argument[] $arguments */
         $arguments = array_values($this->currentCommand->getArgument());
 
-        if (sizeof($arguments) > sizeof($this->inputArguments)) {
+        if (sizeof($arguments) > sizeof($this->inputArguments) && $arguments[0]->isRequired()) {
             throw new \RuntimeException("Too many arguments");
         }
 
@@ -367,12 +468,10 @@ class ConsoleApplication extends BaseApplication implements CliApplication
      */
     protected function parseGlobalOptions()
     {
-        $globalOptions = $this->getGlobalOptions();
-
-        if ($globalOptions['V'] || $globalOptions['verbose']) {
+        if ($this->inputArguments->has('options.verbose')) {
             $this->isVerbose = true;
         }
-        if ($globalOptions['help'] || $globalOptions['h']) {
+        if ($this->inputArguments->has('options.help')) {
             $this->currentCommand = new $this->commands['help']($this);
         }
     }
@@ -384,7 +483,6 @@ class ConsoleApplication extends BaseApplication implements CliApplication
      */
     protected function handleError(\Exception $exception)
     {
-        // strip string formatting (\r|\n|\t)
         $this->io()->showErr($exception->getMessage(), $exception);
     }
 
@@ -419,6 +517,5 @@ class ConsoleApplication extends BaseApplication implements CliApplication
         $this->io->writeln();
         $this->io->writeln("For detailed help type - help [commandName]", 'yellow');
     }
-
 
 }

@@ -22,14 +22,13 @@
 
 namespace Core\Model;
 
-//use Core\Config\Config;
 use Core\Contracts\Database\Mapper;
 use Core\Contracts\ModelContract;
 use Core\Database\Connection;
 use Core\Database\Table;
 use Core\Database\Where;
+use Core\Facades\App;
 use Core\Facades\Config;
-use Symfony\Component\Config\Definition\Exception\Exception;
 
 abstract class BaseModel implements ModelContract
 {
@@ -45,6 +44,10 @@ abstract class BaseModel implements ModelContract
      * @var string Database name
      */
     protected static $dbName = '';
+    /**
+     * @var string Connection name
+     */
+    protected static $connectionType = null;
     /**
      * @var array
      */
@@ -189,7 +192,8 @@ abstract class BaseModel implements ModelContract
     public static function getMapper()
     {
         if (!isset(static::$mapper)) {
-            self::setMapper(self::getMapperFromConfig());
+            //self::setMapper(self::getMapperFromConfig());
+            self::setMapper(App::getMapper(static::$connectionType));
         }
         return static::$mapper;
     }
@@ -200,35 +204,6 @@ abstract class BaseModel implements ModelContract
     public static function setMapper(Mapper $mapper)
     {
         self::$mapper = $mapper;
-    }
-
-    /**
-     * @return Mapper
-     */
-    public static function getMapperFromConfig()
-    {
-        $config = self::getConfig();
-        $type = isset($config['type']) ? $config['type'] : 'mysql';
-        $mapperClass = self::getMapperClass($type);
-        return new $mapperClass(self::getConfig());
-    }
-
-    /**
-     * @param $type
-     * @return string
-     */
-    public static function getMapperClass($type)
-    {
-        $class = '\Core\Database\Mapper\MySqlMapper';
-
-        if (!empty($type)) {
-            $mapper = '\Core\Database\Mapper\\' . ucfirst($type) . 'Mapper';
-            if (class_exists($mapper)) {
-                $class = $mapper;
-            }
-        }
-
-        return $class;
     }
 
     /**
@@ -533,5 +508,37 @@ abstract class BaseModel implements ModelContract
     public static function getFillable()
     {
         return static::$fillable;
+    }
+
+
+    /**
+     * @deprecated
+     * @return Mapper
+     */
+    public static function getMapperFromConfig()
+    {
+        $config = self::getConfig();
+        $type = isset($config['type']) ? $config['type'] : 'mysql';
+        $mapperClass = self::getMapperClass($type);
+        return new $mapperClass(self::getConfig());
+    }
+
+    /**
+     * @deprecated
+     * @param $type
+     * @return string
+     */
+    public static function getMapperClass($type)
+    {
+        $class = '\Core\Database\Mapper\MySqlMapper';
+
+        if (!empty($type)) {
+            $mapper = '\Core\Database\Mapper\\' . ucfirst($type) . 'Mapper';
+            if (class_exists($mapper)) {
+                $class = $mapper;
+            }
+        }
+
+        return $class;
     }
 }

@@ -22,6 +22,7 @@
 
 namespace Core\Contracts;
 
+use Core\Contracts\Database\Mapper;
 use Core\Contracts\Events\Dispatcher;
 use Core\Contracts\FileSystem\FileSystem;
 use Core\Contracts\Reactor\Runnable;
@@ -101,6 +102,12 @@ interface Application extends Runnable
      * @return string
      */
     public function publicFolder();
+
+    /**
+     * @param null $environment
+     * @return mixed
+     */
+    public function setEnvironment($environment = null);
 
     /**
      * Get current Environment state
@@ -225,7 +232,20 @@ interface Application extends Runnable
     public function build($definition, $arguments = null, $name = null);
 
     /**
+     * @return array $item
+     */
+    public function loadConfigFromFiles();
+
+    /**
      * @return array
      */
     public function getCachedConfigItems();
+
+    /**
+     * Return Database Mapper Object
+     *
+     * @param string $type
+     * @return Mapper
+     */
+    public function getMapper($type = 'mysql');
 }

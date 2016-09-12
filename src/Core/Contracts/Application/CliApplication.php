@@ -25,6 +25,7 @@ namespace Core\Contracts\Application;
 
 
 use Core\Application\Console\IOStream;
+use Core\Application\Console\Option;
 use Core\Contracts\Application;
 use Core\Contracts\Cache;
 use Core\Contracts\Config;
@@ -40,7 +41,7 @@ interface CliApplication extends Application
      * @param $isRequired
      * @return mixed
      */
-    public function addGlobalOptions($name, $shortName, $description, $isRequired = false);
+    public function addGlobalOptions($name, $shortName, $description, $isRequired = Option::OPTION_OPTIONAL);
 
     /**
      * @return array
@@ -68,15 +69,17 @@ interface CliApplication extends Application
 
     /**
      * @param null|string $argumentName
+     * @param mixed $default
      * @return mixed|array
      */
-    public function input($argumentName = null);
+    public function input($argumentName = null, $default = []);
 
     /**
      * @param null|string $optionName
+     * @param mixed $default
      * @return mixed|array
      */
-    public function inputOptions($optionName = null);
+    public function inputOptions($optionName = null, $default = false);
 
     /**
      * @return void

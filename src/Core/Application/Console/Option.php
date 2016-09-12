@@ -25,25 +25,30 @@ namespace Core\Application\Console;
 
 class Option
 {
-
+    CONST OPTION_LONG = "--";
+    CONST OPTION_SHORT = "-";
+    CONST OPTION_OPTIONAL = 0;
+    CONST OPTION_REQUIRED = 1;
+    CONST OPTION_FLAG = 2;
     protected $name;
     protected $shortName;
     protected $description;
-    protected $isRequired = false;
+    protected $type = false;
+    protected $default = true;
 
     /**
      * @param $name
      * @param null $shortName
      * @param null $description
-     * @param null|bool $isRequired Permitted values are null|true|false null=no value, false=has value but not required & true=has value and required
+     * @param int $type Permitted values are OPTION_OPTIONAL|OPTION_REQUIRED|OPTION_FLAG
      * @throws \ErrorException
      */
-    function __construct($name, $shortName = null, $description = null, $isRequired = false)
+    function __construct($name, $shortName = null, $description = null, $type = self::OPTION_OPTIONAL)
     {
         $this->name = $name;
         $this->shortName = $shortName;
         $this->description = $description;
-        $this->isRequired = $isRequired;
+        $this->type = $type;
     }
 
 
@@ -113,19 +118,53 @@ class Option
     }
 
     /**
-     * @return mixed
+     * @return bool
      */
     public function isRequired()
     {
-        return $this->isRequired;
+        return $this->type === self::OPTION_REQUIRED;
     }
 
     /**
-     * @param mixed $isRequired
+     * @return bool
      */
-    public function setIsRequired($isRequired)
+    public function isOptional()
     {
-        $this->isRequired = $isRequired;
+        return $this->type === self::OPTION_OPTIONAL;
     }
 
+    /**
+     * @return bool
+     */
+    public function isFlag()
+    {
+        return $this->type === self::OPTION_FLAG;
+    }
+
+    /**
+     * @param int $type
+     */
+    public function setType($type)
+    {
+        if (!is_int($type)) {
+            throw new \InvalidArgumentException("Invalid argument type:{$type}. Expected Option::OPTION_OPTIONAL || Option::OPTION_REQUIRED || Option::OPTION_FLAG");
+        }
+        $this->type = $type;
+    }
+
+    /**
+     * @param $value
+     */
+    public function setDefault($value)
+    {
+        $this->default = $value;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getDefault()
+    {
+        return $this->default;
+    }
 }

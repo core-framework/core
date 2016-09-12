@@ -27,4 +27,9 @@ class Config extends DataCollection implements ConfigInterface
     {
         return $this->get('database');
     }
+
+    public function getConnection($type = 'mysql')
+    {
+        return $this->get('database.connections.'.$type);
+    }
 }

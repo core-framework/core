@@ -30,7 +30,7 @@ interface ModelContract
     /**
      * Save to database
      *
-     * @return mixed
+     * @return bool
      */
     public function save();
 

@@ -50,6 +50,12 @@ interface Config
     public function getDatabase();
 
     /**
+     * @param string $type
+     * @return array
+     */
+    public function getConnection($type = 'mysql');
+
+    /**
      * @return array|bool|mixed|null
      */
     public function all();

@@ -192,19 +192,32 @@ class MySqlMapper extends Mapper implements MapperInterface
      */
     public function execute($sql, $params = [])
     {
+        $isSelect = strContains('select', $sql);
         if (!empty($params)) {
             $prepared = $this->getPrepared($sql);
             $result = $prepared->execute($params);
             if ($result === false && $this->getConnection()->errorCode() !== '00000') {
                 throw new \PDOException("SQL Error: {$this->getConnection()->errorCode()} : {$this->getConnection()->errorInfo()[2]}");
             }
-            return $prepared->fetchAll(\PDO::FETCH_ASSOC);
+
+            if ($isSelect) {
+                return $prepared->fetchAll(\PDO::FETCH_ASSOC);
+            } else {
+                return $result;
+            }
+
         } else {
             $result = $this->query($sql);
             if ($result === false && $this->getConnection()->errorCode() !== '00000') {
                 throw new \PDOException("SQL Error: {$this->getConnection()->errorCode()} : {$this->getConnection()->errorInfo()[2]}");
             }
-            return $result->fetchAll(\PDO::FETCH_ASSOC);
+
+            if ($isSelect) {
+                return $result->fetchAll(\PDO::FETCH_ASSOC);
+            } else {
+                return $result;
+            }
+
         }
     }
 

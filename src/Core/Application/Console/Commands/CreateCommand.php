@@ -28,6 +28,7 @@ use Core\Application\Console\Command;
 use Core\Application\Console\Validators\OptionsValidator;
 use Core\Contracts\Application\Console\IOStream;
 use Core\Contracts\FileSystem\FileSystem;
+use Core\Database\Migration\Migration;
 
 class CreateCommand extends Command
 {
@@ -42,7 +43,8 @@ class CreateCommand extends Command
                 'event' => 'Creates a new Core Framework Event class file',
                 'listener' => 'Creates a new Core Framework EventListener class file',
                 'middleware' => 'Creates a new Core Framework Middleware class file',
-                'model' => 'Creates a new Core Framework Model class file'
+                'model' => 'Creates a new Core Framework Model class file',
+                'migration' => 'Creates a new Core Framework Database Migration file'
             ]
         ));
         $this->addArgument('name', 'Name for the fileType specified', null, true);
@@ -61,32 +63,33 @@ class CreateCommand extends Command
 
         $fileSystem = $this->application()->getFileSystem();
 
-        $real = $this->getRealFolder($this->application()->appPath(), $io);
-        $appFolder = $real['appFolder'];
-        $namespace = $real['namespace'] ? $real['namespace'] : $this->getNamespace($fileType);
+        $real = $this->getRealFolder($this->application()->appPath(), $fileType, $io);
+        $appFolder = $real['folder'];
+        $namespace = $real['namespace'];
         $name = $this->formatName($name, $fileType);
 
 
         $replace = [
             '{{$namespace}}' => $namespace,
-            '{{$fileName}}' => $name
+            '{{$fileName}}' => $name,
+            '{{$className}}' => $name
         ];
 
-        $stub = $fileSystem->getContents(__DIR__ . "../Stubs/{$fileType}.stub");
+        $stub = $fileSystem->getContents(__DIR__ . "/../Stubs/{$fileType}.stub");
         $content = str_replace(array_keys($replace), array_values($replace), $stub);
-        $filePath = rtrim($appFolder, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $name;
+        $filePath = rtrim($appFolder, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $name . '.php';
+
+        if ($fileType === 'migration') {
+            $migration = new Migration(['migration' => $name, 'batch' => 0]);
+            $migration->save();
+        }
 
         if ($fileSystem->write($filePath, $content)) {
-            $io->writeln($name . ' file created successfully');
+            $io->writeln($name . ' file created successfully', 'green');
         } else {
             throw new \RuntimeException('Unable to create file ' . $filePath);
         }
 
-    }
-
-    private function getNamespace($fileType)
-    {
-        return 'app\\' . ucfirst($fileType) . 's';
     }
 
     private function formatName($name, $fileType)
@@ -99,11 +102,14 @@ class CreateCommand extends Command
         return $name;
     }
 
-    private function getRealFolder($appFolder, IOStream $io)
+    private function getRealFolder($appFolder, $fileType, IOStream $io)
     {
-        $return = [];
+        $return = [
+            'folder' => $appFolder . DIRECTORY_SEPARATOR . ucfirst($fileType) . 's',
+            'namespace' => "App\\" . ucfirst($fileType) . 's'
+        ];
         if (!is_dir($appFolder)) {
-            $return['appFolder'] = $io->ask("App folder missing! Please Specify the Folder to create the file in:");
+            $return['folder'] = $io->ask("App folder missing! Please Specify the Folder to create the file in:");
             if (!is_dir($appFolder)) {
                 throw new \InvalidArgumentException("Directory {$appFolder} doesn't exist.");
             }

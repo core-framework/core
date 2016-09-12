@@ -230,6 +230,43 @@ class IOStream extends ConsoleStyles implements IOStreamInterface
 
     }
 
+    public function showWarning($message)
+    {
+        $this->showBox($message, 'white', 'yellow');
+    }
+
+    public function showBox($message, $foreColor, $backColor, $option = 'bold')
+    {
+        $format = "\n%s\n\n";
+        $lines = [];
+
+        $lines[] = " ";
+        if ($message instanceof \Exception) {
+            $lines[] = "[" . $message->getCode() . "][" . get_class($message) . "]";
+            $message = $message->getMessage();
+        }
+
+        if (strContains("\n", $message)) {
+            $_lines = explode("\n", $message);
+            $lines[] = " ";
+            foreach ($_lines as $line) {
+                $lines[] = $line;
+            }
+            $lines[] = " ";
+        } else {
+            $lines[] = " ";
+            $lines[] = $message;
+            $lines[] = " ";
+        }
+
+        $formattedLinesArr = $this->addPadding($lines, 5);
+        $formattedLinesArr = $this->addPadding($formattedLinesArr, 5, STR_PAD_LEFT);
+        $coloredLinesArr = $this->getColoredLines($formattedLinesArr, $foreColor, $backColor, $option);
+        $styledLines = implode(PHP_EOL, $coloredLinesArr);
+
+        fprintf(static::$output, $format, $styledLines);
+    }
+
     /**
      * Output text
      *
@@ -376,4 +413,16 @@ class IOStream extends ConsoleStyles implements IOStreamInterface
         return trim(fgets(static::$input), "\n\n");
     }
 
+    /**
+     * @inheritdoc
+     */
+    public function showTable(array $array = [])
+    {
+        if (empty($array)) {
+            return false;
+        }
+        $headers = array_shift($array);
+        $table = new Table();
+        $this->writeln($table->fromArray($headers, $array));
+    }
 } 

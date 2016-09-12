@@ -36,7 +36,22 @@ class MockPaths
     public static $basePath;
     public static $frameworkConf;
     public static $viewConf;
-    public static $databaseConf = [];
+    public static $databaseConf = [
+        'default' => 'mysql',
+
+        'connections' => [
+            'mysql' => [
+                'mapper' => \Core\Database\Mapper\MySqlMapper::class,
+                'type' => 'mysql',
+                'db' => 'test',
+                'host' => '127.0.0.1',
+                'user' => 'root',
+                'pass' => 'qwedsa',
+                'options' => []
+            ]
+        ]
+
+    ];
     public static $appConf = [];
     public static $routerConf = ['controller' => ['namespace' => 'app\\Controllers']];
     public static $envConf = [];

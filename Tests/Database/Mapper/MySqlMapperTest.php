@@ -37,7 +37,7 @@ class MySqlMapperTest extends ConnectionTest
     /**
      * @var MySqlMapper
      */
-    public $language;
+    public $mapper;
 
 
     public function setUp()
@@ -60,8 +60,8 @@ class MySqlMapperTest extends ConnectionTest
 
     public function createInit()
     {
-        $this->language = new MySqlMapper($this->getConfig());
-        $this->table = new Table('user', [], $this->language);
+        $this->mapper = new MySqlMapper($this->getConfig());
+        $this->table = new Table('user', [], $this->mapper);
         $this->table->addColumn('id', 'integer', ['size' => 11])
             ->addColumn('fname')
             ->addColumn('lname')
@@ -97,8 +97,8 @@ class MySqlMapperTest extends ConnectionTest
             [1, "Shalom", "Sam", "Shalom Sam", null, "shalom5634d10f9a663",0,0, "test@test.com", null, "$2y$13$6YY1DczQim4JsRDTN3Cb0Oa.TtCUBDfoTZW.Cwj4MGQEV1rQkRV6y", "$2y$13$6YY1DczQim4JsRDTN3Cb0c",'/dashboard/test10_55', '/upload/test10_552bb', '/images/users/test10', '/images/users/test10', null, null, "2015-10-31 20:02:48", "2015-10-31 20:02:48", "2015-10-31 20:02:48"]
         ];
         $this->createInit();
-        $this->language->truncate('user');
-        $this->language->insert($this->table, $data);
+        $this->mapper->truncate('user');
+        $this->mapper->insert($this->table, $data);
 
         $resultingTable = $this->getConnection()->createQueryTable('user', "SELECT * FROM user WHERE {$this->quote('fname')}='Shalom'");
 
@@ -122,17 +122,17 @@ class MySqlMapperTest extends ConnectionTest
         $language->dropTable('customer');
 
 
-        $product = new Table('product', ['engine' => 'INNODB'], $this->language);
+        $product = new Table('product', ['engine' => 'INNODB'], $this->mapper);
         $product->addColumn('id', 'integer', ['null' => false, 'primaryKey' => true, 'autoIncrement' => true])
             ->addColumn('category', 'integer', ['null' => false, 'primaryKey' => true])
             ->addColumn('price', 'decimal');
-        $result1 =  $language->create($product);
+        $result1 = $language->create($product);
 
-        $customer = new Table('customer', ['engine' => 'INNODB'], $this->language);
+        $customer = new Table('customer', ['engine' => 'INNODB'], $this->mapper);
         $customer->addColumn('id', 'integer', ['primaryKey' => true]);
         $result2 = $language->create($customer);
 
-        $productOrder = new Table('product_order', ['engine' => 'INNODB'], $this->language);
+        $productOrder = new Table('product_order', ['engine' => 'INNODB'], $this->mapper);
         $productOrder->addColumn('no', 'integer', ['null' => false, 'primaryKey' => true, 'autoIncrement' => true])
             ->addColumn('product_category', 'integer', ['null' => false])
             ->addColumn('product_id', 'integer', ['null' => false])
@@ -176,10 +176,10 @@ class MySqlMapperTest extends ConnectionTest
      */
     public function testAddColumn()
     {
-        $this->language = new MySqlMapper($this->getConfig());
+        $this->mapper = new MySqlMapper($this->getConfig());
         $newColumn = new Column();
         $newColumn->setName('created_on')->setDataType('timestamp')->setDefault('CURRENT_TIMESTAMP')->setAfter('category');
-        $result = $this->language->addColumn('product', $newColumn);
+        $result = $this->mapper->addColumn('product', $newColumn);
         $this->assertTrue($result);
     }
 

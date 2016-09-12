@@ -21,36 +21,20 @@
  */
 
 
-namespace Core\Application\Bootstrappers;
+namespace {{$namespace}};
 
-use Core\Contracts\Application;
-use Core\Contracts\Bootsrapper;
-use Core\FileSystem\Explorer;
 
-class BootConfiguration implements Bootsrapper
+use Core\Database\Migration\AbstractMigration;
+
+class {{$className}} extends AbstractMigration
 {
-    /**
-     * @var Application
-     */
-    public $application;
-
-    /**
-     * @inheritDoc
-     */
-    public function bootstrap(Application $application)
+    public function up()
     {
-        $this->application = $application;
-        if (!$application instanceof Application) {
-            throw new \InvalidArgumentException("LoadConfiguration::run expects argument to be of type Application. {${gettype($application)}} given.");
-        }
-
-        $items = $application->getCachedConfigItems();
-
-        if (empty($items)) {
-            $items = $application->loadConfigFromFiles();
-        }
-
-        $application->build(\Core\Config\Config::class, [$items], 'Config');
+        // TODO: Implement up() method.
     }
 
+    public function down()
+    {
+        // TODO: Implement down() method.
+    }
 }

@@ -42,6 +42,9 @@ class Table
 
     protected $data = [];
 
+    /**
+     * @var Mapper $mapper
+     */
     protected $mapper;
 
     /**
@@ -296,12 +299,21 @@ class Table
      *     array(
      *          array("value1", "value2",.....),
      *          array("value1", "value2",.....),
-     *          .......
+     *          .......OR
+     *          array("key1" => "value1",.....),
+     *          array("key2" => "value2",.....),
      *     );
-     * @return $this
+     * @return mixed
      */
-    public function insert(array $columns, $data)
+    public function insert(array $data, array $columns = [])
     {
+        if (empty($columns)) {
+            $columns = array_keys($data[0]);
+            if (is_numeric($columns[0])) {
+                throw new \InvalidArgumentException('Table Columns not provided');
+            }
+        }
+
         foreach($columns as $column) {
 
             if (!$column instanceof Column) {
@@ -313,9 +325,10 @@ class Table
             $this->setColumn($column);
         }
 
-        $this->setData($data);
+        return $this->mapper->insert($this, $data);
 
-        return $this;
+        //$this->setData($data);
+        //return $this;
     }
 
     /**
@@ -389,16 +402,7 @@ class Table
 
     public function create()
     {
-
+        return $this->mapper->create($this);
     }
 
-    public function save()
-    {
-
-    }
-
-    public function update()
-    {
-
-    }
 }

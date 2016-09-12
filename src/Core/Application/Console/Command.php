@@ -141,9 +141,9 @@ abstract class Command implements CommandInterface
     /**
      * @inheritdoc
      */
-    public function addOption($name, $shortName, $description, $isRequired = false)
+    public function addOption($name, $shortName, $description, $type = Option::OPTION_OPTIONAL)
     {
-        $this->options[$name] = new Option($name, $shortName, $description, $isRequired);
+        $this->options[$name] = new Option($name, $shortName, $description, $type);
     }
 
     /**
@@ -157,33 +157,63 @@ abstract class Command implements CommandInterface
         return $this->options[$name];
     }
 
-    public function parseOptions()
+    public function parseOptions(array $argv = [])
     {
-        $shortOptions = "";
-        $longOptions = [];
-        /** @var Option $option */
-        foreach($this->options as $option) {
-            $shortOptions .= "{$option->getShortName()}" . $option->isRequired() ? ':' : '';
-            $longOptions[] =  "{$option->getName()}" . $option->isRequired() ? ':' : '';
+        while (null !== $argument = array_shift($argv)) {
+            if (strContains('--', $argument)) {
+                $this->parseOption($argument, self::OPTION_LONG);
+            } elseif (strContains('-', $argument)) {
+                $this->parseOption($argument, self::OPTION_SHORT);
+            }
+        }
+    }
+
+    public function parseOption($argument, $type = self::OPTION_LONG)
+    {
+        if (!in_array($type, $this->validOptionTypes)) {
+            throw new \InvalidArgumentException("Invalid Option type {$type}");
         }
 
-        return getopt($shortOptions, $longOptions);
+        if (!strContains('=', $argument)) {
+            $optionName = str_replace($type, '', $argument);
+            $value = array_shift($this->pipeline);
+        } else {
+            $argument = str_replace($type, '', $argument);
+            list($optionName, $value) = explode("=", $argument);
+        }
+
+        if ($type === self::OPTION_SHORT) {
+            foreach($this->options as $name => $option) {
+                if ($option->getShortName() === $optionName) {
+                    $optionName = $option->getName();
+                }
+            }
+            if ($currentCommand = $this->currentCommand) {
+                foreach ($currentCommand->getOptions() as $name => $option) {
+                    if ($option->getShortName() === $optionName) {
+                        $optionName = $option->getName();
+                    }
+                }
+            }
+        }
+
+        $this->inputArguments->set('options.'.$optionName, $value);
     }
 
     /**
      * @inheritdoc
      */
-    public function input($name = null)
+    public function input($name = null, $default = [])
     {
-        return $this->application()->input($name);
+        return $this->application()->input($name, $default);
     }
 
     /**
      * @inheritdoc
      */
-    public function options($name = null)
+    public function options($name = null, $default = false)
     {
-        return $this->application()->inputOptions($name);
+        return $this->application()->inputOptions($name, $default);
     }
 
     /**

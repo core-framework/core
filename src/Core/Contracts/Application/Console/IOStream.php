@@ -75,6 +75,13 @@ interface IOStream
      */
     public function showErr($msg, $exception = null);
 
+    /**
+     * Prints a warning message
+     *
+     * @param $message
+     * @return mixed
+     */
+    public function showWarning($message);
 
     /**
      * Output text
@@ -131,5 +138,11 @@ interface IOStream
      * @return string
      */
     public function getInputMultiLine();
+
+    /**
+     * @param array $array
+     * @return void|false
+     */
+    public function showTable(array $array = []);
 
 }

@@ -23,11 +23,13 @@
 
 namespace Core\Application;
 
+use Core\Application\Bootstrappers\BootConfiguration;
 use Core\Container\Container;
 use Core\Contracts\Application as ApplicationInterface;
 use Core\Contracts\Bootsrapper;
 use Core\Contracts\Cache;
 use Core\Contracts\Config;
+use Core\Contracts\Database\Mapper;
 use Core\Contracts\Events\Dispatcher;
 use Core\Contracts\Events\Subscriber;
 use Core\Contracts\FileSystem\FileSystem;
@@ -36,6 +38,7 @@ use Core\Contracts\Response\Response;
 use Core\Contracts\Router\Route;
 use Core\Contracts\Router\Router;
 use Core\Contracts\View;
+use Core\FileSystem\Explorer;
 use Core\Request\Request;
 
 class BaseApplication extends Container implements ApplicationInterface, Subscriber
@@ -123,7 +126,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     protected $charset = 'UTF-8';
 
     /**
-     * Application default mapper
+     * Application default language
      *
      * @var string
      */
@@ -207,6 +210,9 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         'View' => ['\Core\View\View', ['App']]
     ];
 
+    protected $mappers = [
+        'mysql' => \Core\Database\Mapper\MySqlMapper::class
+    ];
 
     /**
      * Application Constructor
@@ -390,6 +396,36 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         $dispatcher->on('core.app.router.postload', [$this, 'bootstrapRouter'], 0);
         $dispatcher->on('core.app.handle.pre', [$this, 'preHandle'], 0);
         $dispatcher->on('core.router.matched', [$this, 'cacheRoute'], 0);
+        $dispatcher->on('core.app.setEnvironment', [new BootConfiguration(), 'bootstrap'], 0);
+    }
+
+    public function loadConfigFromFiles()
+    {
+        $overrideItems = [];
+
+        $items = $this->readFromFile($this->configPath());
+
+        $path = $this->configPath() . DIRECTORY_SEPARATOR . $this->environment();
+        if (file_exists($path)) {
+            $overrideItems = $this->readFromFile($path);
+        }
+
+        $items = array_merge($items, $overrideItems);
+        return $items;
+    }
+
+    private function readFromFile($path)
+    {
+        $items = [];
+        Explorer::find()->files("*.php")->in($path)->map(function($key, $fileInfo) use (&$items) {
+            /** @var \SplFileInfo $fileInfo */
+            if ($path = $fileInfo->getPathname()) {
+                $key = str_replace('.php', '', $key);
+                $items[$key] = require($path);
+            }
+        });
+
+        return $items;
     }
 
     /**
@@ -492,8 +528,24 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     
     /**
      * Set Application Environment
+     *
+     * @param string $environment
+     * @return $this
      */
-    public function setEnvironment()
+    public function setEnvironment($environment = null)
+    {
+        if (getenv('_environment') === static::TESTING_STATE || is_null($environment)) {
+            $this->detectEnvironment();
+        } else {
+            $this->environment = $environment;
+            putenv('environment=' . $environment);
+            $this->dispatch('core.app.setEnvironment', $this);
+        }
+
+        return $this;
+    }
+
+    public function detectEnvironment()
     {
         if (getenv('_environment') === static::TESTING_STATE) {
             $this->environment = static::TESTING_STATE;
@@ -503,8 +555,6 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
             $this->environment = $env;
             putenv('environment=' . $env);
         }
-
-        return $this;
     }
 
     /**
@@ -820,8 +870,37 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         $route = $router->getCurrentRoute();
         if (!is_null($route) && !$this->request->isAjax() && $route->isCacheable()) {
             $this->getCache()->put($this->getCacheKey('route'), $route, $this->getConfig()->get('ttl'));
-            //$this->cache->cacheContent($this->routeKey, $route, $this->getTtl());
         }
+    }
+
+
+    /**
+     * @inheritdoc
+     */
+    public function getMapper($type = null)
+    {
+        $dbConfig = $this->config->getDatabase();
+        if (is_null($type)) {
+            $type = $dbConfig['default'];
+        }
+
+        if ($this->mappers[$type] instanceof Mapper) {
+            return $this->mappers[$type];
+        }
+
+        if (isset($dbConfig['connections'][$type]['mapper'])) {
+            $mapperClass = $dbConfig['connections'][$type]['mapper'];
+        } elseif (isset($dbConfig['connections'][$type]) && $type === 'mysql') {
+            $mapperClass = $this->mappers['mysql'];
+        } else {
+            throw new \LogicException('Database Mapper not provided');
+        }
+
+        if ($mapperClass instanceof Mapper) {
+            return $mapperClass;
+        }
+
+        return $this->mappers[$type] = new $mapperClass($dbConfig['connections'][$type]);
     }
 
     /**

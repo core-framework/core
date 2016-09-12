@@ -21,36 +21,21 @@
  */
 
 
-namespace Core\Application\Bootstrappers;
+namespace Core\Database\Seeder;
 
-use Core\Contracts\Application;
-use Core\Contracts\Bootsrapper;
-use Core\FileSystem\Explorer;
+use Core\Contracts\Reactor\Runnable;
+use Core\Database\Migration\AbstractMigration;
 
-class BootConfiguration implements Bootsrapper
+abstract class AbstractSeeder extends AbstractMigration implements Runnable
 {
     /**
-     * @var Application
+     * Runs Seeder commands/instructions
+     *
+     * @return void
      */
-    public $application;
+    abstract function run();
 
-    /**
-     * @inheritDoc
-     */
-    public function bootstrap(Application $application)
-    {
-        $this->application = $application;
-        if (!$application instanceof Application) {
-            throw new \InvalidArgumentException("LoadConfiguration::run expects argument to be of type Application. {${gettype($application)}} given.");
-        }
+    final public function up() { }
 
-        $items = $application->getCachedConfigItems();
-
-        if (empty($items)) {
-            $items = $application->loadConfigFromFiles();
-        }
-
-        $application->build(\Core\Config\Config::class, [$items], 'Config');
-    }
-
+    final public function down() { }
 }

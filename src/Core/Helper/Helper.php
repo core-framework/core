@@ -268,7 +268,7 @@ if (!function_exists('dotSet')) {
      */
     function dotSet($path, array &$array, $value)
     {
-        if (!is_string($path) || empty($path) || !count($array)) {
+        if (!is_string($path) || empty($path)) {
             return false;
         }
 

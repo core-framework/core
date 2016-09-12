@@ -83,21 +83,16 @@ interface Command
      * @param $name
      * @param $shortName
      * @param $description
-     * @param bool $isRequired
+     * @param int $type
      * @return mixed
      */
-    public function addOption($name, $shortName, $description, $isRequired = false);
+    public function addOption($name, $shortName, $description, $type = Option::OPTION_OPTIONAL);
 
     /**
      * @param null $name
      * @return Option|Option[]
      */
     public function getOptions($name = null);
-
-    /**
-     * @return array
-     */
-    public function parseOptions();
 
     /**
      * @param null|string $name

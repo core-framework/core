@@ -21,36 +21,20 @@
  */
 
 
-namespace Core\Application\Bootstrappers;
+namespace Core\Database\Migration;
 
-use Core\Contracts\Application;
-use Core\Contracts\Bootsrapper;
-use Core\FileSystem\Explorer;
 
-class BootConfiguration implements Bootsrapper
+use Core\Model\Model;
+
+class Migration extends Model
 {
-    /**
-     * @var Application
-     */
-    public $application;
+    protected static $tableName = 'migration_log';
 
-    /**
-     * @inheritDoc
-     */
-    public function bootstrap(Application $application)
-    {
-        $this->application = $application;
-        if (!$application instanceof Application) {
-            throw new \InvalidArgumentException("LoadConfiguration::run expects argument to be of type Application. {${gettype($application)}} given.");
-        }
+    protected static $primaryKey = 'id';
 
-        $items = $application->getCachedConfigItems();
+    protected static $dbName = '';
 
-        if (empty($items)) {
-            $items = $application->loadConfigFromFiles();
-        }
+    protected static $saveable = ['migration', 'batch'];
 
-        $application->build(\Core\Config\Config::class, [$items], 'Config');
-    }
-
+    protected static $fillable = ['id', 'migration', 'batch', 'created_at', 'modified_at'];
 }

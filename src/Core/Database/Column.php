@@ -161,7 +161,7 @@ class Column
     {
         foreach($options as $option => $value) {
             if (!in_array($option, $this->validOptions)) {
-                throw new \InvalidArgumentException("{$option} is not a valid option.");
+                throw new \InvalidArgumentException("{$option} is not a valid Column option.");
             }
 
             $method = 'set' . ucfirst($option);
