@@ -65,7 +65,7 @@ interface Dispatcher
      *
      * @param $event
      * @param array $payload
-     * @param b $breakOnFalse
+     * @param bool $breakOnFalse
      * @return mixed
      */
     public function dispatch($event, $payload = [], $breakOnFalse = true);

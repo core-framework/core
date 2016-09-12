@@ -86,7 +86,7 @@ class FileSystem implements FileSystemInterface
      */
     public function write($path, $content, $lock = false)
     {
-        if (!is_writable($path)) {
+        if (!is_file($path)) {
             //throw new \InvalidArgumentException("Provided path: {$path}, is not writable.");
             touch($path);
         }
