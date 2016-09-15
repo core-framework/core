@@ -56,6 +56,8 @@ class ConsoleApplication extends BaseApplication implements CliApplication
 
     protected $commands = [
         'help' => \Core\Application\Console\Commands\HelpCommand::class,
+        'status' => \Core\Application\Console\Commands\StatusCommand::class,
+        'setup' => \Core\Application\Console\Commands\SetupCommand::class,
         'clearcache' => \Core\Application\Console\Commands\ClearCacheCommand::class,
         'server' => \Core\Application\Console\Commands\ServerCommand::class,
         'optimize' => \Core\Application\Console\Commands\OptimizeCommand::class,
