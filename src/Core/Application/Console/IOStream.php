@@ -105,131 +105,6 @@ class IOStream extends ConsoleStyles implements IOStreamInterface
         fclose(static::$error);
     }
 
-    /**
-     * Takes msg as a parameter and validates and returns the input. Returns false if input is not valid
-     *
-     * @param $msg - The question or message
-     * @param $callback - anonymous function to validate input. It should returns true if valid or false if not valid
-     * @param $format - To prompt the user of the valid format.
-     * @param null $default - default accepted value. if set and input is null then this value will be returned (qn or msg will not be repeated in this case)
-     * @param int $repeat - The no. of times to ask the again, if input is invalid, before throwing an error
-     * @return mixed - returns the input
-     */
-    public function askAndValidate($msg, $callback, $format, $default = null, $repeat = 2)
-    {
-        for ($i = $repeat; $i >= 0; $i--) {
-            $resp = $this->ask($msg, $default);
-            $valid = $callback($resp);
-            static::$repeat = $repeat;
-
-            if ($valid && $this::$repeat !== 0) {
-                return $resp;
-            } elseif (!$valid && static::$repeat !== 0 || (!$valid && static::$repeat !== 0 && empty($default))) {
-                self::writeln("Sorry input must be " . $format, "yellow");
-                continue;
-            } elseif (!$valid && static::$repeat === 0 && !empty($default)) {
-                return $default;
-            } else {
-                if (!$format) {
-                    $this->showErr("Valid input not provided ");
-                } else {
-                    $this->showErr("Valid input not provided must be " . $format);
-                }
-                return false;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Outputs the given message and returns the value. If options ($opt) are set then its will return false if input value does not match one of the given options. Typically used for simple yes | no questions
-     *
-     * @param $message - The message to output or question to ask
-     * @param null $default - The default value to return if input is null
-     * @param null $options - The set of input options (input must match one of the options)
-     * @return bool|string - returns the input value
-     */
-    public function ask($message, $default = null, $options = null)
-    {
-        if (!is_string($message)) {
-            throw new \InvalidArgumentException("Message must be a string");
-        }
-        if (!is_null($default) && !is_string($default)) {
-            throw new \InvalidArgumentException("default must be a string");
-        }
-        if (!is_null($options) && (!is_array($options) || count($options) > 2)) {
-            throw new \InvalidArgumentException("option must be an array and not greater then length 2");
-        }
-
-        $coloredMsg = $this->getColoredString($message, 'green');
-
-        if (!empty($options)) {
-            fprintf(static::$output, "%s : [" . $options[0] . "/" . $options[1] . "] ", $coloredMsg);
-        } elseif(!empty($default)) {
-            fprintf(static::$output, "%s : [" . $default . "] ", $coloredMsg);
-        } else {
-            fprintf(static::$output, "%s : ", $coloredMsg);
-        }
-
-        $input = trim(fgets(static::$input), "\n");
-
-        if (empty($input)) {
-            return $default;
-        }
-
-        if (is_null($options)) {
-            return $input;
-        }
-
-        if (strtolower($input) === strtolower($options[0]) || strtolower($input) === strtolower($options[1])) {
-            return $input;
-        } else {
-            throw new \InvalidArgumentException("Input must be either {$options[0]} or {$options[1]}");
-        }
-    }
-
-    /**
-     * Prints error message with specific formatting
-     *
-     * @param string $msg
-     * @param string|\Exception $exception
-     * @throws \ErrorException
-     */
-    public function showErr($msg, $exception = null)
-    {
-        $format = "\n%s\n\n";
-        $lines = [];
-
-        $lines[] = " ";
-        if ($exception instanceof \Exception) {
-            $lines[] = "[" . $exception->getCode() . "][" . get_class($exception) . "]";
-        } elseif (!is_null($exception)) {
-            $lines[] = "[" . (string) $exception . "]";
-        }
-
-        if (strContains("\n", $msg)) {
-            $_lines = explode("\n", $msg);
-            $lines[] = " ";
-            foreach ($_lines as $line) {
-                $lines[] = $line;
-            }
-            $lines[] = " ";
-        } else {
-            $lines[] = " ";
-            $lines[] = $msg;
-            $lines[] = " ";
-        }
-
-        $formattedLinesArr = $this->addPadding($lines, 5);
-        $formattedLinesArr = $this->addPadding($formattedLinesArr, 5, STR_PAD_LEFT);
-        $coloredLinesArr = $this->getColoredLines($formattedLinesArr, 'white', 'red', 'bold');
-        $styledLines = implode(PHP_EOL, $coloredLinesArr);
-
-        fprintf(static::$output, $format, $styledLines);
-
-    }
-
     public function showWarning($message)
     {
         $this->showBox($message, 'white', 'yellow');
@@ -287,28 +162,6 @@ class IOStream extends ConsoleStyles implements IOStreamInterface
         } else {
             print sprintf("%s", $coloredMsg);
         }
-    }
-
-    /**
-     * Outputs a single line
-     *
-     * @param $msg - message to output
-     * @param null $foreColor - the text color
-     * @param null $backColor - the background color
-     * @param int $options - Display options like bold, underscore, blink, etc;
-     */
-    public function writeln($msg = "", $foreColor = null, $backColor = null, $options = null)
-    {
-        $coloredMsg = $msg;
-        $format = "%s\n";
-
-        if (!empty($foreColor) || !empty($backColor)) {
-            $coloredMsg = $this->getColoredString($msg, $foreColor, $backColor, $options);
-        }
-
-        $formattedMsg = sprintf($format, $coloredMsg);
-
-        fprintf(static::$output, $formattedMsg);
     }
 
     /**
@@ -382,6 +235,28 @@ class IOStream extends ConsoleStyles implements IOStreamInterface
     }
 
     /**
+     * Outputs a single line
+     *
+     * @param $msg - message to output
+     * @param null $foreColor - the text color
+     * @param null $backColor - the background color
+     * @param int $options - Display options like bold, underscore, blink, etc;
+     */
+    public function writeln($msg = "", $foreColor = null, $backColor = null, $options = null)
+    {
+        $coloredMsg = $msg;
+        $format = "%s\n";
+
+        if (!empty($foreColor) || !empty($backColor)) {
+            $coloredMsg = $this->getColoredString($msg, $foreColor, $backColor, $options);
+        }
+
+        $formattedMsg = sprintf($format, $coloredMsg);
+
+        fprintf(static::$output, $formattedMsg);
+    }
+
+    /**
      * To output a multi-colored line. Each string to be colored must be a separate word (spaced string) and the color is determined buy the color specified by :color after string. Ex: 'some:green random:yellow string:red'
      *
      * @param $line - the message (with color specification) to output
@@ -400,6 +275,131 @@ class IOStream extends ConsoleStyles implements IOStreamInterface
         $format = empty($format) ? "%s" . PHP_EOL : $format;
         $decoratedLine = rtrim($decoratedLine, " ");
         $this->writeln($decoratedLine, null, null, $format);
+    }
+
+    /**
+     * Prints error message with specific formatting
+     *
+     * @param string $msg
+     * @param string|\Exception $exception
+     * @throws \ErrorException
+     */
+    public function showErr($msg, $exception = null)
+    {
+        $format = "\n%s\n\n";
+        $lines = [];
+
+        $lines[] = " ";
+        if ($exception instanceof \Exception) {
+            $lines[] = "[" . $exception->getCode() . "][" . get_class($exception) . "]";
+        } elseif (!is_null($exception)) {
+            $lines[] = "[" . (string)$exception . "]";
+        }
+
+        if (strContains("\n", $msg)) {
+            $_lines = explode("\n", $msg);
+            $lines[] = " ";
+            foreach ($_lines as $line) {
+                $lines[] = $line;
+            }
+            $lines[] = " ";
+        } else {
+            $lines[] = " ";
+            $lines[] = $msg;
+            $lines[] = " ";
+        }
+
+        $formattedLinesArr = $this->addPadding($lines, 5);
+        $formattedLinesArr = $this->addPadding($formattedLinesArr, 5, STR_PAD_LEFT);
+        $coloredLinesArr = $this->getColoredLines($formattedLinesArr, 'white', 'red', 'bold');
+        $styledLines = implode(PHP_EOL, $coloredLinesArr);
+
+        fprintf(static::$output, $format, $styledLines);
+
+    }
+
+    /**
+     * Takes msg as a parameter and validates and returns the input. Returns false if input is not valid
+     *
+     * @param $msg - The question or message
+     * @param $callback - anonymous function to validate input. It should returns true if valid or false if not valid
+     * @param $format - To prompt the user of the valid format.
+     * @param null $default - default accepted value. if set and input is null then this value will be returned (qn or msg will not be repeated in this case)
+     * @param int $repeat - The no. of times to ask the again, if input is invalid, before throwing an error
+     * @return mixed - returns the input
+     */
+    public function askAndValidate($msg, $callback, $format, $default = null, $repeat = 2)
+    {
+        for ($i = $repeat; $i >= 0; $i--) {
+            $resp = $this->ask($msg, $default);
+            $valid = $callback($resp);
+            static::$repeat = $repeat;
+
+            if ($valid && $this::$repeat !== 0) {
+                return $resp;
+            } elseif (!$valid && static::$repeat !== 0 || (!$valid && static::$repeat !== 0 && empty($default))) {
+                self::writeln("Sorry input must be " . $format, "yellow");
+                continue;
+            } elseif (!$valid && static::$repeat === 0 && !empty($default)) {
+                return $default;
+            } else {
+                if (!$format) {
+                    $this->showErr("Valid input not provided ");
+                } else {
+                    $this->showErr("Valid input not provided must be " . $format);
+                }
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Outputs the given message and returns the value. If options ($opt) are set then its will return false if input value does not match one of the given options. Typically used for simple yes | no questions
+     *
+     * @param $message - The message to output or question to ask
+     * @param null $default - The default value to return if input is null
+     * @param null $options - The set of input options (input must match one of the options)
+     * @return bool|string - returns the input value
+     */
+    public function ask($message, $default = null, $options = null)
+    {
+        if (!is_string($message)) {
+            throw new \InvalidArgumentException("Message must be a string");
+        }
+        if (!is_null($default) && !is_string($default)) {
+            throw new \InvalidArgumentException("default must be a string");
+        }
+        if (!is_null($options) && (!is_array($options) || empty($options) || count($options) !== 2)) {
+            throw new \InvalidArgumentException("option must be an array and must contain 2 valid options");
+        }
+
+        $coloredMsg = $this->getColoredString($message, 'green');
+
+        if (!is_null($options)) {
+            fprintf(static::$output, "%s : [" . $options[0] . "/" . $options[1] . "] ", $coloredMsg);
+        } elseif (!is_null($default)) {
+            fprintf(static::$output, "%s : [" . $default . "] ", $coloredMsg);
+        } else {
+            fprintf(static::$output, "%s : ", $coloredMsg);
+        }
+
+        $input = trim(fgets(static::$input), "\n");
+
+        if (empty($input)) {
+            return $default;
+        }
+
+        if (is_null($options)) {
+            return $input;
+        }
+
+        if (strtolower($input) === strtolower($options[0]) || strtolower($input) === strtolower($options[1])) {
+            return $input;
+        } else {
+            throw new \InvalidArgumentException("Input must be either {$options[0]} or {$options[1]}");
+        }
     }
 
     public function getInputLine()
