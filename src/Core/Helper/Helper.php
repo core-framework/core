@@ -108,19 +108,24 @@ if (!function_exists('chmodDirFiles')) {
      * @param $dir
      * @param null $mod
      * @param bool $recursive
+     * @return array $errors
      */
     function chmodDirFiles($dir, $mod = null, $recursive = true)
     {
+        $errors = [];
         chmod($dir, 0755);
         if ($recursive && $objs = glob($dir . DS . "*")) {
             foreach ($objs as $file) {
                 if (is_dir($file)) {
                     chmodDirFiles($file, $mod, $recursive);
                 } else {
-                    change_perms($file, $mod);
+                    if (!change_perms($file, $mod)) {
+                        $errors[] = $file;
+                    }
                 }
             }
         }
+        return $errors;
     }
 }
 
@@ -131,11 +136,12 @@ if (!function_exists('change_perms')) {
      * Method to change the permission of a single file
      *
      * @param $obj
-     * @param null $mod
+     * @param null|int $mod
+     * @return bool
      */
     function change_perms($obj, $mod = null)
     {
-        chmod($obj, empty($mod) ? 0755 : $mod);
+        return chmod($obj, empty($mod) ? 0755 : $mod);
     }
 }
 
@@ -296,7 +302,7 @@ if (!function_exists('getOne')) {
                 $originalValue = $original;
             }
 
-            if (!isset($originalValue) || empty($originalValue)) {
+            if (!isset($originalValue) || empty($originalValue) || $originalValue === false) {
                 $returnVal = $default;
             } else {
                 $returnVal = $originalValue;
