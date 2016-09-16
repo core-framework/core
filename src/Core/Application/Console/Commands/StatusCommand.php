@@ -53,7 +53,7 @@ class StatusCommand extends Command
     private function checkComposer()
     {
         $this->io->writeln("Checking Composer status:", 'green');
-        putenv('COMPOSER_HOME=' . $this->application()->basePath() . '/vendor/bin/composer');
+        //putenv('COMPOSER_HOME=' . $this->application()->basePath() . '/vendor/bin/composer/composer/src/');
 
         $input = new ArrayInput([
             'command' => 'update',
@@ -72,10 +72,12 @@ class StatusCommand extends Command
         $fileSystem = $this->application()->getFileSystem();
 
         if ($fileSystem->isWritable($this->application()->storagePath())) {
-            $this->io->writeln('storage folder permissions OK', 'green');
+            //$this->io->writeln('storage folder permissions OK', 'green');
+            $this->io->writeColoredLn('storage folder permissions OK:green');
             foreach ($storageSubFolders as $subFolder) {
                 if ($fileSystem->isWritable($this->application()->storagePath() . $subFolder)) {
-                    $this->io->writeln("storage{$subFolder} folder permissions OK", 'green');
+                    //$this->io->writeln("storage{$subFolder} folder permissions OK", 'green');
+                    $this->io->writeColoredLn("storage{$subFolder} folder permissions OK:green");
                 } else {
                     $this->io->showWarning("storage{$subFolder} folder is not writable or missing correct permissions");
                 }
@@ -88,7 +90,7 @@ class StatusCommand extends Command
 
     private function checkBower()
     {
-        $this->io->writeln('Checking Node.js (npm) and Bower status:');
+        $this->io->writeln('Checking Node.js (npm) and Bower status:', 'green');
         if (!$this->checkIsInstalled('npm')) {
             $this->io->showWarning('Node.js Package Manager (npm) is missing! Node.js Package Manager is needed to install/run bower, a powerful tool for front-end dependency management');
             return false;

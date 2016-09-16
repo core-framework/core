@@ -83,12 +83,12 @@ if (!function_exists('copyr')) {
         if (is_resource($dir)) {
             while (false !== ($file = readdir($dir))) {
                 if (($file != '.') && ($file != '..')) {
-                    if (is_dir($source . DS . $file)) {
-                        copyr($source . DS . $file, $dest . DS . $file);
-                    } elseif (is_readable($dest . DS . $file) && $override === true) {
-                        copy($source . DS . $file, $dest . DS . $file);
-                    } elseif (!is_readable($dest . DS . $file)) {
-                        copy($source . DS . $file, $dest . DS . $file);
+                    if (is_dir($source . DIRECTORY_SEPARATOR . $file)) {
+                        copyr($source . DIRECTORY_SEPARATOR . $file, $dest . DIRECTORY_SEPARATOR . $file);
+                    } elseif (is_readable($dest . DIRECTORY_SEPARATOR . $file) && $override === true) {
+                        copy($source . DIRECTORY_SEPARATOR . $file, $dest . DIRECTORY_SEPARATOR . $file);
+                    } elseif (!is_readable($dest . DIRECTORY_SEPARATOR . $file)) {
+                        copy($source . DIRECTORY_SEPARATOR . $file, $dest . DIRECTORY_SEPARATOR . $file);
                     }
                 }
             }
@@ -114,7 +114,7 @@ if (!function_exists('chmodDirFiles')) {
     {
         $errors = [];
         chmod($dir, 0755);
-        if ($recursive && $objs = glob($dir . DS . "*")) {
+        if ($recursive && $objs = glob($dir . DIRECTORY_SEPARATOR . "*")) {
             foreach ($objs as $file) {
                 if (is_dir($file)) {
                     chmodDirFiles($file, $mod, $recursive);
