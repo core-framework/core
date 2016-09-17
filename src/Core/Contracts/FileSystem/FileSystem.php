@@ -229,4 +229,14 @@ interface FileSystem
      */
     public function find($pattern, $dir = '', $flags = 0);
 
+    /**
+     * Checks if folder OR file has the given permissions (mode)
+     *
+     * @param $path
+     * @param $permission
+     *
+     * @return bool
+     */
+    public function hasPermission($path, $permission);
+
 }

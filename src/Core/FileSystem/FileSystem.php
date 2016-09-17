@@ -191,10 +191,10 @@ class FileSystem implements FileSystemInterface
     public function mkdir($path, $mode = 0755, $recursive = false, $force = false)
     {
         if ($force) {
-            return @mkdir($path, $mode, $recursive);
+            return @mkdir($path, decoct($mode), $recursive);
         }
 
-        return mkdir($path, $mode, $recursive);
+        return mkdir($path, decoct($mode), $recursive);
     }
 
     /**
@@ -347,5 +347,20 @@ class FileSystem implements FileSystemInterface
         $dir = rtrim($dir, DIRECTORY_SEPARATOR);
         $pathWithPattern = $dir . DIRECTORY_SEPARATOR . $pattern;
         return glob($pathWithPattern, $flags);
+    }
+
+
+    /**
+     * Checks if folder OR file has the given permissions (mode)
+     *
+     * @param $path
+     * @param $permission
+     *
+     * @return bool
+     */
+    public function hasPermission($path, $permission)
+    {
+        $mode = decoct($permission);
+        return substr(sprintf('%o', fileperms($path)), -4) === "{$mode}";
     }
 }

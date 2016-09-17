@@ -75,7 +75,7 @@ class StatusCommand extends Command
             //$this->io->writeln('storage folder permissions OK', 'green');
             $this->io->writeColoredLn('storage folder permissions OK:green');
             foreach ($storageSubFolders as $subFolder) {
-                if ($fileSystem->isWritable($this->application()->storagePath() . $subFolder)) {
+                if ($this->hasPermissions($this->application()->storagePath() . $subFolder)) {
                     //$this->io->writeln("storage{$subFolder} folder permissions OK", 'green');
                     $this->io->writeColoredLn("storage{$subFolder} folder permissions OK:green");
                 } else {
@@ -112,6 +112,12 @@ class StatusCommand extends Command
         } else {
             return false;
         }
+    }
+
+    private function hasPermissions($path)
+    {
+        $fileSystem = $this->application()->getFileSystem();
+        return $fileSystem->isWritable($path) && ($fileSystem->hasPermission($path, 0755) || $fileSystem->hasPermission($path, 0777));
     }
 
 }
