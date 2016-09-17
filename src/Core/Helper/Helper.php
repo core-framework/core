@@ -119,7 +119,7 @@ if (!function_exists('chmodDirFiles')) {
                 if (is_dir($file)) {
                     chmodDirFiles($file, $mod, $recursive);
                 } else {
-                    if (!change_perms($file, $mod)) {
+                    if (!change_perms($file, decoct($mod))) {
                         $errors[] = $file;
                     }
                 }
@@ -141,7 +141,7 @@ if (!function_exists('change_perms')) {
      */
     function change_perms($obj, $mod = null)
     {
-        return chmod($obj, empty($mod) ? 0755 : $mod);
+        return chmod($obj, empty($mod) ? 0755 : decoct($mod));
     }
 }
 
