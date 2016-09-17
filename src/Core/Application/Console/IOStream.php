@@ -270,7 +270,8 @@ class IOStream extends ConsoleStyles implements IOStreamInterface
             //$split = explode(':', $txt);
             $split = preg_split('~\\\\.(*SKIP)(*FAIL)|\:~s', $txt);
             $split = str_replace('\:', ':', $split);
-            $decoratedLine .= " " . $this->getColoredString($split[0], $split[1]);
+            $color = isset($split[1]) ? $split[1] : null;
+            $decoratedLine .= " " . $this->getColoredString($split[0], $color);
         }
         $format = empty($format) ? "%s" . PHP_EOL : $format;
         $decoratedLine = rtrim($decoratedLine, " ");
