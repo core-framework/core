@@ -547,11 +547,11 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
 
     public function detectEnvironment()
     {
-        if (getenv('_environment') === static::TESTING_STATE) {
-            $this->environment = static::TESTING_STATE;
-            putenv('environment=' . static::TESTING_STATE);
+        $env = getenv('environment');
+        if (isset($env)) {
+            $this->environment = $env;
         } else {
-            $env = !isset($_SERVER['REMOTE_ADDR']) || $_SERVER['REMOTE_ADDR'] == '127.0.0.1' ? static::DEVELOPMENT_STATE : static::PRODUCTION_STATE;
+            $env = $_SERVER["HTTP_HOST"] === 'localhost' && $_SERVER['REMOTE_ADDR'] == '127.0.0.1' ? static::DEVELOPMENT_STATE : static::PRODUCTION_STATE;
             $this->environment = $env;
             putenv('environment=' . $env);
         }
