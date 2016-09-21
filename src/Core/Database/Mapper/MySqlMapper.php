@@ -32,6 +32,44 @@ use Core\Database\Where;
 
 class MySqlMapper extends Mapper implements MapperInterface
 {
+    const DEFAULT_INT = 11;
+    const DEFAULT_TINYINT = 4;
+    const DEFAULT_SMALLINT = 5;
+    const DEFAULT_MEDIUMINT = 9;
+    const DEFAULT_BIGINT = 20;
+
+    // Numeric Types
+    const DEFAULT_FLOAT_PRECISION = 10;
+    const DEFAULT_FLOAT_SCALE = 2;
+    const DEFAULT_DOUBLE_PRECISION = 16;
+    const DEFAULT_DOUBLE_SCALE = 4;
+    const DEFAULT_DECIMAL_PRECISION = 18;
+    const DEFAULT_DECIMAL_SCALE = 6;
+    const DEFAULT_DATE = "YYYY-MM-DD";
+    const DEFAULT_DATETIME = "YYYY-MM-DD HH:MM:SS";
+    const DEFAULT_TIMESTAMP = "YYYYMMDDHHMMSS";
+    const DEFAULT_TIME = "HH:MM:SS";
+    const DEFAULT_YEAR = 4;
+
+    // Date and Time types
+    const DEFAULT_CHAR = 1;
+    const DEFAULT_VARCHAR = 255;
+    const MAX_TINYBLOB = 255;
+    const MAX_TINYTEXT = 255;
+    const MAX_MEDIUMBLOB = 16777215;
+
+    // String Types
+    const MAX_MEDIUMTEXT = 16777215;
+    const MAX_LONGBLOB = 4294967295;
+    const MAX_LONGTEXT = 4294967295;
+    protected static $defaultFloat = [
+        'precision' => 10,
+        'scale' => 2
+    ];
+    protected static $defaultDouble = [
+        'precision' => 16,
+        'scale' => 4
+    ];
     protected $signedDataTypes = [
         'integer' => true,
         'int' => true,
@@ -47,51 +85,16 @@ class MySqlMapper extends Mapper implements MapperInterface
         'decimal' => true,
         'numeric' => true
     ];
-
-    protected static $defaultFloat = [
-        'precision' => 10,
-        'scale' => 2
-    ];
-
-    protected static $defaultDouble = [
-        'precision' => 16,
-        'scale' => 4
-    ];
-
     protected $saveableColumns = [];
-
     protected $params = [];
 
-    // Numeric Types
-    const DEFAULT_INT = 11;
-    const DEFAULT_TINYINT = 4;
-    const DEFAULT_SMALLINT = 5;
-    const DEFAULT_MEDIUMINT = 9;
-    const DEFAULT_BIGINT = 20;
-    const DEFAULT_FLOAT_PRECISION = 10;
-    const DEFAULT_FLOAT_SCALE = 2;
-    const DEFAULT_DOUBLE_PRECISION = 16;
-    const DEFAULT_DOUBLE_SCALE = 4;
-    const DEFAULT_DECIMAL_PRECISION = 18;
-    const DEFAULT_DECIMAL_SCALE = 6;
-
-    // Date and Time types
-    const DEFAULT_DATE = "YYYY-MM-DD";
-    const DEFAULT_DATETIME = "YYYY-MM-DD HH:MM:SS";
-    const DEFAULT_TIMESTAMP = "YYYYMMDDHHMMSS";
-    const DEFAULT_TIME = "HH:MM:SS";
-    const DEFAULT_YEAR = 4;
-
-    // String Types
-    const DEFAULT_CHAR = 1;
-    const DEFAULT_VARCHAR = 255;
-    const MAX_TINYBLOB = 255;
-    const MAX_TINYTEXT = 255;
-    const MAX_MEDIUMBLOB = 16777215;
-    const MAX_MEDIUMTEXT = 16777215;
-    const MAX_LONGBLOB = 4294967295;
-    const MAX_LONGTEXT = 4294967295;
-
+    /**
+     * SQL begin transaction
+     */
+    public function beginTransaction()
+    {
+        $this->getConnection()->beginTransaction();
+    }
 
     /**
      * @return Connection
@@ -103,16 +106,6 @@ class MySqlMapper extends Mapper implements MapperInterface
         }
 
         return $this->connection;
-    }
-
-    /**
-     * @param Connection $connection
-     * @return $this
-     */
-    public function setConnection(Connection $connection)
-    {
-        $this->connection = $connection;
-        return $this;
     }
 
     /**
@@ -139,11 +132,13 @@ class MySqlMapper extends Mapper implements MapperInterface
     }
 
     /**
-     * SQL begin transaction
+     * @param Connection $connection
+     * @return $this
      */
-    public function beginTransaction()
+    public function setConnection(Connection $connection)
     {
-        $this->getConnection()->beginTransaction();
+        $this->connection = $connection;
+        return $this;
     }
 
     /**
@@ -163,87 +158,12 @@ class MySqlMapper extends Mapper implements MapperInterface
     }
 
     /**
-     * @param $string
-     * @return string
-     */
-    public function quote($string)
-    {
-        if (!is_string($string)) {
-            throw new \InvalidArgumentException("'quote' function expect 1 parameter to be a string. " . gettype($string) . " given.");
-        }
-        return "`".str_replace("`","``",$string)."`";
-    }
-
-    /**
-     * @param array $arr
-     * @return array
-     */
-    public function arrayQuote(array $arr)
-    {
-        foreach ($arr as $index => $string) {
-            $arr[$index] = $this->quote($string);
-        }
-
-        return $arr;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function execute($sql, $params = [])
-    {
-        $isSelect = strContains('select', $sql);
-        if (!empty($params)) {
-            $prepared = $this->getPrepared($sql);
-            $result = $prepared->execute($params);
-            if ($result === false && $this->getConnection()->errorCode() !== '00000') {
-                throw new \PDOException("SQL Error: {$this->getConnection()->errorCode()} : {$this->getConnection()->errorInfo()[2]}");
-            }
-
-            if ($isSelect) {
-                return $prepared->fetchAll(\PDO::FETCH_ASSOC);
-            } else {
-                return $result;
-            }
-
-        } else {
-            $result = $this->query($sql);
-            if ($result === false && $this->getConnection()->errorCode() !== '00000') {
-                throw new \PDOException("SQL Error: {$this->getConnection()->errorCode()} : {$this->getConnection()->errorInfo()[2]}");
-            }
-
-            if ($isSelect) {
-                return $result->fetchAll(\PDO::FETCH_ASSOC);
-            } else {
-                return $result;
-            }
-
-        }
-    }
-
-    /**
      * @param $sql
      * @return int
      */
     public function exec($sql)
     {
         return $this->getConnection()->exec($sql);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getPrepared($sql)
-    {
-        return $this->getConnection()->getPrepared($sql);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function query($sql)
-    {
-        return $this->getConnection()->query($sql);
     }
 
     /**
@@ -294,6 +214,23 @@ class MySqlMapper extends Mapper implements MapperInterface
     {
         $saveableColumns = $this->getSaveableColumns();
         return (!empty($saveableColumns) && in_array($column, $saveableColumns)) || ($column !== static::CREATED_AT && $column !== static::MODIFIED_AT && $column !== static::DELETED_AT);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getSaveableColumns()
+    {
+        return $this->saveableColumns;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function setSaveableColumns(array $columns)
+    {
+        $this->saveableColumns = $columns;
+        return $this;
     }
 
     /**
@@ -415,39 +352,17 @@ class MySqlMapper extends Mapper implements MapperInterface
     }
 
     /**
-     * @param ForeignKey $foreignKey
+     * @param $string
      * @return string
      */
-    protected function getForeignKeyDefinition(ForeignKey $foreignKey)
+    public function quote($string)
     {
-        $sql = "";
-        if ($constraint = $foreignKey->getConstraint() !== null) {
-            $sql .= "CONSTRAINT {$this->quote($constraint)}";
+        if (!is_string($string)) {
+            throw new \InvalidArgumentException(
+                "'quote' function expect 1 parameter to be a string. " . gettype($string) . " given."
+            );
         }
-
-        $columnNames = [];
-        $columns = $foreignKey->getColumns();
-        foreach($columns as $column) {
-            $columnNames[] = $this->quote($column);
-        }
-        $sql .= ' FOREIGN KEY (' .implode(",", $columnNames) . ')';
-
-        $refColumnNames = [];
-        $refColumns = $foreignKey->getReferenceColumns();
-        foreach($refColumns as $column) {
-            $refColumnNames[] = $this->quote($column);
-        }
-        $columnNamesStr = implode(',', $refColumnNames);
-        $sql .= " REFERENCES {$this->quote($foreignKey->getReferenceTable()->getName())}({$columnNamesStr})";
-
-        if ($foreignKey->getOnUpdate()) {
-            $sql .= " ON UPDATE {$foreignKey->getOnUpdate()}";
-        }
-        if ($foreignKey->getOnDelete()) {
-            $sql .= " ON DELETE {$foreignKey->getOnDelete()}";
-        }
-
-        return $sql;
+        return "`" . str_replace("`", "``", $string) . "`";
     }
 
     /**
@@ -490,24 +405,6 @@ class MySqlMapper extends Mapper implements MapperInterface
         $sql .= $column->getUpdate() ? " ON UPDATE {$column->getUpdate()}" : "";
 
         return $sql;
-    }
-
-    /**
-     * Returns SQL string containing the DEFAULT value
-     *
-     * @param Column $column
-     * @return string
-     */
-    protected function getDefaultSqlStr(Column $column)
-    {
-        $default = $column->getDefault();
-        if ($default !== "CURRENT_TIMESTAMP") {
-            $default = "{$this->quote($default)}";
-        } elseif (is_bool($default)) {
-            $default = (int)$default;
-        }
-
-        return isset($default) ? " DEFAULT {$default}" : '';
     }
 
     /**
@@ -615,12 +512,70 @@ class MySqlMapper extends Mapper implements MapperInterface
     }
 
     /**
-     * {@inheritdoc}
+     * Returns SQL string containing the DEFAULT value
+     *
+     * @param Column $column
+     * @return string
      */
-    public function dropTable($tableName)
+    protected function getDefaultSqlStr(Column $column)
     {
-        $tableName = $this->quote($tableName);
-        $this->execute("DROP TABLE IF EXISTS {$tableName}");
+        $default = $column->getDefault();
+        if ($default !== "CURRENT_TIMESTAMP") {
+            $default = "{$this->quote($default)}";
+        } elseif (is_bool($default)) {
+            $default = (int)$default;
+        }
+
+        return isset($default) ? " DEFAULT {$default}" : '';
+    }
+
+    /**
+     * @param array $arr
+     * @return array
+     */
+    public function arrayQuote(array $arr)
+    {
+        foreach ($arr as $index => $string) {
+            $arr[$index] = $this->quote($string);
+        }
+
+        return $arr;
+    }
+
+    /**
+     * @param ForeignKey $foreignKey
+     * @return string
+     */
+    protected function getForeignKeyDefinition(ForeignKey $foreignKey)
+    {
+        $sql = "";
+        if ($constraint = $foreignKey->getConstraint() !== null) {
+            $sql .= "CONSTRAINT {$this->quote($constraint)}";
+        }
+
+        $columnNames = [];
+        $columns = $foreignKey->getColumns();
+        foreach ($columns as $column) {
+            $columnNames[] = $this->quote($column);
+        }
+        $sql .= ' FOREIGN KEY (' . implode(",", $columnNames) . ')';
+
+        $refColumnNames = [];
+        $refColumns = $foreignKey->getReferenceColumns();
+        foreach ($refColumns as $column) {
+            $refColumnNames[] = $this->quote($column);
+        }
+        $columnNamesStr = implode(',', $refColumnNames);
+        $sql .= " REFERENCES {$this->quote($foreignKey->getReferenceTable()->getName())}({$columnNamesStr})";
+
+        if ($foreignKey->getOnUpdate()) {
+            $sql .= " ON UPDATE {$foreignKey->getOnUpdate()}";
+        }
+        if ($foreignKey->getOnDelete()) {
+            $sql .= " ON DELETE {$foreignKey->getOnDelete()}";
+        }
+
+        return $sql;
     }
 
     /**
@@ -634,6 +589,103 @@ class MySqlMapper extends Mapper implements MapperInterface
         $build = $this->buildWhere($conditions);
         $query .= $build['query'];
         $this->execute($query, $build['params']);
+    }
+
+    /**
+     * @param array|Where[] $conditions
+     * @return string
+     */
+    protected function buildWhere(array $conditions)
+    {
+        $query = ' WHERE ';
+        $params = [];
+        $build = [];
+        $prevVal = null;
+
+        foreach ($conditions as $key => $val) {
+            if (is_int($key) && $val instanceof Where) {
+                if ($prevVal !== null) {
+                    if ($val->getColumn() === $prevVal->getColumn()) {
+                        $query .= ' OR ';
+                    } else {
+                        $query .= ' AND ';
+                    }
+                }
+                $prevVal = $val;
+                $query .= $val->getSql();
+            } elseif (is_string($key)) {
+                if ($prevVal !== null) {
+                    if ($key === $prevVal) {
+                        $query .= ' OR ';
+                    } else {
+                        $query .= ' AND ';
+                    }
+                }
+                $prevVal = $key;
+                $query .= $key . '=:' . $key;
+                $params[':' . $key] = $val;
+            }
+        }
+
+        $query = rtrim($query, ' AND ');
+        $build['query'] = $query;
+        $build['params'] = $params;
+
+        return $build;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function execute($sql, $params = [])
+    {
+        $isSelect = strContains('select', $sql);
+        if (!empty($params)) {
+            $prepared = $this->getPrepared($sql);
+            $result = $prepared->execute($params);
+            if ($result === false && $this->getConnection()->errorCode() !== '00000') {
+                throw new \PDOException(
+                    "SQL Error: {$this->getConnection()->errorCode()} : {$this->getConnection()->errorInfo()[2]}"
+                );
+            }
+
+            if ($isSelect) {
+                return $prepared->fetchAll(\PDO::FETCH_ASSOC);
+            } else {
+                return $result;
+            }
+
+        } else {
+            $result = $this->query($sql);
+            if ($result === false && $this->getConnection()->errorCode() !== '00000') {
+                throw new \PDOException(
+                    "SQL Error: {$this->getConnection()->errorCode()} : {$this->getConnection()->errorInfo()[2]}"
+                );
+            }
+
+            if ($isSelect) {
+                return $result->fetchAll(\PDO::FETCH_ASSOC);
+            } else {
+                return $result;
+            }
+
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPrepared($sql)
+    {
+        return $this->getConnection()->getPrepared($sql);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function query($sql)
+    {
+        return $this->getConnection()->query($sql);
     }
 
     /**
@@ -652,6 +704,24 @@ class MySqlMapper extends Mapper implements MapperInterface
     /**
      * {@inheritdoc}
      */
+    public function hasTable($tableName)
+    {
+        return $this->query(
+            "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{$tableName}'"
+        )->rowCount() > 0;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function tableHasForeignKeys($tableName)
+    {
+        return sizeof($this->getTableConstraints($tableName)) > 0;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function getTableConstraints($tableName)
     {
         $result = false;
@@ -664,9 +734,11 @@ class MySqlMapper extends Mapper implements MapperInterface
     /**
      * {@inheritdoc}
      */
-    public function tableHasForeignKeys($tableName)
+    public function dropTableWithForeignKeys($tableName, $constraints = [])
     {
-        return sizeof($this->getTableConstraints($tableName)) > 0;
+        $this->dropForeignKey($tableName, $constraints);
+        $this->dropTable($tableName);
+        return true;
     }
 
     /**
@@ -713,11 +785,10 @@ class MySqlMapper extends Mapper implements MapperInterface
     /**
      * {@inheritdoc}
      */
-    public function dropTableWithForeignKeys($tableName, $constraints = [])
+    public function dropTable($tableName)
     {
-        $this->dropForeignKey($tableName, $constraints);
-        $this->dropTable($tableName);
-        return true;
+        $tableName = $this->quote($tableName);
+        $this->execute("DROP TABLE IF EXISTS {$tableName}");
     }
 
     /**
@@ -782,14 +853,6 @@ class MySqlMapper extends Mapper implements MapperInterface
     /**
      * {@inheritdoc}
      */
-    public function hasTable($tableName)
-    {
-        return $this->query("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{$tableName}'")->rowCount() > 0;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function dropColumn($tableName, $columnName)
     {
         $this->execute("ALTER TABLE {$this->quote($tableName)} DROP COLUMN {$this->quote($columnName)}");
@@ -802,7 +865,7 @@ class MySqlMapper extends Mapper implements MapperInterface
     public function createDatabase($dbName, array $options = [])
     {
         $charset = $options['charset'] ? $options['charset'] : 'utf8';
-        $sql = "CREATE DATABASE {$this->quote($dbName)} DEFAULT CHARACTER SET {$charset}";
+        $sql = "CREATE DATABASE {$this->quote($dbName)} IF NOT EXISTS DEFAULT CHARACTER SET {$charset}";
         if (isset($options['collate'])) {
             $sql .= " COLLATE {$options['collate']}";
         }
@@ -901,67 +964,6 @@ class MySqlMapper extends Mapper implements MapperInterface
             }
             return $result;
         }
-    }
-
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getSaveableColumns()
-    {
-        return $this->saveableColumns;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function setSaveableColumns(array $columns)
-    {
-        $this->saveableColumns = $columns;
-        return $this;
-    }
-
-    /**
-     * @param array|Where[] $conditions
-     * @return string
-     */
-    protected function buildWhere(array $conditions)
-    {
-        $query = ' WHERE ';
-        $params = [];
-        $build = [];
-        $prevVal = null;
-
-        foreach ($conditions as $key => $val) {
-            if (is_int($key) && $val instanceof Where) {
-                if ($prevVal !== null) {
-                    if ($val->getColumn() === $prevVal->getColumn()) {
-                        $query .= ' OR ';
-                    } else {
-                        $query .= ' AND ';
-                    }
-                }
-                $prevVal = $val;
-                $query .= $val->getSql();
-            } elseif (is_string($key)) {
-                if ($prevVal !== null) {
-                    if ($key === $prevVal) {
-                        $query .= ' OR ';
-                    } else {
-                        $query .= ' AND ';
-                    }
-                }
-                $prevVal = $key;
-                $query .= $key . '=:' . $key;
-                $params[':' . $key] = $val;
-            }
-        }
-
-        $query = rtrim($query, ' AND ');
-        $build['query'] = $query;
-        $build['params'] = $params;
-
-        return $build;
     }
 
     public function setParam(array $params)
