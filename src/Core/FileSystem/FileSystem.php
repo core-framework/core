@@ -88,7 +88,7 @@ class FileSystem implements FileSystemInterface
     {
         if (!is_file($path)) {
             //throw new \InvalidArgumentException("Provided path: {$path}, is not writable.");
-            touch($path);
+            @touch($path);
         }
 
         return file_put_contents($path, $content, $lock ? LOCK_EX : 0) ? true : false;

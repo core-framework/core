@@ -48,6 +48,7 @@ class SetupCommand extends Command
         $this->io = $io;
         $this->composerInstall();
         $this->setupPermissions();
+        $this->databaseInstall();
         $this->bowerInstall();
         $this->io->writeln('Core Framework setup complete!', 'green');
     }
@@ -68,9 +69,51 @@ class SetupCommand extends Command
 
     private function setupPermissions()
     {
-        $this->io->writeln("Setting up correct folder permissions:", 'green');
+        $this->io->writeln('Setting up correct folder permissions:', 'green');
         $this->changeFolderPermissions($this->application()->storagePath() . '/smarty_cache', 0777);
         $this->changeFolderPermissions($this->application()->storagePath() . '/framework', 0777);
+    }
+
+    private function databaseInstall()
+    {
+        $basePath = $this->application()->basePath();
+        $env = $this->application()->environment();
+        $config = $this->application()->getConfig();
+
+        $response = $this->io->ask('Would you like to setup your MySql database?', 'yes', ['yes', 'no']);
+
+        if ($response === 'yes') {
+            $this->io->writeln("Setting up Mysql database credentials for '{$env}' environment:");
+            $db = $this->io->ask('Please enter the database to use:', 'coreframework_db');
+            $host = $this->io->ask('Please enter the database host address:', '127.0.0.1');
+            $user = $this->io->ask('Please enter the database user:', 'root');
+            $pass = $this->io->ask('Please enter the database password:', '');
+
+            $databaseConf = $config->getDatabase();
+            $default = $databaseConf['default'];
+            $connection = &$databaseConf['connections'][$default];
+            $connection['db'] = $db;
+            $connection['host'] = $host;
+            $connection['user'] = $user;
+            $connection['pass'] = $pass;
+
+            $this->createDatabaseEnvironmentFile($databaseConf, $env);
+        }
+
+        $this->io->writeln('Setting up Migrations:', 'green');
+        system("{$basePath}/reactor migration:install");
+        $this->io->writeln('Running default Migrations:', 'green');
+        system("{$basePath}/reactor migration:run");
+        $this->io->writeln('Running default Seeder:', 'green');
+        system("{$basePath}/reactor seeder:run");
+    }
+
+    private function createDatabaseEnvironmentFile($dbConf, $env)
+    {
+        $fileSystem = $this->application()->getFileSystem();
+        $filePath = $this->application()->basePath() . '/config/' . $env . '/database.php';
+        $content = "<?php " . var_export($dbConf) . "?>";
+        $fileSystem->write($filePath, $content);
     }
 
     private function bowerInstall()

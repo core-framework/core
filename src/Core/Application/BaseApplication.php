@@ -534,6 +534,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
      */
     public function setEnvironment($environment = null)
     {
+        // TODO: environment variable caching
         if (getenv('_environment') === static::TESTING_STATE || is_null($environment)) {
             $this->detectEnvironment();
         } else {
