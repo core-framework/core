@@ -36,8 +36,7 @@ class ServerCommand extends Command
         $this->addArgument('commandName', "The Application command to execute. See 'server help' for a complete list of valid commands.", '', true)->mustValidate(new OptionsValidator(
             [
                 'down' => 'Put application in maintenance mode',
-                'up' => 'Bring application out of maintenance mode',
-                'serve' => 'Creates a localhost for the current application',
+                'up' => 'Bring application out of maintenance mode'
             ]
         ));
     }
@@ -75,25 +74,6 @@ class ServerCommand extends Command
             $io->writeln("Application is down in maintenance", 'yellow');
         } else {
             $io->showErr("Unable to create {$path}.");
-        }
-    }
-
-    public function serve(IOStream $io)
-    {
-        $docRoot = $this->application()->publicFolder();
-        $host = $this->options('host', 'localhost');
-        $port = $this->options('port', '8000');
-        $binary = PHP_BINARY;
-        $base = $this->application()->basePath();
-
-        chdir($docRoot);
-
-        $io->writeln("CoreFramework Development Server started at http://{$host}:{$port}/");
-
-        if (defined('HHVM_VERSION') && version_compare(HHVM_VERSION, '3.8.0') >= 0) {
-            passthru("{$binary} -m server -v Server.Type=proxygen -v Server.SourceRoot={$base}/ -v Server.IP={$host} -v Server.Port={$port} -v Server.DefaultDocument={$docRoot}/index.php -v Server.ErrorDocument404={$docRoot}/index.php");
-        } else {
-            passthru("{$binary} -S {$host}:{$port} {$docRoot}/index.php");
         }
     }
 

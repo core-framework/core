@@ -60,6 +60,7 @@ class ConsoleApplication extends BaseApplication implements CliApplication
         'setup' => \Core\Application\Console\Commands\SetupCommand::class,
         'clearcache' => \Core\Application\Console\Commands\ClearCacheCommand::class,
         'server' => \Core\Application\Console\Commands\ServerCommand::class,
+        'server:start' => \Core\Application\Console\Commands\ServerStartCommand::class,
         'optimize' => \Core\Application\Console\Commands\OptimizeCommand::class,
         'create' => \Core\Application\Console\Commands\CreateCommand::class,
         'router' => \Core\Application\Console\Commands\RouterCommand::class,
