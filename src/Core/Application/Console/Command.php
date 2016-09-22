@@ -60,10 +60,7 @@ abstract class Command implements CommandInterface
     /**
      * @inheritdoc
      */
-    public function application()
-    {
-        return $this->application;
-    }
+    abstract function init();
 
     /**
      * @return mixed
@@ -80,25 +77,6 @@ abstract class Command implements CommandInterface
     public function setName($name)
     {
         $this->name = $name;
-
-        return $this;
-    }
-
-    /**
-     * @return mixed
-     */
-    public function getDescription()
-    {
-        return $this->description;
-    }
-
-    /**
-     * @param $description
-     * @return $this
-     */
-    public function setDescription($description)
-    {
-        $this->description = $description;
 
         return $this;
     }
@@ -157,49 +135,6 @@ abstract class Command implements CommandInterface
         return $this->options[$name];
     }
 
-    public function parseOptions(array $argv = [])
-    {
-        while (null !== $argument = array_shift($argv)) {
-            if (strContains('--', $argument)) {
-                $this->parseOption($argument, self::OPTION_LONG);
-            } elseif (strContains('-', $argument)) {
-                $this->parseOption($argument, self::OPTION_SHORT);
-            }
-        }
-    }
-
-    public function parseOption($argument, $type = self::OPTION_LONG)
-    {
-        if (!in_array($type, $this->validOptionTypes)) {
-            throw new \InvalidArgumentException("Invalid Option type {$type}");
-        }
-
-        if (!strContains('=', $argument)) {
-            $optionName = str_replace($type, '', $argument);
-            $value = array_shift($this->pipeline);
-        } else {
-            $argument = str_replace($type, '', $argument);
-            list($optionName, $value) = explode("=", $argument);
-        }
-
-        if ($type === self::OPTION_SHORT) {
-            foreach($this->options as $name => $option) {
-                if ($option->getShortName() === $optionName) {
-                    $optionName = $option->getName();
-                }
-            }
-            if ($currentCommand = $this->currentCommand) {
-                foreach ($currentCommand->getOptions() as $name => $option) {
-                    if ($option->getShortName() === $optionName) {
-                        $optionName = $option->getName();
-                    }
-                }
-            }
-        }
-
-        $this->inputArguments->set('options.'.$optionName, $value);
-    }
-
     /**
      * @inheritdoc
      */
@@ -211,15 +146,18 @@ abstract class Command implements CommandInterface
     /**
      * @inheritdoc
      */
-    public function options($name = null, $default = false)
+    public function application()
     {
-        return $this->application()->inputOptions($name, $default);
+        return $this->application;
     }
 
     /**
      * @inheritdoc
      */
-    abstract function init();
+    public function options($name = null, $default = false)
+    {
+        return $this->application()->inputOptions($name, $default);
+    }
 
     /**
      * @inheritdoc
@@ -326,5 +264,24 @@ abstract class Command implements CommandInterface
         }
 
 
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getDescription()
+    {
+        return $this->description;
+    }
+
+    /**
+     * @param $description
+     * @return $this
+     */
+    public function setDescription($description)
+    {
+        $this->description = $description;
+
+        return $this;
     }
 }
