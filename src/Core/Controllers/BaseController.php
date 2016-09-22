@@ -148,15 +148,15 @@ class BaseController
         $cache = $this->application->getCache();
         $request = $this->request;
 
-        if ($config->get('metaAndTitleFromFile', false)) {
-            $metaFilePath = $config->get('metaFile');
+        if ($config->get('app.metaAndTitleFromFile', false)) {
+            $metaFilePath = $config->get('app.metaFile');
             $metaPath = $this->appPath . DS . ltrim($metaFilePath, "/");
             if (is_readable($metaPath)) {
                 $metaContent = include($metaPath);
                 $metas = isset($metaContent[$request->getPath()]) ? $metaContent[$request->getPath()] : '';
             } else {
                 trigger_error(
-                    htmlentities("{$config->get('$global.mataFile')} file not found or is not readable"),
+                    htmlentities("{$config->get('app.mataFile')} file not found or is not readable"),
                     E_USER_WARNING
                 );
             }
@@ -172,16 +172,8 @@ class BaseController
         }
 
 
-
-        if (isset($this->conf['$global']['websiteUrl'])) {
-            //$this->view->setTemplateVars('websiteUrl', $this->conf['$global']['websiteUrl']);
-            $view->set('domainName', $this->conf['$global']['websiteUrl']);
-        }
-
-        if (isset($this->conf['$global']['domain'])) {
-            //$this->view->setTemplateVars('domain', $this->conf['$global']['domain']);
-            $view->set('domain', $this->conf['$global']['websiteUrl']);
-        }
+        $view->set('domainName', $config->get('app.websiteUrl', ''));
+        $view->set('domain', $config->get('app.domain', ''));
 
         if ($cache->exists('csrf-token')) {
             $view->set('csrfToken', $cache->get('csrf-token'));

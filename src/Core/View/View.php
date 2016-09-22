@@ -62,7 +62,7 @@ class View implements ViewInterface
         $config = $this->getConfig();
         $engine = $this->getEngine();
 
-        if ($config->get('template.leftDelimiter', false))
+        if ($config->has('template.leftDelimiter'))
         {
             $engine->left_delimiter = $config->get('template.leftDelimiter', '<{');
             $engine->right_delimiter = $config->get('template.rightDelimiter', '}>');
