@@ -80,18 +80,20 @@ class ServerCommand extends Command
 
     public function serve(IOStream $io)
     {
-        chdir($this->application()->publicFolder());
-        $host = $this->getOptions('host');
-        $port = $this->getOptions('port');
+        $docRoot = $this->application()->publicFolder();
+        $host = $this->options('host', 'localhost');
+        $port = $this->options('port', '8000');
         $binary = PHP_BINARY;
         $base = $this->application()->basePath();
+
+        chdir($docRoot);
 
         $io->writeln("CoreFramework Development Server started at http://{$host}:{$port}/");
 
         if (defined('HHVM_VERSION') && version_compare(HHVM_VERSION, '3.8.0') >= 0) {
-            passthru("{$binary} -m server -v Server.Type=proxygen -v Server.SourceRoot={$base}/ -v Server.IP={$host} -v Server.Port={$port} -v Server.DefaultDocument=server.php -v Server.ErrorDocument404=server.php");
+            passthru("{$binary} -m server -v Server.Type=proxygen -v Server.SourceRoot={$base}/ -v Server.IP={$host} -v Server.Port={$port} -v Server.DefaultDocument={$docRoot}/index.php -v Server.ErrorDocument404={$docRoot}/index.php");
         } else {
-            passthru("{$binary} -S {$host}:{$port} {$base}/server.php");
+            passthru("{$binary} -S {$host}:{$port} {$docRoot}/index.php");
         }
     }
 
