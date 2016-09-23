@@ -614,18 +614,20 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
 
     public function cachePath()
     {
-        return $this->getAbsolutePath('/storage/framework/cache');
+        $cachePath = $this->getConfig()->get('app.cachePath', $this->getAbsolutePath('/storage/framework/cache'));
+        return $this->getAbsolutePath($cachePath);
     }
 
     public function storagePath()
     {
-        return $this->getAbsolutePath('/storage');
+        $storagePath = $this->getConfig()->get('app.storagePath', $this->getAbsolutePath('/storage'));
+        return $this->getAbsolutePath($storagePath);
     }
 
     public function publicFolder()
     {
-        $publicFolderName = $this->getConfig()->get('app.publicFolderName', 'web');
-        return $this->getAbsolutePath('/'.$publicFolderName);
+        $publicPath = $this->getConfig()->get('app.publicPath', $this->getAbsolutePath('/web'));
+        return $this->getAbsolutePath($publicPath);
     }
 
     /**
