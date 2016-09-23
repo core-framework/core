@@ -111,6 +111,7 @@ class Router implements RouterInterface, Cacheable
     public function loadRoutes()
     {
         $file = $this->application->appPath() . '/Routes/routes.php';
+        $file = $this->application->getConfig()->get('app.routesFilePath', $file);
         if (is_readable($file)) {
             require($file);
         }
