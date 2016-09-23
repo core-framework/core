@@ -86,6 +86,27 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     private $appPath;
 
     /**
+     * Config directory path
+     *
+     * @var string
+     */
+    private $configPath;
+
+    /**
+     * Cache directory path
+     *
+     * @var string
+     */
+    private $cachePath;
+
+    /**
+     * Storage directory path
+     *
+     * @var string
+     */
+    private $storagePath;
+
+    /**
      * Application Document Root
      *
      * @var
@@ -104,10 +125,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
      *
      * @var array
      */
-    protected $alias = [
-        '@web' => '@base/web',
-        '@app' => '@base/app'
-    ];
+    protected $alias = [];
 
     /**
      * When static::DEVELOPMENT_STATE or 'dev' ensures errors are displayed
@@ -236,8 +254,8 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     private function setPaths($basePath)
     {
         $this->setBasePath($basePath);
-        $this->setAppPath();
-        $this->setDocumentRoot();
+        //$this->setAppPath();
+        //$this->setDocumentRoot();
     }
 
     /**
@@ -266,28 +284,6 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
             $aliasName = '@' . $aliasName;
         }
         $this->alias[$aliasName] = $path;
-    }
-
-    public function setAppPath($appPath = null)
-    {
-        $appPath = rtrim($appPath, "/");
-        $this->appPath = empty($appPath) ? $this->basePath . "/app" : $appPath;
-        $this->addAlias('@app', $this->appPath);
-        return $this;
-    }
-
-    /**
-     * Set current Document Root
-     *
-     * @param null $docRoot
-     * @return $this
-     */
-    public function setDocumentRoot($docRoot = null)
-    {
-        $docRoot = rtrim($docRoot, "/");
-        $this->docRoot = is_null($docRoot) ? $this->basePath . "/web" : $docRoot;
-        $this->addAlias("@docRoot", $this->docRoot);
-        return $this;
     }
 
     /**
@@ -393,10 +389,34 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         $dispatcher->on('core.app.config.booted', [$this, 'loadSubscribers'], 0);
         $dispatcher->on('core.app.config.booted', [$this, 'loadServices'], 1);
         $dispatcher->on('core.app.config.booted', [$this, 'cacheConfig'], 2);
+        $dispatcher->on('core.app.config.booted', [$this, 'setAppPathFromConf'], 3);
+        $dispatcher->on('core.app.config.booted', [$this, 'setDocumentRootFromConf'], 4);
         $dispatcher->on('core.app.router.postload', [$this, 'bootstrapRouter'], 0);
         $dispatcher->on('core.app.handle.pre', [$this, 'preHandle'], 0);
         $dispatcher->on('core.router.matched', [$this, 'cacheRoute'], 0);
         $dispatcher->on('core.app.setEnvironment', [new BootConfiguration(), 'bootstrap'], 0);
+    }
+
+
+    public function setAppPathFromConf(Config $config)
+    {
+        $path = $config->get('app.appPath', '/app');
+        $this->appPath = $this->getAbsolutePath($path);
+        $this->addAlias('@app', $this->appPath);
+        return $this;
+    }
+
+    /**
+     * @param Config $config
+     * @return $this
+     */
+    public function setDocumentRootFromConf(Config $config)
+    {
+        $path = $config->get('app.publicPath', '/web');
+        $this->docRoot = $this->getAbsolutePath($path);
+        $this->addAlias("@docRoot", $this->docRoot);
+        $this->addAlias("@public", $this->docRoot);
+        return $this;
     }
 
     public function loadConfigFromFiles()
@@ -609,25 +629,40 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
 
     public function configPath()
     {
-        return $this->getAbsolutePath('/config');
+        if (!$this->configPath) {
+            $this->configPath = $this->getAbsolutePath('/config');
+        }
+        return $this->configPath;
     }
 
     public function cachePath()
     {
-        $cachePath = $this->getConfig()->get('app.cachePath', $this->getAbsolutePath('/storage/framework/cache'));
-        return $this->getAbsolutePath($cachePath);
+        if (!$this->cachePath) {
+            $path = $this->getConfig()->get('app.cachePath', '/storage/framework/cache');
+            $cachePath = $this->getAbsolutePath($path);
+            $this->cachePath = $this->getAbsolutePath($cachePath);
+        }
+        return $this->cachePath;
     }
 
     public function storagePath()
     {
-        $storagePath = $this->getConfig()->get('app.storagePath', $this->getAbsolutePath('/storage'));
-        return $this->getAbsolutePath($storagePath);
+        if (!$this->storagePath) {
+            $path = $this->getConfig()->get('app.storagePath', '/storage');
+            $storagePath = $this->getAbsolutePath($path);
+            $this->storagePath = $this->getAbsolutePath($storagePath);
+        }
+        return $this->storagePath;
     }
 
     public function publicFolder()
     {
-        $publicPath = $this->getConfig()->get('app.publicPath', $this->getAbsolutePath('/web'));
-        return $this->getAbsolutePath($publicPath);
+        if (!$this->docRoot) {
+            $path = $this->getConfig()->get('app.publicPath', '/web');
+            $publicPath = $this->getAbsolutePath($path);
+            $this->docRoot = $this->getAbsolutePath($publicPath);
+        }
+        return $this->docRoot;
     }
 
     /**
@@ -648,7 +683,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
 
     public function showMaintenance()
     {
-        require $this->getAbsolutePath('/storage/framework/down.php');
+        require $this->getAbsolutePath($this->storagePath() . '/framework/down.php');
         $this->terminate();
         exit;
     }
