@@ -70,14 +70,10 @@ class View implements ViewInterface
 
         $basePath = $this->application->basePath();
         $appPath = $this->application->appPath();
-        $engine->setCompileDir($basePath . '/storage/smarty_cache/templates_c/');
-        $engine->setConfigDir($basePath . '/storage/smarty_cache/config/');
-        $engine->setCacheDir($basePath . '/storage/smarty_cache/cache/');
-        $engine->setTemplateDir(
-            $this->application->getRealPath(
-                $config->get('template.dir', $basePath . '/web/Templates/')
-            )
-        );
+        $engine->setCompileDir($this->application->getAbsolutePath($config->get('template.compileDir', '/storage/smarty_cache/templates_c/')));
+        $engine->setConfigDir($this->application->getAbsolutePath($config->get('template.configDir', '/storage/smarty_cache/config/')));
+        $engine->setCacheDir($this->application->getAbsolutePath($config->get('template.cacheDir', '/storage/smarty_cache/cache/')));
+        $engine->setTemplateDir($this->application->getAbsolutePath($config->get('template.dir', '/web/Templates/')));
         $engine->addTemplateDir(__DIR__ . '/Resources/BaseTemplates/');
         $this->addTemplateDirs($config->get('template.dirs', []));
         

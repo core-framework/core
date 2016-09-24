@@ -165,6 +165,14 @@ interface Application extends Runnable
     public function dispatch($event, $payload = []);
 
     /**
+     * Get complete path relative to base/root path
+     *
+     * @param $relativePath
+     * @return string
+     */
+    public function getAbsolutePath($relativePath);
+
+    /**
      * @return Config
      */
     public function getConfig();
