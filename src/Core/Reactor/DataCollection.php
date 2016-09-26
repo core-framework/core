@@ -25,6 +25,7 @@ namespace Core\Reactor;
 class DataCollection implements \IteratorAggregate, \Countable, \ArrayAccess, \Serializable
 {
     protected $collection;
+    protected $_cache;
 
     /**
      * Parameters constructor.
@@ -36,6 +37,42 @@ class DataCollection implements \IteratorAggregate, \Countable, \ArrayAccess, \S
     }
 
     /**
+     * Calls callback on each item in given Array and makes a collection of all return values
+     *
+     * @param array $array Array to be looped
+     * @param \Closure $callback Closure to be called each Key/Value pair of given Array
+     * @return DataCollection
+     */
+    public static function each(array $array, \Closure $callback)
+    {
+        $collection = [];
+        foreach ($array as $key => $val) {
+            $collection[] = call_user_func($callback, $key, $val);
+        }
+
+        return new static($collection);
+    }
+
+    /**
+     * Finds Key/Value pair in given Array that passes a truth test, and returns Value of matched pair.
+     *
+     * @param array $array Array to be looped
+     * @param \Closure $callback Truth test callback
+     * @param bool $default Default value to return if all else fails
+     * @return bool|mixed
+     */
+    public static function find(array $array, \Closure $callback, $default = false)
+    {
+        foreach ($array as $key => $val) {
+            if (call_user_func($callback, $key, $val) === true) {
+                return $val;
+            }
+        }
+
+        return $default;
+    }
+
+    /**
      * Find Key value in collection, returns default on failure
      *
      * @param null $key Key to be searched
@@ -44,20 +81,32 @@ class DataCollection implements \IteratorAggregate, \Countable, \ArrayAccess, \S
      */
     public function get($key = null, $default = false)
     {
+        $hash = md5($key);
+        // internal cache check
+        if (isset($this->_cache[$hash])) {
+            return $this->_cache[$hash];
+        }
+
         if (is_null($key)) {
+            $this->_cache[$hash] = $this->collection;
             return $this->collection;
         } elseif (strpos($key, '.') !== false) {
-            return dotGet($key, $this->collection, $default);
+            $response = dotGet($key, $this->collection, $default);
+            $this->_cache[$hash] = $response;
+            return $response;
         } elseif (array_key_exists($key, $this->collection)) {
+            $this->_cache[$hash] = $this->collection[$key];
             return $this->collection[$key];
         } else {
-            return searchArrayByKey($this->collection, $key, $default);
+            $response = searchArrayByKey($this->collection, $key, $default);
+            $this->_cache[$hash] = $response;
+            return $response;
         }
     }
 
     /**
      * Checks if Key exists in collection
-     * 
+     *
      * @param $key
      * @return bool
      */
@@ -68,6 +117,14 @@ class DataCollection implements \IteratorAggregate, \Countable, \ArrayAccess, \S
         } else {
             return $this->offsetExists($key);
         }
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function offsetExists($offset)
+    {
+        return isset($this->collection[$offset]);
     }
 
     /**
@@ -85,44 +142,6 @@ class DataCollection implements \IteratorAggregate, \Countable, \ArrayAccess, \S
         } else {
             $this->collection[$key] = $value;
         }
-    }
-
-    /**
-     * Calls callback on each item in given Array and makes a collection of all return values
-     *
-     * @param array $array Array to be looped
-     * @param \Closure $callback Closure to be called each Key/Value pair of given Array
-     * @return DataCollection
-     */
-    public static function each(array $array, \Closure $callback)
-    {
-        $collection = [];
-        foreach($array as $key => $val)
-        {
-            $collection[] = call_user_func($callback, $key, $val);
-        }
-
-        return new static($collection);
-    }
-
-    /**
-     * Finds Key/Value pair in given Array that passes a truth test, and returns Value of matched pair.
-     *
-     * @param array $array Array to be looped
-     * @param \Closure $callback Truth test callback
-     * @param bool $default Default value to return if all else fails
-     * @return bool|mixed
-     */
-    public static function find(array $array, \Closure $callback, $default = false)
-    {
-        foreach ($array as $key => $val)
-        {
-            if (call_user_func($callback, $key, $val) === true) {
-                return $val;
-            }
-        }
-
-        return $default;
     }
 
     /**
@@ -187,14 +206,6 @@ class DataCollection implements \IteratorAggregate, \Countable, \ArrayAccess, \S
     public function offsetUnset($offset)
     {
         unset($this->collection[$offset]);
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function offsetExists($offset)
-    {
-        return isset($this->collection[$offset]);
     }
 
     /**
