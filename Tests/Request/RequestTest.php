@@ -70,10 +70,11 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $this->assertInstanceOf(DataCollection::class, $this->request->cookies);
     }
 
-//    public function testQueryStringNotInPath()
-//    {
-//        $this->request->setPath('/testing/path?key=value');
-//        $this->assertEquals('/testing/path', $this->request->getPath());
-//    }
+    public function testQueryStringNotInPath()
+    {
+        $this->request->setPath('/testing/path?key=value');
+        $this->assertEquals('/testing/path', $this->request->getPath());
+        $this->assertEquals('key=value', $this->request->getQueryString());
+    }
 
 }

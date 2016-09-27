@@ -163,7 +163,7 @@ interface Request
     public function setHttpMethod($httpMethod);
 
     /**
-     * Returns the url path/query string
+     * Returns the url path string (w/o the query string)
      *
      * @return string
      */
@@ -176,6 +176,13 @@ interface Request
      * @return void
      */
     public function setPath($path);
+
+    /**
+     * Returns the Query string (w/o the ?)
+     *
+     * @return string
+     */
+    public function getQueryString();
 
     /**
      * @param null|string $key

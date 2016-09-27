@@ -65,6 +65,11 @@ class Request implements RequestInterface
     protected $path;
 
     /**
+     * @var string The Original query string
+     */
+    protected $queryString;
+
+    /**
      * @var string The request httpMethod .i.e. GET, POST, PUT and DELETE
      */
     protected $httpMethod;
@@ -319,7 +324,8 @@ class Request implements RequestInterface
         $this->checkInput();
 
         //path
-        $this->path = $this->getRequestUri() === "" ? '/' : $this->getRequestUri();
+        $path = $this->getRequestUri() === "" ? '/' : $this->getRequestUri();
+        $this->setPath($path);
     }
 
 
@@ -529,18 +535,43 @@ class Request implements RequestInterface
     }
 
     /**
-     * Returns the url path/query string
-     *
-     * @return string
+     * @inheritdoc
      */
     public function getPath()
     {
         return $this->path;
     }
 
+    /**
+     * @inheritdoc
+     */
     public function setPath($path)
     {
-        $this->path = $path;
+        if (strContains('?', $path)) {
+            $parts = explode('?', $path, 2);
+            $this->queryString = $parts[1];
+            $this->path = $parts[0];
+        } else {
+            $this->path = $path;
+        }
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getQueryString()
+    {
+        if (is_null($this->queryString)) {
+            $path = $this->getRequestUri();
+            if (strContains('?', $path)) {
+                $parts = explode('?', $path, 1);
+                $this->queryString = $parts[1];
+                $this->path = $parts[0];
+            } else {
+                $this->queryString = '';
+            }
+        }
+        return $this->queryString;
     }
 
     /**
