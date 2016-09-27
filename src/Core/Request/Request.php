@@ -67,7 +67,7 @@ class Request implements RequestInterface
     /**
      * @var string The request httpMethod .i.e. GET, POST, PUT and DELETE
      */
-    public $httpMethod;
+    protected $httpMethod;
     /**
      * @var array Contains the sanitized array of the global $_GET variable
      */
@@ -104,6 +104,11 @@ class Request implements RequestInterface
      * @var bool Defines if Request is Ajax
      */
     protected $isAjax = false;
+
+    /**
+     * @var array $jsonArr
+     */
+    protected $jsonArr;
 
     protected static $http_header_prefix = 'HTTP_';
     protected static $http_nonprefixed_headers = array(
@@ -197,7 +202,35 @@ class Request implements RequestInterface
      */
     public function isSecure()
     {
-        return ($this->server['HTTPS'] == true);
+        $https = $this->server['HTTPS'];
+        return !empty($https) && 'off' !== strtolower($https);
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getScheme()
+    {
+        return $this->isSecure() ? 'https' : 'http';
+    }
+
+    public function getHost()
+    {
+        if (!$host = $this->headers->get('HOST')) {
+            if (!$host = $this->server->get('SERVER_NAME')) {
+                $host = $this->server->get('SERVER_ADDR', '');
+            }
+        }
+
+        // trim and remove port number from host
+        $host = strtolower(preg_replace('/:\d+$/', '', trim($host)));
+
+        // check to see if it contain forbidden characters (see RFC 952 and RFC 2181)
+        if ($host && '' !== preg_replace('/(?:^\[)?[a-zA-Z0-9-:\]_]+\.?/', '', $host)) {
+            throw new \UnexpectedValueException(sprintf('Invalid Host "%s"', $host));
+        }
+
+        return $host;
     }
 
     /**
@@ -231,10 +264,10 @@ class Request implements RequestInterface
     /**
      * @inheritdoc
      */
-    public function server($key = null)
+    public function server($key = null, $default = false)
     {
         if (!empty($key)) {
-            return $this->server[$key];
+            return $this->server->get($key, $default);
         }
         return $this->server;
     }
@@ -286,10 +319,64 @@ class Request implements RequestInterface
         $this->checkInput();
 
         //path
-        $rawPath = isset($this->GET['page']) ? $this->GET['page'] : '';
-        str_replace($this->illegal, '', $rawPath);
-        $this->path = isset($rawPath) && $rawPath != 'index.php' ? '/' . $rawPath : '';
+        $this->path = $this->getRequestUri() === "" ? '/' : $this->getRequestUri();
+    }
 
+
+    /**
+     * The following method is derived from code of the Zend Framework (1.10dev - 2010-01-24)
+     *
+     * Code subject to the new BSD license (http://framework.zend.com/license/new-bsd).
+     *
+     * Copyright (c) 2005-2010 Zend Technologies USA Inc. (http://www.zend.com)
+     *
+     * @inheritdoc
+     */
+    public function getRequestUri()
+    {
+        $requestUri = '';
+
+        if ($this->headers->has('X_ORIGINAL_URL')) {
+            // IIS with Microsoft Rewrite Module
+            $requestUri = $this->headers->get('X_ORIGINAL_URL');
+
+        } elseif ($this->headers->has('X_REWRITE_URL')) {
+            // IIS with ISAPI_Rewrite
+            $requestUri = $this->headers->get('X_REWRITE_URL');
+
+        } elseif ($this->server->get('IIS_WasUrlRewritten') == '1' && $this->server->get('UNENCODED_URL') != '') {
+            // IIS7 with URL Rewrite: make sure we get the unencoded URL (double slash problem)
+            $requestUri = $this->server->get('UNENCODED_URL');
+
+        } elseif ($this->server->has('REQUEST_URI')) {
+            $requestUri = $this->server->get('REQUEST_URI');
+            // HTTP proxy reqs setup request URI with scheme and host [and port] + the URL path, only use URL path
+            $schemeAndHttpHost = $this->getSchemeAndHost();
+            if (strpos($requestUri, $schemeAndHttpHost) === 0) {
+                $requestUri = substr($requestUri, strlen($schemeAndHttpHost));
+            }
+        } elseif ($this->server->has('ORIG_PATH_INFO')) {
+            // IIS 5.0, PHP as CGI
+            $requestUri = $this->server->get('ORIG_PATH_INFO');
+            if ('' != $this->server->get('QUERY_STRING')) {
+                $requestUri .= '?'.$this->server->get('QUERY_STRING');
+            }
+        }
+
+        // normalize the request URI to ease creating sub-requests from this request
+        $this->server->set('REQUEST_URI', $requestUri);
+
+        return $requestUri;
+    }
+
+    /**
+     * Gets the complete domain name with scheme (http||https)
+     *
+     * @return string
+     */
+    public function getSchemeAndHost()
+    {
+        return $this->getScheme().'://'.$this->getHost();
     }
 
     /**
@@ -379,18 +466,32 @@ class Request implements RequestInterface
     /**
      * check for input stream
      */
-    public function checkInput()
+    protected function checkInput()
     {
         $postData = file_get_contents("php://input");
         if (!empty($postData) && is_array($postData)) {
             $postData = $this->inputSanitize($postData);
-            $this->POST['json'] = json_decode($postData);
+            $this->POST['data'] = json_decode($postData, JSON_OBJECT_AS_ARRAY);
         } elseif (!empty($postData) && is_string($postData)) {
             if ($this->httpMethod === 'put') {
-                parse_str($postData, $this->POST['put']);
-                $this->POST['put'] = $this->inputSanitize($this->POST['put']);
+                parse_str($postData, $this->POST['data']);
+                $this->POST['data'] = $this->inputSanitize($this->POST['data']);
             }
         }
+    }
+
+    /**
+     * @param $key
+     * @param bool $default
+     * @return array|bool|mixed
+     */
+    public function input($key = null, $default = false)
+    {
+        $method = $this->getHttpMethod();
+        if (method_exists($this, strtoupper($method))) {
+            return $this->{strtoupper($method)}($key, $default);
+        }
+        return $default;
     }
 
     /**
@@ -460,10 +561,10 @@ class Request implements RequestInterface
     /**
      * @inheritDoc
      */
-    public function GET($key = null)
+    public function GET($key = null, $default = false)
     {
         if (!empty($key)) {
-            return $this->GET[$key];
+            return $this->GET->get($key, $default);
         }
         return $this->GET;
     }
@@ -471,21 +572,37 @@ class Request implements RequestInterface
     /**
      * @inheritdoc
      */
-    public function POST($key = null)
+    public function POST($key = null, $default = false)
     {
         if (!empty($key)) {
-            return $this->POST[$key];
+            return $this->POST->get($key, $default);
         }
         return $this->POST;
+    }
+
+    public function PUT($key = null, $default = false)
+    {
+        if (!empty($key)) {
+            $this->POST->get('data.'.$key, $default);
+        }
+        return $this->POST->get('data', $default);
+    }
+
+    public function DELETE($key = null, $default = false)
+    {
+        if (!empty($key)) {
+            $this->POST->get('data.'.$key, $default);
+        }
+        return $this->POST->get('data', $default);
     }
 
     /**
      * @inheritdoc
      */
-    public function cookies($key = null)
+    public function cookies($key = null, $default = false)
     {
         if (!empty($key)) {
-            return $this->cookies[$key];
+            return $this->cookies->get($key, $default);
         }
         return $this->cookies;
     }
@@ -499,5 +616,23 @@ class Request implements RequestInterface
             return $this->headers->get($key, false);
         }
         return $this->headers;
+    }
+
+    public function isJson()
+    {
+        return strContains('json', $this->headers->get('Content-Type'));
+    }
+
+    public function json($key = null, $default = false)
+    {
+        if (!$this->isJson()) {
+            return $default;
+        }
+
+        if (!$this->jsonArr) {
+            $this->jsonArr = new DataCollection(json_decode($this->body, JSON_OBJECT_AS_ARRAY));
+        }
+
+        return $this->jsonArr->get($key, $default);
     }
 }

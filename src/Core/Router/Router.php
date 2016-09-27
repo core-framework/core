@@ -205,7 +205,7 @@ class Router implements RouterInterface, Cacheable
     /**
      * Get current Route
      *
-     * @return Route
+     * @return RouteInterface
      */
     public function getCurrentRoute()
     {

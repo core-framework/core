@@ -22,6 +22,7 @@
 
 namespace Core\Tests\Request;
 
+use Core\Reactor\DataCollection;
 use Core\Request\Request;
 
 class RequestTest extends \PHPUnit_Framework_TestCase
@@ -60,6 +61,19 @@ class RequestTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals('/testing/path', $this->request->getPath());
     }
 
+    public function testDataCollections()
+    {
+        $this->assertInstanceOf(DataCollection::class, $this->request->GET);
+        $this->assertInstanceOf(DataCollection::class, $this->request->POST);
+        $this->assertInstanceOf(DataCollection::class, $this->request->server);
+        $this->assertInstanceOf(DataCollection::class, $this->request->headers);
+        $this->assertInstanceOf(DataCollection::class, $this->request->cookies);
+    }
 
+//    public function testQueryStringNotInPath()
+//    {
+//        $this->request->setPath('/testing/path?key=value');
+//        $this->assertEquals('/testing/path', $this->request->getPath());
+//    }
 
 }

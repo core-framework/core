@@ -39,26 +39,29 @@ interface Request
     /**
      * Retrieves the $_GET global variables
      *
-     * @param null $key
+     * @param string|null $key
+     * @param bool|mixed $default
      * @return mixed
      */
-    public function GET($key = null);
+    public function GET($key = null, $default = false);
 
     /**
      * Retrieves the $_POST global variables
      *
-     * @param null $key
+     * @param string|null $key
+     * @param bool|mixed $default
      * @return mixed
      */
-    public function POST($key = null);
+    public function POST($key = null, $default = false);
 
     /**
      * Retrieves set $COOKIES
      *
-     * @param null $key
+     * @param string|null $key
+     * @param bool|mixed $default
      * @return mixed
      */
-    public function cookies($key = null);
+    public function cookies($key = null, $default = false);
 
     /**
      * Returns Request body
@@ -86,6 +89,26 @@ interface Request
      */
     public function isSecure();
 
+    /**
+     * Returns the HTTP scheme 'https' or 'http'
+     *
+     * @return string
+     */
+    public function getScheme();
+
+    /**
+     * Returns the host name
+     *
+     * @return string
+     */
+    public function getHost();
+
+    /**
+     * Returns the requested URI (path and query string)
+     *
+     * @return string
+     */
+    public function getRequestUri();
 
     /**
      * Returns the requester's IP
@@ -93,7 +116,6 @@ interface Request
      * @return mixed
      */
     public function ip();
-
 
     /**
      * Returns the User Agent string
@@ -113,9 +135,17 @@ interface Request
      * Returns an array of server info
      *
      * @param null|string $key
+     * @param bool|mixed $default
      * @return array
      */
-    public function server($key = null);
+    public function server($key = null, $default = false);
+
+    /**
+     * @param $key
+     * @param bool $default
+     * @return mixed
+     */
+    public function input($key = null, $default = false);
 
     /**
      * Returns the httpMethod used for the current request

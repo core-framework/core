@@ -29,7 +29,8 @@ use Core\Contracts\Response\Response;
 use Core\Contracts\Router\Router;
 use Core\Contracts\View;
 use Core\Reactor\DataCollection;
-use Core\Request\Request;
+//use Core\Request\Request;
+use Core\Contracts\Request\Request;
 
 /**
  * Class BaseController
@@ -114,8 +115,8 @@ class BaseController
         $this->setPathBound($application->basePath());
         $this->router = $application->getRouter();
         $this->request = $application->getRequest();
-        $this->POST = $this->request->POST;
-        $this->GET = $this->request->GET;
+        $this->POST = $this->request->POST();
+        $this->GET = $this->request->GET();
         $this->method = $this->request->getHttpMethod();
 
         $this->baseInit();
@@ -210,5 +211,11 @@ class BaseController
         return $d;
     }
 
-
+    /**
+     * @return Request
+     */
+    public function getRequest()
+    {
+        return $this->request;
+    }
 }
