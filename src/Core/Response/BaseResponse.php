@@ -25,6 +25,8 @@ namespace Core\Response;
 use Core\Contracts\Cacheable;
 use Core\Contracts\Response\Response;
 use Core\Contracts\View;
+use Core\Reactor\Cookie;
+use Core\Reactor\DataCollection;
 
 /**
  * Class BasesResponse
@@ -188,12 +190,12 @@ abstract class BaseResponse implements Response, Cacheable
     /**
      * @var $cookies array
      */
-    protected $cookies;
+    protected $cookies = [];
 
     /**
      * @var $headers array
      */
-    protected $headers;
+    protected $headers = [];
 
     /**
      * @var $statusCode int
@@ -297,11 +299,9 @@ abstract class BaseResponse implements Response, Cacheable
     /**
      * @param $headers
      */
-    private function setHeaders($headers)
+    private function setHeaders(array $headers)
     {
-        if (!empty($headers)) {
-            $this->headers = $headers;
-        }
+        $this->headers = new DataCollection($headers);
     }
 
     /**
@@ -348,6 +348,25 @@ abstract class BaseResponse implements Response, Cacheable
     public function getIsContentSet()
     {
         return $this->contentIsSet;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function setCookie($name, $value = null, $domain = null, $expiresInMinutes = 0, $path = '/', $secure = false, $httpOnly = true)
+    {
+        if (!is_numeric($expiresInMinutes)) {
+            throw new \InvalidArgumentException('$expiresInMinutes must be an integer specifying the number of minutes into the future, after which the cookie expires');
+        }
+
+        if ($expiresInMinutes !== 0) {
+            $expires = time() + ($expiresInMinutes * 60);
+        } else {
+            $expires = $expiresInMinutes;
+        }
+
+        $cookie = new Cookie($name, $value, $domain, $expires, $path, $secure, $httpOnly);
+        $this->cookies[] = $cookie;
     }
 
     /**

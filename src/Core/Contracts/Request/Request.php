@@ -70,18 +70,6 @@ interface Request
      */
     public function body();
 
-
-    /**
-     * Get our headers from our server data collection
-     *
-     * PHP is weird... it puts all of the HTTP request
-     * headers in the $_SERVER array. This handles that
-     *
-     * @return array
-     */
-    public function getHeaders();
-
-
     /**
      * Returns true if domain is secure
      *
@@ -189,4 +177,16 @@ interface Request
      * @return array|DataCollection
      */
     public function headers($key = null);
+
+    /**
+     * @param null $key
+     * @param bool $default
+     * @return mixed
+     */
+    public function json($key = null, $default = false);
+
+    /**
+     * @return bool
+     */
+    public function isJson();
 }

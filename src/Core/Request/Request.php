@@ -59,20 +59,12 @@ class Request implements RequestInterface
         'VIEW'
     ];
 
-    /**
-     * @var string The URL/query string (relative path)
-     */
-    protected $path;
-
-    /**
-     * @var string The Original query string
-     */
-    protected $queryString;
-
-    /**
-     * @var string The request httpMethod .i.e. GET, POST, PUT and DELETE
-     */
-    protected $httpMethod;
+    protected static $http_header_prefix = 'HTTP_';
+    protected static $http_nonprefixed_headers = array(
+        'CONTENT_LENGTH',
+        'CONTENT_TYPE',
+        'CONTENT_MD5',
+    );
     /**
      * @var array Contains the sanitized array of the global $_GET variable
      */
@@ -106,48 +98,25 @@ class Request implements RequestInterface
      */
     public $devMode = false;
     /**
+     * @var string The URL/query string (relative path)
+     */
+    protected $path;
+    /**
+     * @var string The Original query string
+     */
+    protected $queryString;
+    /**
+     * @var string The request httpMethod .i.e. GET, POST, PUT and DELETE
+     */
+    protected $httpMethod;
+    /**
      * @var bool Defines if Request is Ajax
      */
     protected $isAjax = false;
-
     /**
      * @var array $jsonArr
      */
     protected $jsonArr;
-
-    protected static $http_header_prefix = 'HTTP_';
-    protected static $http_nonprefixed_headers = array(
-        'CONTENT_LENGTH',
-        'CONTENT_TYPE',
-        'CONTENT_MD5',
-    );
-
-    /**
-     * @var array An array of illegal characters
-     */
-    private $illegal = [
-        '$',
-        '*',
-        '"',
-        '\'',
-        '<',
-        '>',
-        '^',
-        '(',
-        ')',
-        '[',
-        ']',
-        '\\',
-        '!',
-        '~',
-        '`',
-        '{',
-        '}',
-        '|',
-        '%',
-        '+',
-        '?php'
-    ];
 
     /**
      * Request constructor.
@@ -175,108 +144,8 @@ class Request implements RequestInterface
         $this->files = new DataCollection($files);
         $this->body = isset($body) ? (string)$body : null;
 
-        $this->getServerRequest();
+        $this->init();
     }
-
-    /**
-     * @return Request
-     */
-    public static function createFromGlobals()
-    {
-        return new static($_GET, $_POST, $_SERVER, $_COOKIE, $_FILES);
-    }
-
-    /**
-     * Gets the request body
-     *
-     * @return string
-     */
-    public function body()
-    {
-        // Only get it once
-        if (null === $this->body) {
-            $this->body = @file_get_contents('php://input');
-        }
-        return $this->body;
-    }
-
-    /**
-     * Returns true if domain is secure
-     *
-     * @return bool
-     */
-    public function isSecure()
-    {
-        $https = $this->server['HTTPS'];
-        return !empty($https) && 'off' !== strtolower($https);
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function getScheme()
-    {
-        return $this->isSecure() ? 'https' : 'http';
-    }
-
-    public function getHost()
-    {
-        if (!$host = $this->headers->get('HOST')) {
-            if (!$host = $this->server->get('SERVER_NAME')) {
-                $host = $this->server->get('SERVER_ADDR', '');
-            }
-        }
-
-        // trim and remove port number from host
-        $host = strtolower(preg_replace('/:\d+$/', '', trim($host)));
-
-        // check to see if it contain forbidden characters (see RFC 952 and RFC 2181)
-        if ($host && '' !== preg_replace('/(?:^\[)?[a-zA-Z0-9-:\]_]+\.?/', '', $host)) {
-            throw new \UnexpectedValueException(sprintf('Invalid Host "%s"', $host));
-        }
-
-        return $host;
-    }
-
-    /**
-     * Returns the requester's IP
-     *
-     * @return mixed
-     */
-    public function ip()
-    {
-        return isset($this->server['REMOTE_ADDR']) ? $this->server['REMOTE_ADDR'] : '127.0.0.1';
-    }
-
-    /**
-     * Returns the User Agent string
-     *
-     * @return mixed
-     */
-    public function userAgent()
-    {
-        return isset($this->server['USER_AGENT']) ? $this->server['USER_AGENT'] : false;
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function isAjax()
-    {
-        return $this->isAjax;
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function server($key = null, $default = false)
-    {
-        if (!empty($key)) {
-            return $this->server->get($key, $default);
-        }
-        return $this->server;
-    }
-
 
     /**
      * Get our headers from our server data collection
@@ -286,7 +155,7 @@ class Request implements RequestInterface
      *
      * @return array
      */
-    public function getHeaders()
+    private function getHeaders()
     {
         // Define a headers array
         $headers = array();
@@ -304,9 +173,24 @@ class Request implements RequestInterface
     }
 
     /**
+     * Quickly check if a string has a passed prefix
      *
+     * @param string $string The string to check
+     * @param string $prefix The prefix to test
+     * @return boolean
      */
-    private function getServerRequest()
+    public static function hasPrefix($string, $prefix)
+    {
+        if (strpos($string, $prefix) === 0) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * initialize Request object
+     */
+    private function init()
     {
         //get httpMethod
         if (isset($this->server['REQUEST_METHOD'])) {
@@ -317,7 +201,7 @@ class Request implements RequestInterface
             $this->setHttpMethod("GET");
         }
 
-        if (strtolower(filter_input(INPUT_SERVER, 'HTTP_X_REQUESTED_WITH')) === 'xmlhttprequest') {
+        if ($this->server->has('HTTP_X_REQUESTED_WITH') && strtolower($this->server['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
             $this->isAjax = true;
         }
 
@@ -328,68 +212,28 @@ class Request implements RequestInterface
         $this->setPath($path);
     }
 
-
     /**
-     * The following method is derived from code of the Zend Framework (1.10dev - 2010-01-24)
-     *
-     * Code subject to the new BSD license (http://framework.zend.com/license/new-bsd).
-     *
-     * Copyright (c) 2005-2010 Zend Technologies USA Inc. (http://www.zend.com)
-     *
-     * @inheritdoc
+     * check for input stream
      */
-    public function getRequestUri()
+    protected function checkInput()
     {
-        $requestUri = '';
-
-        if ($this->headers->has('X_ORIGINAL_URL')) {
-            // IIS with Microsoft Rewrite Module
-            $requestUri = $this->headers->get('X_ORIGINAL_URL');
-
-        } elseif ($this->headers->has('X_REWRITE_URL')) {
-            // IIS with ISAPI_Rewrite
-            $requestUri = $this->headers->get('X_REWRITE_URL');
-
-        } elseif ($this->server->get('IIS_WasUrlRewritten') == '1' && $this->server->get('UNENCODED_URL') != '') {
-            // IIS7 with URL Rewrite: make sure we get the unencoded URL (double slash problem)
-            $requestUri = $this->server->get('UNENCODED_URL');
-
-        } elseif ($this->server->has('REQUEST_URI')) {
-            $requestUri = $this->server->get('REQUEST_URI');
-            // HTTP proxy reqs setup request URI with scheme and host [and port] + the URL path, only use URL path
-            $schemeAndHttpHost = $this->getSchemeAndHost();
-            if (strpos($requestUri, $schemeAndHttpHost) === 0) {
-                $requestUri = substr($requestUri, strlen($schemeAndHttpHost));
-            }
-        } elseif ($this->server->has('ORIG_PATH_INFO')) {
-            // IIS 5.0, PHP as CGI
-            $requestUri = $this->server->get('ORIG_PATH_INFO');
-            if ('' != $this->server->get('QUERY_STRING')) {
-                $requestUri .= '?'.$this->server->get('QUERY_STRING');
+        $postData = file_get_contents("php://input");
+        if (!empty($postData) && is_array($postData)) {
+            $postData = $this->sanitizeArray($postData);
+            $this->POST['data'] = json_decode($postData, JSON_OBJECT_AS_ARRAY);
+        } elseif (!empty($postData) && is_string($postData)) {
+            if (strtolower($this->httpMethod) === 'put') {
+                parse_str($postData, $this->POST['data']);
+                $this->POST['data'] = $this->sanitizeArray($this->POST['data']);
             }
         }
-
-        // normalize the request URI to ease creating sub-requests from this request
-        $this->server->set('REQUEST_URI', $requestUri);
-
-        return $requestUri;
-    }
-
-    /**
-     * Gets the complete domain name with scheme (http||https)
-     *
-     * @return string
-     */
-    public function getSchemeAndHost()
-    {
-        return $this->getScheme().'://'.$this->getHost();
     }
 
     /**
      * @param array $array
      * @return string
      */
-    public function sanitizeArray(array $array)
+    protected function sanitizeArray(array $array)
     {
         $sanitized = [];
         foreach ($array as $key => $val) {
@@ -410,7 +254,7 @@ class Request implements RequestInterface
      * @param $value
      * @return string
      */
-    public function sanitize($type, $value)
+    protected function sanitize($type, $value)
     {
         switch ($type) {
             case 'email':
@@ -448,42 +292,264 @@ class Request implements RequestInterface
     }
 
     /**
-     * Sanitize inputs
+     * The following method is derived from code of the Zend Framework (1.10dev - 2010-01-24)
      *
-     * @param $data
-     * @return array
+     * Code subject to the new BSD license (http://framework.zend.com/license/new-bsd).
+     *
+     * Copyright (c) 2005-2010 Zend Technologies USA Inc. (http://www.zend.com)
+     *
+     * @inheritdoc
      */
-    public function inputSanitize($data)
+    public function getRequestUri()
     {
-        $sanitizedData = [];
-        foreach ($data as $key => $val) {
+        $requestUri = '';
 
-            if (is_array($val)) {
-                $sanitizedData[$key] = $this->sanitizeArray($val);
-                continue;
+        if ($this->headers->has('X_ORIGINAL_URL')) {
+            // IIS with Microsoft Rewrite Module
+            $requestUri = $this->headers->get('X_ORIGINAL_URL');
+
+        } elseif ($this->headers->has('X_REWRITE_URL')) {
+            // IIS with ISAPI_Rewrite
+            $requestUri = $this->headers->get('X_REWRITE_URL');
+
+        } elseif ($this->server->get('IIS_WasUrlRewritten') == '1' && $this->server->get('UNENCODED_URL') != '') {
+            // IIS7 with URL Rewrite: make sure we get the unencoded URL (double slash problem)
+            $requestUri = $this->server->get('UNENCODED_URL');
+
+        } elseif ($this->server->has('REQUEST_URI')) {
+            $requestUri = $this->server->get('REQUEST_URI');
+            // HTTP proxy reqs setup request URI with scheme and host [and port] + the URL path, only use URL path
+            $schemeAndHttpHost = $this->getSchemeAndHost();
+            if (strpos($requestUri, $schemeAndHttpHost) === 0) {
+                $requestUri = substr($requestUri, strlen($schemeAndHttpHost));
             }
-
-            $sanitizedData[$key] = $this->sanitize($key, $val);
+        } elseif ($this->server->has('ORIG_PATH_INFO')) {
+            // IIS 5.0, PHP as CGI
+            $requestUri = $this->server->get('ORIG_PATH_INFO');
         }
 
-        return $sanitizedData;
+        // normalize the request URI to ease creating sub-requests from this request
+        $this->server->set('REQUEST_URI', $requestUri);
+
+        return $requestUri;
     }
 
     /**
-     * check for input stream
+     * Gets the complete domain name with scheme (http||https)
+     *
+     * @return string
      */
-    protected function checkInput()
+    public function getSchemeAndHost()
     {
-        $postData = file_get_contents("php://input");
-        if (!empty($postData) && is_array($postData)) {
-            $postData = $this->inputSanitize($postData);
-            $this->POST['data'] = json_decode($postData, JSON_OBJECT_AS_ARRAY);
-        } elseif (!empty($postData) && is_string($postData)) {
-            if ($this->httpMethod === 'put') {
-                parse_str($postData, $this->POST['data']);
-                $this->POST['data'] = $this->inputSanitize($this->POST['data']);
+        return $this->getScheme() . '://' . $this->getHost();
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getScheme()
+    {
+        return $this->isSecure() ? 'https' : 'http';
+    }
+
+    /**
+     * Returns true if domain is secure
+     *
+     * @return bool
+     */
+    public function isSecure()
+    {
+        $https = $this->server['HTTPS'];
+        return !empty($https) && 'off' !== strtolower($https);
+    }
+
+    public function getHost()
+    {
+        if (!$host = $this->headers->get('HOST')) {
+            if (!$host = $this->server->get('SERVER_NAME')) {
+                $host = $this->server->get('SERVER_ADDR', '');
             }
         }
+
+        // trim and remove port number from host
+        $host = strtolower(preg_replace('/:\d+$/', '', trim($host)));
+
+        // check to see if it contain forbidden characters (see RFC 952 and RFC 2181)
+        if ($host && '' !== preg_replace('/(?:^\[)?[a-zA-Z0-9-:\]_]+\.?/', '', $host)) {
+            throw new \UnexpectedValueException(sprintf('Invalid Host "%s"', $host));
+        }
+
+        return $host;
+    }
+
+    /**
+     * @return Request
+     */
+    public static function createFromGlobals()
+    {
+        return new static($_GET, $_POST, $_SERVER, $_COOKIE, $_FILES);
+    }
+
+    /**
+     * @param string $url
+     * @param string $method
+     * @param array $data
+     * @param array $server
+     * @param array $cookies
+     * @param array $files
+     * @param null $content
+     * @return static
+     */
+    public static function create(
+        $url = '',
+        $method = 'GET',
+        $data = [],
+        $server = [],
+        $cookies = [],
+        $files = [],
+        $content = null
+    ) {
+        $serverDefault = [
+            'SERVER_NAME' => 'localhost',
+            'HTTP_HOST' => 'localhost',
+            'SERVER_PORT' => '80',
+            'HTTP_USER_AGENT' => 'CoreFramework/X.X.X',
+            'HTTP_ACCEPT' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'HTTP_ACCEPT_LANGUAGE' => 'en-us,en;q=0.5',
+            'HTTP_ACCEPT_CHARSET' => 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+            'REMOTE_ADDR' => '127.0.0.1',
+            'SCRIPT_NAME' => '',
+            'SCRIPT_FILENAME' => '',
+            'SERVER_PROTOCOL' => 'HTTP/1.1',
+            'REQUEST_TIME' => time(),
+        ];
+
+        $server = array_merge($serverDefault, $server);
+
+        $server['REQUEST_METHOD'] = strtoupper($method);
+
+        $parts = parse_url($url);
+        if (isset($parts['host'])) {
+            $server['SERVER_NAME'] = $server['HTTP_HOST'] = $parts['host'];
+        }
+
+        if (isset($parts['scheme'])) {
+            if ($parts['scheme'] === 'https') {
+                $server['HTTPS'] = 'on';
+                $server['SERVER_PORT'] = 443;
+            } else {
+                unset($server['HTTPS']);
+                $server['SERVER_PORT'] = 80;
+            }
+        }
+
+        if (isset($parts['port'])) {
+            $server['SERVER_PORT'] = $parts['port'];
+            $server['HTTP_HOST'] = $server['HTTP_HOST'] . ':' . $parts['port'];
+        }
+
+        if (isset($parts['user'])) {
+            $server['PHP_AUTH_USER'] = $parts['user'];
+        }
+
+        if (isset($parts['pass'])) {
+            $server['PHP_AUTH_PW'] = $parts['pass'];
+        }
+
+        if (!isset($parts['path'])) {
+            $parts['path'] = '/';
+        }
+
+        $POST = [];
+        $GET = [];
+
+        if ($method === 'POST' || $method === 'PUT' || $method === 'DELETE') {
+            $server['CONTENT_TYPE'] = 'application/x-www-form-urlencoded';
+            $POST = $data;
+        } elseif ($method === 'PATCH') {
+            $POST = $data;
+        } else {
+            $GET = $data;
+        }
+
+        $queryStringArr = [];
+        $queryString = '';
+
+        if (isset($parts['query'])) {
+            parse_str($parts['query'], $queryStringArr);
+
+            if ($GET) {
+                $GET = array_merge_recursive($queryStringArr, $GET);
+                $queryString = http_build_query($GET, '', '&');
+            } else {
+                $GET = $queryStringArr;
+                $queryString = $parts['query'];
+            }
+        } elseif ($GET) {
+            $queryString = http_build_query($GET, '', '&');
+        }
+
+        if (!empty($queryStringArr)) {
+            $queryString = http_build_query($queryStringArr, '', '&');
+        }
+
+        $server['REQUEST_URI'] = $parts['path'] . ($queryString === '' ? '' : '?' . $queryString);
+        $server['QUERY_STRING'] = $queryString;
+
+        return new static($GET, $POST, $server, $cookies, $files, $content);
+    }
+
+    /**
+     * Gets the request body
+     *
+     * @return string
+     */
+    public function body()
+    {
+        // Only get it once
+        if (null === $this->body) {
+            $this->body = @file_get_contents('php://input');
+        }
+        return $this->body;
+    }
+
+    /**
+     * Returns the requester's IP
+     *
+     * @return mixed
+     */
+    public function ip()
+    {
+        return isset($this->server['REMOTE_ADDR']) ? $this->server['REMOTE_ADDR'] : '127.0.0.1';
+    }
+
+    /**
+     * Returns the User Agent string
+     *
+     * @return mixed
+     */
+    public function userAgent()
+    {
+        return isset($this->server['HTTP_USER_AGENT']) ? $this->server['HTTP_USER_AGENT'] : false;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function isAjax()
+    {
+        return $this->isAjax;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function server($key = null, $default = false)
+    {
+        if (!empty($key)) {
+            return $this->server->get($key, $default);
+        }
+        return $this->server;
     }
 
     /**
@@ -495,17 +561,12 @@ class Request implements RequestInterface
     {
         $method = $this->getHttpMethod();
         if (method_exists($this, strtoupper($method))) {
+            if ($this->GET->has($key)) {
+                return $this->GET->get($key);
+            }
             return $this->{strtoupper($method)}($key, $default);
         }
         return $default;
-    }
-
-    /**
-     * @return array|DataCollection
-     */
-    public function getCookies()
-    {
-        return $this->cookies;
     }
 
     /**
@@ -532,6 +593,14 @@ class Request implements RequestInterface
 
         $this->httpMethod = strtoupper($httpMethod);
         return $this;
+    }
+
+    /**
+     * @return array|DataCollection
+     */
+    public function getCookies()
+    {
+        return $this->cookies;
     }
 
     /**
@@ -562,31 +631,9 @@ class Request implements RequestInterface
     public function getQueryString()
     {
         if (is_null($this->queryString)) {
-            $path = $this->getRequestUri();
-            if (strContains('?', $path)) {
-                $parts = explode('?', $path, 1);
-                $this->queryString = $parts[1];
-                $this->path = $parts[0];
-            } else {
-                $this->queryString = '';
-            }
+            $this->queryString = $this->server->get('QUERY_STRING');
         }
         return $this->queryString;
-    }
-
-    /**
-     * Quickly check if a string has a passed prefix
-     *
-     * @param string $string The string to check
-     * @param string $prefix The prefix to test
-     * @return boolean
-     */
-    public static function hasPrefix($string, $prefix)
-    {
-        if (strpos($string, $prefix) === 0) {
-            return true;
-        }
-        return false;
     }
 
     /**
@@ -594,10 +641,7 @@ class Request implements RequestInterface
      */
     public function GET($key = null, $default = false)
     {
-        if (!empty($key)) {
-            return $this->GET->get($key, $default);
-        }
-        return $this->GET;
+        return $this->GET->get($key, $default);
     }
 
     /**
@@ -605,26 +649,17 @@ class Request implements RequestInterface
      */
     public function POST($key = null, $default = false)
     {
-        if (!empty($key)) {
-            return $this->POST->get($key, $default);
-        }
-        return $this->POST;
+        return $this->POST->get($key, $default);
     }
 
     public function PUT($key = null, $default = false)
     {
-        if (!empty($key)) {
-            $this->POST->get('data.'.$key, $default);
-        }
-        return $this->POST->get('data', $default);
+        return $this->POST->get($key, $default);
     }
 
     public function DELETE($key = null, $default = false)
     {
-        if (!empty($key)) {
-            $this->POST->get('data.'.$key, $default);
-        }
-        return $this->POST->get('data', $default);
+        return $this->POST->get($key, $default);
     }
 
     /**
@@ -649,11 +684,9 @@ class Request implements RequestInterface
         return $this->headers;
     }
 
-    public function isJson()
-    {
-        return strContains('json', $this->headers->get('Content-Type'));
-    }
-
+    /**
+     * @inheritdoc
+     */
     public function json($key = null, $default = false)
     {
         if (!$this->isJson()) {
@@ -665,5 +698,13 @@ class Request implements RequestInterface
         }
 
         return $this->jsonArr->get($key, $default);
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function isJson()
+    {
+        return strContains('json', $this->headers->get('Content-Type'));
     }
 }

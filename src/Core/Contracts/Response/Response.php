@@ -36,6 +36,13 @@ interface Response
     public function setContent($content = null);
 
     /**
+     * Returns response content
+     *
+     * @return mixed
+     */
+    public function getContent();
+
+    /**
      * Check if content is set
      *
      * @return mixed
@@ -50,6 +57,12 @@ interface Response
      */
     public function setStatusCode($code = 200);
 
+    /**
+     * Returns the response status code
+     *
+     * @return int $code
+     */
+    public function getStatusCode();
 
     /**
      * Set view object associated with current response
@@ -83,6 +96,21 @@ interface Response
      * @return mixed
      */
     public function removeHeader($key);
+
+    /**
+     * Set Cookie in response
+     *
+     * @param string $name
+     * @param null|string $value
+     * @param null|string $domain
+     * @param int $expiresInMinutes
+     * @param string $path
+     * @param bool $secure
+     * @param bool $httpOnly
+     *
+     * @return mixed
+     */
+    public function setCookie($name, $value = null, $domain = null, $expiresInMinutes = 0, $path = '/', $secure = false, $httpOnly = true);
 
     /**
      * Method to send computed response to Client (browser)

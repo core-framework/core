@@ -25,6 +25,7 @@ namespace Core\Response;
 use Core\Contracts\Cacheable;
 use Core\Contracts\Response\Response as ResponseInterface;
 use Core\Contracts\View;
+use Core\Reactor\Cookie;
 
 class Response extends BaseResponse implements ResponseInterface, Cacheable
 {
@@ -136,7 +137,7 @@ class Response extends BaseResponse implements ResponseInterface, Cacheable
      */
     public function setAllow(array $allowedMethods)
     {
-        $supported = ['GET','HEAD', 'CHECKOUT', 'SHOWMETHOD', 'PUT', 'DELETE', 'POST', 'LINK', 'UNLINK', 'CHECKIN', 'TEXTSEARCH', 'SPACEJUMP', 'SEARCH'];
+        $supported = ['GET','HEAD', 'OPTIONS', 'PUT', 'DELETE', 'POST', 'TRACE', 'CONNECT', 'CHECKOUT', 'SHOWMETHOD', 'LINK', 'UNLINK', 'CHECKIN', 'TEXTSEARCH', 'SPACEJUMP', 'SEARCH'];
         $str = '';
         foreach($allowedMethods as $method) {
             $methodStr = strtoupper($method);
@@ -420,6 +421,11 @@ class Response extends BaseResponse implements ResponseInterface, Cacheable
                     header("{$key}: {$val}", true, $this->statusCode);
                 }
             }
+        }
+
+        foreach ($this->cookies as $cookie) {
+            /** @var Cookie $cookie */
+            setcookie($cookie->getName(), $cookie->getValue(), $cookie->getExpires(), $cookie->getPath(), $cookie->getDomain(), $cookie->getSecure(), $cookie->getHttpOnly());
         }
 
         return true;
