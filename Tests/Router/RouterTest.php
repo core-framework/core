@@ -485,7 +485,6 @@ class RouterTest extends \PHPUnit_Framework_TestCase
      * @covers \Core\Router\Router::delete
      * @covers \Core\Router\Router::makeController
      * @covers \Core\Router\Router::runController
-     * @covers \Core\Router\Router::getRouteData
      * @covers \Core\Controllers\BaseController::getRouteData
      */
     public function testRouterDataIsAvailableInController()
@@ -639,5 +638,59 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         $route = $router->getCurrentRoute();
 
         $this->assertInstanceOf('\Core\Router\Route', $route);
+    }
+
+    /**
+     * @covers \Core\Router\Router::any
+     */
+    public function testAnyMethod()
+    {
+        // GET
+        $router = $this->getRouter();
+        $router->any('/page/{id}', function ($payload) {
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/somePage'));
+        $this->assertSame('somePage', $response);
+
+        // POST
+        $router = $this->getRouter();
+        $router->any('/page/{id}', function ($payload) {
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/somePage', 'POST'));
+        $this->assertSame('somePage', $response);
+
+        // PUT
+        $router = $this->getRouter();
+        $router->any('/page/{id}', function ($payload) {
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/somePage', 'PUT'));
+        $this->assertSame('somePage', $response);
+
+        // PATCH
+        $router = $this->getRouter();
+        $router->any('/page/{id}', function ($payload) {
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/somePage', 'PATCH'));
+        $this->assertSame('somePage', $response);
+
+        // DELETE
+        $router = $this->getRouter();
+        $router->any('/page/{id}', function ($payload) {
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/somePage', 'DELETE'));
+        $this->assertSame('somePage', $response);
+
+        // OPTIONS
+        $router = $this->getRouter();
+        $router->any('/page/{id}', function ($payload) {
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/somePage', 'OPTIONS'));
+        $this->assertSame('somePage', $response);
     }
 }

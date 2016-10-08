@@ -199,7 +199,17 @@ if (!function_exists('strStartsWith')) {
             throw new InvalidArgumentException("String and Search values cannot be empty.");
         }
 
-        return $search === "" || strrpos($string, $search, -strlen($string)) !== false;
+        if (is_array($search)) {
+            foreach($search as $i => $str) {
+                if (strStartsWith($string, $str)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return strrpos($string, $search, -strlen($string)) !== false;
     }
 
 }
@@ -217,6 +227,16 @@ if (!function_exists('strEndsWith')) {
     {
         if (empty($string) || empty($search)) {
             throw new InvalidArgumentException("String and Search values cannot be empty.");
+        }
+
+        if (is_array($search)) {
+            foreach($search as $i => $str) {
+                if (strEndsWith($string, $str)) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         return $search === "" || (($temp = strlen($string) - strlen($search)) >= 0 && strpos(

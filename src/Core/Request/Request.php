@@ -560,12 +560,13 @@ class Request implements RequestInterface
     public function input($key = null, $default = false)
     {
         $method = $this->getHttpMethod();
+        if ($this->GET->has($key)) {
+            return $this->GET->get($key);
+        }
         if (method_exists($this, strtoupper($method))) {
-            if ($this->GET->has($key)) {
-                return $this->GET->get($key);
-            }
             return $this->{strtoupper($method)}($key, $default);
         }
+
         return $default;
     }
 
@@ -694,7 +695,7 @@ class Request implements RequestInterface
         }
 
         if (!$this->jsonArr) {
-            $this->jsonArr = new DataCollection(json_decode($this->body, JSON_OBJECT_AS_ARRAY));
+            $this->jsonArr = new DataCollection(json_decode($this->body, true));
         }
 
         return $this->jsonArr->get($key, $default);

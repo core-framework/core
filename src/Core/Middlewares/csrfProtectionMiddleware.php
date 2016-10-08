@@ -63,7 +63,7 @@ class csrfProtectionMiddleware implements Middleware
         if ($httpMethod !== 'GET' && $router->getCurrentRoute()->mustBeCsrfProtected()) {
             $csrfToken = $this->getCsrfFromRequest($request);
             if (!$this->verifyToken($csrfToken)) {
-                throw new HttpException("Given X-CSRF-TOKEN does not match!");
+                throw new HttpException("Given X-CSRF-TOKEN does not match!", 422);
             }
         } else {
             $this->generateToken();
