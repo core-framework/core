@@ -111,9 +111,16 @@ class Router implements RouterInterface, Cacheable
     public function loadRoutes()
     {
         $file = $this->application->appPath() . '/Routes/routes.php';
-        $file = $this->application->getConfig()->get('app.routesFilePath', $file);
+        $file = $this->application->getConfig()->get('router.routesFilePath', $file);
         if (is_readable($file)) {
             require($file);
+        }
+
+        $files = $this->application->getConfig()->get('router.routesFiles', []);
+        foreach ($files as $index => $file) {
+            if (is_readable($file)) {
+                require($file);
+            }
         }
     }
 
@@ -260,6 +267,11 @@ class Router implements RouterInterface, Cacheable
             $options = array_merge($options, $this->currentOptions);
         }
 
+        if (isset($options['prefix'])) {
+            $uri = '/' . trim($options['prefix'], '/') . '/' . ltrim($uri, '/');
+            unset($options['prefix']);
+        }
+
         foreach ($methods as $i => $method) {
             $this->routes[$method][$uri] = new Route($uri, $methods, $action, $options);
         }
@@ -333,6 +345,19 @@ class Router implements RouterInterface, Cacheable
     }
 
     /**
+     * Add OPTIONS Route to routes (collection)
+     *
+     * @param $uri
+     * @param $action
+     * @param array $options
+     * @return Router
+     */
+    public function options($uri, $action, $options = [])
+    {
+        return $this->addRoute($uri, ['OPTIONS'], $action, $options);
+    }
+
+    /**
      * Add ALL (GET, POST, PUT, PATCH, DELETE) Route to routes (collection)
      *
      * @param $uri
@@ -342,7 +367,7 @@ class Router implements RouterInterface, Cacheable
      */
     public function any($uri, $action, $options = [])
     {
-        return $this->addRoute($uri, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], $action, $options);
+        return $this->addRoute($uri, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], $action, $options);
     }
 
     /**
@@ -420,9 +445,11 @@ class Router implements RouterInterface, Cacheable
     public function run(RouteInterface $route)
     {
         $next = $this->getNextCallable($route);
-        if ($route->hasMiddleware()) {
-            $middleware = $route->getMiddleware();
-            return $this->executeMiddleware($middleware, $next);
+        if ($middlewares = $route->getMiddlewares()) {
+            foreach ($middlewares as $middleware) {
+                $next = $this->executeMiddleware($middleware, $next);
+            }
+            return $next;
         }
 
         return $next();
@@ -432,16 +459,30 @@ class Router implements RouterInterface, Cacheable
      * Executes bound middleware
      *
      * @param $middleware
-     * @param \Closure $next
+     * @param \Closure|Response $response
      * @return mixed
      */
-    protected function executeMiddleware($middleware, \Closure $next)
+    protected function executeMiddleware($middleware, $response)
     {
-        if (class_exists($middleware, true)) {
+        if (!$response instanceof \Closure) {
+            $next = function() use ($response) {
+                return $response;
+            };
+        } else {
+            $next = $response;
+        }
+
+        if ($middleware instanceof \Closure) {
+            return $middleware($this, $next);
+
+        } elseif (class_exists($middleware, true)) {
+
             $middlewareObj = new $middleware();
+
             if (!$middlewareObj instanceof Middleware) {
                 throw new \RuntimeException("Given Middleware does not comply with the MiddlewareContract!", 600);
             }
+
             return $middlewareObj->run($this, $next);
         }
 

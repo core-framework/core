@@ -21,58 +21,16 @@
  */
 
 
-namespace Core\Contracts\Router;
+namespace Core\Tests\Stubs\Middlewares;
 
 
-use Core\Request\Request;
+use Core\Contracts\Middleware;
+use Core\Contracts\Router\Router;
 
-interface Route
+class StubMiddleware2 implements Middleware
 {
-    public function getUri();
-
-    public function getParsedUri();
-
-    public function getMethods();
-
-    public function getAction();
-
-    public function getParameters();
-
-    public function getParameterNames();
-
-    public function getController();
-
-    public function getClassMethod();
-
-    public function getOptions();
-
-    public function hasMiddleware();
-
-    public function getMiddlewares();
-
-    public function isInteger($param);
-
-    public function isAlpha($param);
-
-    public function isOptional($param);
-
-    public function issetDefault($param);
-
-    public function getDefault($param);
-
-    public function setPrefix($prefix, $uri = null);
-
-    public function parseUri($uri = null);
-
-    public function getParameterValues();
-
-    public function isMatch(Request $request);
-    
-    public function isCacheable();
-    
-    public function getData();
-
-    public function mustBeCsrfProtected();
-
-    public function isCsrfProtected();
+    public function run(Router $router, \Closure $next)
+    {
+        return 'stubMiddleware2';
+    }
 }

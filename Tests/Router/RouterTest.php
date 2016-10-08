@@ -25,9 +25,12 @@ namespace Core\Tests\Router;
 use Core\Application\Application;
 use Core\Container\Container;
 use Core\Facades\Router;
+use Core\Request\Request;
 use Core\Response\Response;
 use Core\Router\Route;
 use Core\Tests\Mocks\MockPaths;
+use Core\Tests\Stubs\Middlewares\StubMiddleware;
+use Core\Tests\Stubs\Middlewares\StubMiddleware2;
 
 class RouterTest extends \PHPUnit_Framework_TestCase
 {
@@ -57,8 +60,34 @@ class RouterTest extends \PHPUnit_Framework_TestCase
 
     // ----- Helpers -----
 
+    protected function getRouter()
+    {
+        $application = new Application(MockPaths::$basePath);
+        $router = $this->application->make(\Core\Router\Router::class, $application, 'Router');
+
+        return $router;
+    }
+
     public function setRoutes()
     {
+        Router::get('/basic/func', function() {
+            return 'func';
+        });
+        Router::get('/basic/{id:num}', function($payload) {
+            return $payload['id'];
+        });
+        Router::post('/post/{id:num}', function($payload) {
+            return $payload['id'];
+        });
+        Router::put('/put/{id:num}', function($payload) {
+            return $payload['id'];
+        });
+        Router::delete('/delete/{id:num}', function($payload) {
+            return $payload['id'];
+        });
+        Router::get('http://somedomain.com/somePath', function() {
+            return 'somedomain';
+        });
         Router::get('/test/{id:default=1}', 'testController@testId');
         Router::get('/test/{fname}/{id:num:default=1}', 'testController@testName');
         //grouping
@@ -229,5 +258,386 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         $response = $router->handle($request = $this->getRequestMock('/asdasd/2'));
         $this->assertInstanceOf('\\Core\\Response\\Response', $response);
         $this->assertEquals(404, $response->getStatusCode());
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::parse
+     * @covers \Core\Router\Router::run
+     * @covers \Core\Router\Router::get
+     * @covers \Core\Router\Router::post
+     * @covers \Core\Router\Router::put
+     * @covers \Core\Router\Router::delete
+     */
+    public function testRouteHandlingAsClosure()
+    {
+        $router = $this->getRouter();
+        $this->setRoutes();
+        $response = $router->handle(Request::create('http://example.com/basic/func'));
+        $this->assertSame('func', $response);
+
+        $router = $this->getRouter();
+        $this->setRoutes();
+        $response = $router->handle(Request::create('http://example.com/basic/10'));
+        $this->assertSame(10, $response);
+
+        $router = $this->getRouter();
+        $this->setRoutes();
+        $response = $router->handle(Request::create('http://example.com/post/12', 'POST'));
+        $this->assertSame(12, $response);
+
+        $router = $this->getRouter();
+        $this->setRoutes();
+        $response = $router->handle(Request::create('http://example.com/put/14', 'PUT'));
+        $this->assertSame(14, $response);
+
+        $router = $this->getRouter();
+        $this->setRoutes();
+        $response = $router->handle(Request::create('http://example.com/delete/16', 'DELETE'));
+        $this->assertSame(16, $response);
+
+        //404s
+        $router = $this->getRouter();
+        $this->setRoutes();
+        $response3 = $router->handle(Request::create('http://example.com/put/14'));
+        /** @var Response $response3 */
+        $this->assertInstanceOf('\Core\Response\Response', $response3);
+        $this->assertSame(404, $response3->getStatusCode());
+
+        $router = $this->getRouter();
+        $this->setRoutes();
+        $response2 = $router->handle(Request::create('http://somedomain.com/somePath'));
+        /** @var Response $response2 */
+        $this->assertInstanceOf('\Core\Response\Response', $response2);
+        $this->assertSame(404, $response2->getStatusCode());
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::parse
+     * @covers \Core\Router\Router::run
+     * @covers \Core\Router\Router::get
+     * @covers \Core\Router\Router::post
+     * @covers \Core\Router\Router::put
+     * @covers \Core\Router\Router::delete
+     * @covers \Core\Router\Router::makeController
+     * @covers \Core\Router\Router::runController
+     */
+    public function testRouteHandlingAsClass()
+    {
+        $router = $this->getRouter();
+        $router->get('/test/foo', '\Core\Tests\Stubs\Controllers\StubController@index');
+
+        $response = $router->handle(Request::create('http://example.com/test/foo'));
+        $this->assertSame('stubController::index', $response);
+
+        $router = $this->getRouter();
+        $router->post('/test/{id:num}', '\Core\Tests\Stubs\Controllers\StubController@returnable');
+        $response = $router->handle(Request::create('http://example.com/test/10', 'POST'));
+        $this->assertSame(10, $response);
+
+        $router = $this->getRouter();
+        $router->put('/test/{id:num}', '\Core\Tests\Stubs\Controllers\StubController@returnable');
+        $response = $router->handle(Request::create('http://example.com/test/10', 'PUT'));
+        $this->assertSame(10, $response);
+
+        $router = $this->getRouter();
+        $router->delete('/test/{id:num}', '\Core\Tests\Stubs\Controllers\StubController@returnable');
+        $response = $router->handle(Request::create('http://example.com/test/10', 'DELETE'));
+        $this->assertSame(10, $response);
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::parse
+     * @covers \Core\Router\Router::run
+     * @covers \Core\Router\Router::get
+     * @covers \Core\Router\Route::getMiddlewares
+     * @covers \Core\Router\Route::executeMiddleware
+     *
+     */
+    public function testMiddlewareAsClosure()
+    {
+        $router = $this->getRouter();
+        $middleware = function($router, $next) {
+            return 'middleware';
+        };
+
+        $router->get('/foo', function () {
+            return 'hello world';
+        }, ['middleware' => $middleware]);
+
+        $response = $router->handle(Request::create('http://example.com/foo'));
+        $this->assertSame('middleware', $response);
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::parse
+     * @covers \Core\Router\Router::run
+     * @covers \Core\Router\Router::get
+     * @covers \Core\Router\Route::setOptions
+     * @covers \Core\Router\Route::setMiddleware
+     * @covers \Core\Router\Route::getMiddlewares
+     * @covers \Core\Router\Route::executeMiddleware
+     *
+     */
+    public function testMiddlewareAsClass()
+    {
+        $router = $this->getRouter();
+
+        $router->get('/foo', function () {
+            return 'hello world';
+        }, ['middleware' => StubMiddleware::class]);
+
+        $response = $router->handle(Request::create('http://example.com/foo'));
+        $this->assertSame('stubMiddleware', $response);
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::parse
+     * @covers \Core\Router\Router::run
+     * @covers \Core\Router\Router::get
+     * @covers \Core\Router\Route::setOptions
+     * @covers \Core\Router\Route::setMiddlewares
+     * @covers \Core\Router\Route::getMiddlewares
+     * @covers \Core\Router\Route::executeMiddleware
+     */
+    public function testMiddlewareClassArray()
+    {
+        $router = $this->getRouter();
+
+        $router->get('/foo', function () {
+            return 'hello world';
+        }, ['middlewares' => [StubMiddleware::class, StubMiddleware2::class]]);
+
+        $response = $router->handle(Request::create('http://example.com/foo'));
+        $this->assertSame('stubMiddleware2', $response);
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::parse
+     * @covers \Core\Router\Router::run
+     * @covers \Core\Router\Router::get
+     * @covers \Core\Router\Router::addRoute
+     */
+    public function testRoutePrefix()
+    {
+        $router = $this->getRouter();
+
+        $router->get('/foo', function() {
+            return 'hello world';
+        }, ['prefix' => 'bar']);
+
+        $response = $router->handle(Request::create('http://example.com/bar/foo'));
+        $this->assertSame('hello world', $response);
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::parse
+     * @covers \Core\Router\Router::run
+     * @covers \Core\Router\Router::get
+     * @covers \Core\Router\Router::addRoute
+     */
+    public function testRoutePrefixSlashMakesNoDifference()
+    {
+        $router = $this->getRouter();
+
+        $router->get('/foo', function() {
+            return 'hello world';
+        }, ['prefix' => '/bar']);
+
+        $response2 = $router->handle(Request::create('http://example.com/bar/foo'));
+        $this->assertSame('hello world', $response2);
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::parse
+     * @covers \Core\Router\Router::run
+     * @covers \Core\Router\Router::get
+     * @covers \Core\Router\Router::addRoute
+     */
+    public function testRoutePrefixDoesNotResolveOriginalUrl()
+    {
+        $router = $this->getRouter();
+
+        $router->get('/foo', function() {
+            return 'hello world';
+        }, ['prefix' => 'bar']);
+
+        $response = $router->handle(Request::create('http://example.com/foo'));
+        /** @var Response $response */
+        $this->assertInstanceOf('\Core\Response\Response', $response);
+        $this->assertSame(404, $response->getStatusCode());
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::parse
+     * @covers \Core\Router\Router::run
+     * @covers \Core\Router\Router::get
+     * @covers \Core\Router\Router::post
+     * @covers \Core\Router\Router::put
+     * @covers \Core\Router\Router::delete
+     * @covers \Core\Router\Router::makeController
+     * @covers \Core\Router\Router::runController
+     * @covers \Core\Router\Router::getRouteData
+     * @covers \Core\Controllers\BaseController::getRouteData
+     */
+    public function testRouterDataIsAvailableInController()
+    {
+        $routeData = ['someKey' => 'someValue'];
+        $router = $this->getRouter();
+        $router->get('/foo/bar', '\Core\Tests\Stubs\Controllers\StubController@returnRouteData', ['data' => $routeData]);
+        $response = $router->handle(Request::create('http://example.com/foo/bar'));
+        $this->assertInstanceOf('\Core\Reactor\DataCollection', $response);
+        $this->assertSame($routeData, $response->get());
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::parse
+     * @covers \Core\Router\Router::run
+     * @covers \Core\Router\Router::get
+     * @covers \Core\Router\Route::parseUri
+     */
+    public function testRouteParameterDefinition()
+    {
+        $router = $this->getRouter();
+        $router->get('/page/{id}', function($payload){
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/bar'));
+        $this->assertInternalType('string', $response);
+        $this->assertSame('bar', $response);
+
+        $router = $this->getRouter();
+        $router->get('/page/{id}', function($payload){
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/1'));
+        $this->assertInternalType('string', $response);
+        $this->assertSame('1', $response);
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::parse
+     * @covers \Core\Router\Router::run
+     * @covers \Core\Router\Router::get
+     * @covers \Core\Router\Route::parseUri
+     */
+    public function testRouteParameterOptionsDefinition()
+    {
+        $router = $this->getRouter();
+        $router->get('/page/{id:num}', function($payload){
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/1'));
+        $this->assertInternalType('integer', $response);
+        $this->assertSame(1, $response);
+
+        $router = $this->getRouter();
+        $router->get('/page/{id:alpha}', function($payload){
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/foo'));
+        $this->assertInternalType('string', $response);
+        $this->assertSame('foo', $response);
+
+        // 404's
+        $router = $this->getRouter();
+        $router->get('/page/{id:num}', function($payload){
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/foo'));
+        $this->assertInstanceOf('\Core\Response\Response', $response);
+        $this->assertSame(404, $response->getStatusCode());
+
+        $router = $this->getRouter();
+        $router->get('/page/{id:alpha}', function($payload){
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/10'));
+        $this->assertInstanceOf('\Core\Response\Response', $response);
+        $this->assertSame(404, $response->getStatusCode());
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::parse
+     * @covers \Core\Router\Router::run
+     * @covers \Core\Router\Router::get
+     * @covers \Core\Router\Route::parseUri
+     * @covers \Core\Router\Route::isOptional
+     * @covers \Core\Router\Route::isInteger
+     */
+    public function testRouteParameterAsOptional()
+    {
+        $router = $this->getRouter();
+        $router->get('/page/{id:?}', function($payload){
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/'));
+        $this->assertSame(null, $response);
+
+        $router = $this->getRouter();
+        $router->get('/page/{id:default=1}', function($payload){
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/'));
+        $this->assertSame('1', $response);
+
+        $router = $this->getRouter();
+        $router->get('/page/{id:num:default=10}', function($payload){
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/'));
+        $this->assertSame(10, $response);
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::parse
+     * @covers \Core\Router\Router::run
+     * @covers \Core\Router\Router::get
+     * @covers \Core\Router\Route::parseUri
+     * @covers \Core\Router\Route::isOptional
+     * @covers \Core\Router\Route::isInteger
+     */
+    public function testRouterParametersSupportShortOptions()
+    {
+        $router = $this->getRouter();
+        $router->get('/page/{id:i:default=10}', function($payload){
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/'));
+        $this->assertSame(10, $response);
+
+        $router = $this->getRouter();
+        $router->get('/page/{id:a:default=10}', function($payload){
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/'));
+        $this->assertSame('10', $response);
+    }
+
+    /**
+     * @covers \Core\Router\Route::getCurrentRoute
+     */
+    public function testCurrentRouteMethod()
+    {
+        $router = $this->getRouter();
+        $router->get('/page/{id:i:default=10}', function($payload){
+            return $payload['id'];
+        });
+        $response = $router->handle(Request::create('http://example.com/page/'));
+        $route = $router->getCurrentRoute();
+
+        $this->assertInstanceOf('\Core\Router\Route', $route);
     }
 }

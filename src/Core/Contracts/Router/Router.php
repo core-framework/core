@@ -178,6 +178,14 @@ interface Router
     public function delete($uri, $action, $options = []);
 
     /**
+     * @param $uri
+     * @param $action
+     * @param array $options
+     * @return Router
+     */
+    public function options($uri, $action, $options = []);
+
+    /**
      * Add ALL (GET, POST, PUT, PATCH, DELETE) Route to routes (collection)
      *
      * @param $uri

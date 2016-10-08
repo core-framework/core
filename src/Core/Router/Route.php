@@ -54,9 +54,9 @@ class Route implements Cacheable, RouteInterface
 
     protected $options = [];
 
-    protected $middleware = [];
+    protected $middlewares = [];
 
-    protected $allowedOptions = ['middleware', 'prefix', 'cacheable', 'data', 'csrfProtected'];
+    protected $allowedOptions = ['middleware', 'middlewares', 'prefix', 'cacheable', 'data', 'csrfProtection'];
 
     /**
      * Route constructor.
@@ -72,7 +72,7 @@ class Route implements Cacheable, RouteInterface
      * 'prefix' [string] Route prefix
      * 'cacheable' [bool] Is route cacheable
      * 'data' [array] Array of add/custom data to be passed to view/controller (eg: pageTitle, metas, etc.)
-     * 'csrfProtected' [bool] Should route have csrf protection
+     * 'csrfProtection' [bool] Should route have csrf protection
      */
     public function __construct($uri, $methods, $action, $options = [])
     {
@@ -265,17 +265,22 @@ class Route implements Cacheable, RouteInterface
 
     public function hasMiddleware()
     {
-        return !empty($this->middleware);
+        return !empty($this->middlewares);
     }
 
     public function setMiddleware($middleware)
     {
-        $this->middleware = $middleware;
+        $this->middlewares[] = $middleware;
     }
 
-    public function getMiddleware()
+    public function setMiddlewares($middlewares)
     {
-        return $this->middleware;
+        $this->middlewares = array_merge($this->middlewares, $middlewares);
+    }
+
+    public function getMiddlewares()
+    {
+        return $this->middlewares;
     }
 
     public function isInteger($param)
@@ -312,6 +317,7 @@ class Route implements Cacheable, RouteInterface
         if (preg_match_all('/\{([a-zA-Z0-9\:\?\=]+)\}/', $uri, $matches)) {
 
             foreach ($matches[1] as $index => $match) {
+                //$match = str_replace('?', '\?', $match);
                 $pattern = '([^/]+)';
                 $matchArr = explode(':', $match);
                 $param = $matchArr[0];
@@ -320,21 +326,27 @@ class Route implements Cacheable, RouteInterface
                 foreach ($matchArr as $option) {
                     if ($option === 'num' || $option === 'i') {
                         $this->parameters[$param]['isInt'] = true;
-                        $pattern = '([0-9]+)';
+                        $pattern = '([\d]+)';
                     }
                     if ($option === 'alpha' || $option === 'a') {
                         $this->parameters[$param]['isAlpha'] = true;
-                        $pattern = '([\w]+)';
+                        $pattern = '([\D]+)';
                     }
                     if ($option === '?' || strpos($option, 'default') !== false) {
                         $this->parameters[$param]['isOptional'] = true;
                         $pattern .= '?';
                     }
+                    if ($option === '?' && (!$this->isAlpha($param) || !$this->isInteger($param))) {
+                        $pattern = '([\S]+)?';
+                    }
                     if (strpos($option, 'default') !== false) {
                         $this->parameters[$param]['default'] = explode('=', $option)[1];
+                    } elseif ($this->parameters[$param]['isOptional']) {
+                        $this->parameters[$param]['default'] = null;
                     }
                 }
-                $uri = preg_replace('#\{' . $matches[1][$index] . '\}#', '(?P<' . $param . '>' . $pattern . ')', $uri);
+                $match = str_replace('?', '\?',$match);
+                $uri = preg_replace('#\{' . $match . '\}#', '(?P<' . $param . '>' . $pattern . ')', $uri);
             }
         }
 
@@ -423,19 +435,19 @@ class Route implements Cacheable, RouteInterface
         return isset($this->options['cacheable']) ? $this->options['cacheable'] : false;
     }
 
-    public function setCsrfProtected($bool = true)
+    public function setCsrfProtection($bool = true)
     {
-        $this->options['csrfProtected'] = boolval($bool);
+        $this->options['csrfProtection'] = boolval($bool);
     }
 
     public function isCsrfProtected()
     {
-        return isset($this->options['csrfProtected']) ? $this->options['isCsrfProtected'] : false;
+        return isset($this->options['csrfProtection']) ? $this->options['csrfProtection'] : false;
     }
 
     public function mustBeCsrfProtected()
     {
-        return isset($this->options['csrfProtected']) ? $this->options['isCsrfProtected'] : false;
+        return isset($this->options['csrfProtection']) ? $this->options['csrfProtection'] : false;
     }
 
     public function setData(array $variables = [])
@@ -455,6 +467,6 @@ class Route implements Cacheable, RouteInterface
     
     public function __sleep()
     {
-        return ['uri', 'parsedUri', 'methods', 'action', 'controller', 'classMethod', 'parameters', 'parameterValues', 'parameterNames', 'options', 'middleware', 'allowedOptions'];
+        return ['uri', 'parsedUri', 'methods', 'action', 'controller', 'classMethod', 'parameters', 'parameterValues', 'parameterNames', 'options', 'middlewares', 'allowedOptions'];
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -20,59 +21,24 @@
  * file that was distributed with this source code.
  */
 
+namespace Core\Tests\Stubs\Controllers;
 
-namespace Core\Contracts\Router;
+use Core\Controllers\BaseController;
 
-
-use Core\Request\Request;
-
-interface Route
+class StubController extends BaseController
 {
-    public function getUri();
+    public function index()
+    {
+        return 'stubController::index';
+    }
 
-    public function getParsedUri();
+    public function returnable($payload)
+    {
+        return $payload['id'];
+    }
 
-    public function getMethods();
-
-    public function getAction();
-
-    public function getParameters();
-
-    public function getParameterNames();
-
-    public function getController();
-
-    public function getClassMethod();
-
-    public function getOptions();
-
-    public function hasMiddleware();
-
-    public function getMiddlewares();
-
-    public function isInteger($param);
-
-    public function isAlpha($param);
-
-    public function isOptional($param);
-
-    public function issetDefault($param);
-
-    public function getDefault($param);
-
-    public function setPrefix($prefix, $uri = null);
-
-    public function parseUri($uri = null);
-
-    public function getParameterValues();
-
-    public function isMatch(Request $request);
-    
-    public function isCacheable();
-    
-    public function getData();
-
-    public function mustBeCsrfProtected();
-
-    public function isCsrfProtected();
+    public function returnRouteData()
+    {
+        return $this->getRouteData();
+    }
 }

@@ -83,7 +83,7 @@ class RouterCommand extends Command
                 $row[] = $route->getUri();
                 $row[] = $method;
                 $row[] = $route->getAction();
-                $row[] = $route->getMiddleware();
+                $row[] = implode(',', $route->getMiddlewares());
                 if ($flag) {
                     $this->addOptionsToTable($route, $row);
                 }
@@ -98,14 +98,15 @@ class RouterCommand extends Command
     {
         $options = $route->getOptions();
         unset($options['middleware']);
+        unset($options['middlewares']);
 
         if (empty($options)) {
             $row[] = " ";
         } else {
             foreach($options as $key => $val) {
-                if (is_array($val) && $key !== 'middleware') {
+                if (is_array($val) && $key !== 'middleware' && $key !== 'middlewares') {
                     $row[] = "{$key}:" . json_encode($options[$key], JSON_PRETTY_PRINT);
-                } elseif ($key !== 'middleware') {
+                } elseif ($key !== 'middleware' && $key !== 'middlewares') {
                     $row[] = $options[$key];
                 }
             }

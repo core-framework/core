@@ -78,6 +78,13 @@ class BaseController
     protected $appPath;
 
     /**
+     * Defined Route Data
+     *
+     * @var array
+     */
+    protected $routeData;
+
+    /**
      * Sanitized $_POST parameter
      *
      * @var array
@@ -129,6 +136,24 @@ class BaseController
     {
         $this->basePath = $basePath;
         $this->appPath = $basePath . DIRECTORY_SEPARATOR . 'app';
+    }
+
+    /**
+     * @param null $key
+     * @param bool $default
+     * @return array|bool|mixed
+     */
+    public function getRouteData($key = null, $default = false)
+    {
+        if (!$this->routeData) {
+            $this->routeData = new DataCollection($this->router->getCurrentRoute()->getData());
+        }
+
+        if (is_null($key)) {
+            return $this->routeData;
+        }
+
+        return $this->routeData->get($key, $default);
     }
 
     /**
