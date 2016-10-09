@@ -330,7 +330,7 @@ class Route implements Cacheable, RouteInterface
                     }
                     if ($option === 'alpha' || $option === 'a') {
                         $this->parameters[$param]['isAlpha'] = true;
-                        $pattern = '([\D]+)';
+                        $pattern = '([a-zA-Z_\-]+)';
                     }
                     if ($option === '?' || strpos($option, 'default') !== false) {
                         $this->parameters[$param]['isOptional'] = true;
