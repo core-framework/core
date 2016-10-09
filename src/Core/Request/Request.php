@@ -328,6 +328,8 @@ class Request implements RequestInterface
             $requestUri = $this->server->get('ORIG_PATH_INFO');
         }
 
+        $requestUri = filter_var($requestUri, FILTER_SANITIZE_URL);
+
         // normalize the request URI to ease creating sub-requests from this request
         $this->server->set('REQUEST_URI', $requestUri);
 
