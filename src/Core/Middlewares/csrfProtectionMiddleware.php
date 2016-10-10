@@ -25,11 +25,12 @@ namespace Core\Middlewares;
 
 use Core\Contracts\Middleware;
 use Core\Contracts\Request\Request;
-use Core\Contracts\Response\Response;
+use Core\Contracts\Response\Response as ResponseInterface;
 use Core\Contracts\Router\Router;
 use Core\Exceptions\HttpException;
 use Core\Facades\Cache;
 use Core\Facades\View;
+use Core\Response\Response;
 
 class csrfProtectionMiddleware implements Middleware
 {
@@ -46,7 +47,12 @@ class csrfProtectionMiddleware implements Middleware
     {
         $this->validateToken($router);
         $response = $next();
-        if ($response instanceof Response) {
+
+        if (is_string($response)) {
+            $response = new Response($response);
+        }
+
+        if ($response instanceof ResponseInterface && $response->getStatusCode() === 200) {
             $response->addHeader('X-CSRF-Token', $this->getCSRFToken());
         }
 
@@ -63,7 +69,7 @@ class csrfProtectionMiddleware implements Middleware
         if ($httpMethod !== 'GET' && $router->getCurrentRoute()->mustBeCsrfProtected()) {
             $csrfToken = $this->getCsrfFromRequest($request);
             if (!$this->verifyToken($csrfToken)) {
-                throw new HttpException("Given X-CSRF-TOKEN does not match!", 422);
+                throw new HttpException("Given X-CSRF-TOKEN does not match!", Response::HTTP_UNPROCESSABLE_ENTITY);
             }
         } else {
             $this->generateToken();

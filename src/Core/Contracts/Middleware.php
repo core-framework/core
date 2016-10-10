@@ -26,5 +26,10 @@ use Core\Contracts\Router\Router;
 
 interface Middleware
 {
+    /**
+     * @param Router $router
+     * @param \Closure $next
+     * @return mixed
+     */
     public function run(Router $router, \Closure $next);
 }

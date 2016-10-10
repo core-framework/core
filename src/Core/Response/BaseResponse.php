@@ -207,7 +207,7 @@ abstract class BaseResponse implements Response, Cacheable
      * @param int $statusCode
      * @param array $headers
      */
-    public function __construct($content = null, $statusCode = 200, array $headers = [])
+    public function __construct($content = null, $statusCode = self::HTTP_OK, array $headers = [])
     {
         if (!is_null($statusCode) && !is_int($statusCode)) {
             throw new \InvalidArgumentException("Status Code must be a valid Integer, " . gettype($statusCode) . " given.");
@@ -266,7 +266,7 @@ abstract class BaseResponse implements Response, Cacheable
      *
      * @param int $code
      */
-    public function setStatusCode($code = 200)
+    public function setStatusCode($code = self::HTTP_OK)
     {
         if (!is_int($code)) {
             throw new \InvalidArgumentException("Status Code must be a valid Integer, ".gettype($code)." given.");
@@ -391,6 +391,22 @@ abstract class BaseResponse implements Response, Cacheable
 
     }
 
+    /**
+     * Use for lazy redirection with other additional header parameters
+     *
+     * @param $location
+     * @param int $statusCode
+     * @return $this
+     */
+    abstract public function setRedirect($location, $statusCode = self::HTTP_FOUND);
+
+    /**
+     * Use for immediate redirection
+     *
+     * @param $url
+     * @param int $statusCode
+     */
+    abstract public static function redirect($url, $statusCode = self::HTTP_FOUND);
 
     /**
      * Send Response

@@ -113,6 +113,23 @@ interface Response
     public function setCookie($name, $value = null, $domain = null, $expiresInMinutes = 0, $path = '/', $secure = false, $httpOnly = true);
 
     /**
+     * Use for lazy redirection with other additional header parameters
+     *
+     * @param $location
+     * @param int $statusCode
+     * @return $this
+     */
+    public function setRedirect($location, $statusCode = 302);
+
+    /**
+     * Use for immediate redirection
+     *
+     * @param $url
+     * @param int $statusCode
+     */
+    public static function redirect($url, $statusCode = 302);
+
+    /**
      * Method to send computed response to Client (browser)
      *
      * @return mixed

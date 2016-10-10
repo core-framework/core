@@ -33,7 +33,7 @@ class Response extends BaseResponse implements ResponseInterface, Cacheable
 
     public $do_gzip_compression = false;
 
-    public function __construct($content = null, $statusCode = 200, array $headers = [])
+    public function __construct($content = null, $statusCode = self::HTTP_OK, array $headers = [])
     {
         parent::__construct($content, $statusCode, $headers);
         $this->setDefaults();
@@ -352,7 +352,7 @@ class Response extends BaseResponse implements ResponseInterface, Cacheable
      * @param int $statusCode
      * @return $this
      */
-    public function setRedirect($location, $statusCode = 302)
+    public function setRedirect($location, $statusCode = self::HTTP_FOUND)
     {
         if (!is_int($statusCode)) {
             throw new \InvalidArgumentException("Status Code must be of type Integer.");
@@ -369,7 +369,7 @@ class Response extends BaseResponse implements ResponseInterface, Cacheable
      * @param $url
      * @param int $statusCode
      */
-    public function redirect($url, $statusCode = 302)
+    public static function redirect($url, $statusCode = self::HTTP_FOUND)
     {
         if (!is_int($statusCode)) {
             throw new \InvalidArgumentException("Status Code must be of type Integer.");
@@ -494,7 +494,7 @@ class Response extends BaseResponse implements ResponseInterface, Cacheable
      * @param int $statusCode
      * @return Response
      */
-    public static function create($content, $statusCode = 200)
+    public static function create($content, $statusCode = self::HTTP_OK)
     {
         return new self($content, $statusCode);
     }
