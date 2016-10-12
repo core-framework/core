@@ -295,7 +295,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         $this->registerApp();
         $this->setEnvironment();
         /**/
-        $this->loadBaseComponents();
+        $this->registerCoreComponents();
         $this->bootstrap();
     }
 
@@ -309,16 +309,16 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     /**
      * @return array
      */
-    protected function loadBaseComponents()
+    protected function registerCoreComponents()
     {
-        return $this->loadComponents($this->coreComponents);
+        return $this->registerComponents($this->coreComponents);
     }
 
     /**
      * @param $components
      * @return array
      */
-    public function loadComponents($components)
+    public function registerComponents($components)
     {
         $responses = [];
         foreach($components as $name => $component) {
@@ -475,7 +475,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     public function loadServices(Config $config)
     {
         $services = array_merge($this->components, $config->get('services', []));
-        $this->loadComponents($services);
+        $this->registerComponents($services);
     }
 
     /**

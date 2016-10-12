@@ -121,7 +121,7 @@ class ApplicationTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @covers \Core\Application\BaseApplication::loadBaseComponents
+     * @covers \Core\Application\BaseApplication::registerCoreComponents
      */
     public function testIfBaseComponentsAreLoaded()
     {
