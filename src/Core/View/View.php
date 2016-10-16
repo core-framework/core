@@ -258,6 +258,16 @@ class View implements ViewInterface
     }
 
     /**
+     * Same as fetch returns HTML rendered by Template Engine
+     * (duplicate for verbosity)
+     * @return string
+     */
+    public function toHtml()
+    {
+        return $this->getEngine()->fetch($this->template);
+    }
+
+    /**
      * @param mixed $engine
      */
     public function setEngine($engine)
