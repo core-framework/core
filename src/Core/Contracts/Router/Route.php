@@ -42,7 +42,7 @@ interface Route
 
     public function getController();
 
-    public function getClassMethod();
+    public function getControllerMethod();
 
     public function getOptions();
 
@@ -64,7 +64,7 @@ interface Route
 
     public function parseUri($uri = null);
 
-    public function getParameterValues();
+    public function getRouteParameters();
 
     public function isMatch(Request $request);
     

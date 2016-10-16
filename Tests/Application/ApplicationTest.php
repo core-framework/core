@@ -47,7 +47,9 @@ class ApplicationTest extends \PHPUnit_Framework_TestCase
 
     public function setRoute()
     {
-        Router::get('/', 'testController@helloWorld');
+        Router::get('/', function () {
+            return new Response("<html><h1>Hello World</h1></html>");
+        });
     }
 
     public function getRequestMock($path = "/")

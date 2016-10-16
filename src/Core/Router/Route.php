@@ -44,11 +44,11 @@ class Route implements Cacheable, RouteInterface
 
     protected $controller;
 
-    protected $classMethod;
+    protected $controllerMethod;
 
     protected $parameters = [];
 
-    protected $parameterValues = [];
+    protected $routeParameters = [];
 
     protected $parameterNames = [];
 
@@ -224,17 +224,17 @@ class Route implements Cacheable, RouteInterface
     /**
      * @return mixed
      */
-    public function getClassMethod()
+    public function getControllerMethod()
     {
-        return $this->classMethod;
+        return $this->controllerMethod;
     }
 
     /**
-     * @param mixed $classMethod
+     * @param mixed $controllerMethod
      */
-    public function setClassMethod($classMethod)
+    public function setControllerMethod($controllerMethod)
     {
-        $this->classMethod = $classMethod;
+        $this->controllerMethod = $controllerMethod;
     }
 
     /**
@@ -361,11 +361,11 @@ class Route implements Cacheable, RouteInterface
             $this->setController($action);
         } elseif (isset($action['controller']) && isset($action['method'])) {
             $this->setController($action['controller']);
-            $this->setClassMethod($action['method']);
+            $this->setControllerMethod($action['method']);
         } elseif (strpos($action, '@') !== false) {
             $parts = explode('@', $action);
             $this->setController($parts[0]);
-            $this->setClassMethod($parts[1]);
+            $this->setControllerMethod($parts[1]);
         }
 
         $this->setAction($action);
@@ -398,9 +398,9 @@ class Route implements Cacheable, RouteInterface
     /**
      * @return array
      */
-    public function getParameterValues()
+    public function getRouteParameters()
     {
-        return $this->parameterValues;
+        return $this->routeParameters;
     }
 
     /**
@@ -411,7 +411,7 @@ class Route implements Cacheable, RouteInterface
     public function setParameterValue($key, $value)
     {
         $this->parameters[$key]['value'] = $value;
-        $this->parameterValues[$key] = $value;
+        $this->routeParameters[$key] = $value;
         return $this;
     }
 
@@ -467,6 +467,6 @@ class Route implements Cacheable, RouteInterface
     
     public function __sleep()
     {
-        return ['uri', 'parsedUri', 'methods', 'action', 'controller', 'classMethod', 'parameters', 'parameterValues', 'parameterNames', 'options', 'middlewares', 'allowedOptions'];
+        return ['uri', 'parsedUri', 'methods', 'action', 'controller', 'controllerMethod', 'parameters', 'routeParameters', 'parameterNames', 'options', 'middlewares', 'allowedOptions'];
     }
 }

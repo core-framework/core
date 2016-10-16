@@ -25,14 +25,14 @@ namespace Core\Router;
 use Core\Contracts\Application;
 use Core\Contracts\Cacheable;
 use Core\Contracts\Middleware;
+use Core\Contracts\Request\Request as RequestInterface;
+use Core\Contracts\Response\Response as ResponseInterface;
+use Core\Contracts\Router\Route as RouteInterface;
+use Core\Contracts\Router\Router as RouterInterface;
 use Core\Exceptions\ControllerMethodNotFoundException;
 use Core\Exceptions\ControllerNotFoundException;
 use Core\Exceptions\PageNotFoundException;
 use Core\Reactor\DataCollection;
-use Core\Contracts\Router\Router as RouterInterface;
-use Core\Contracts\Request\Request as RequestInterface;
-use Core\Contracts\Router\Route as RouteInterface;
-use Core\Contracts\Response\Response as ResponseInterface;
 use Core\Response\Response;
 
 class Router implements RouterInterface, Cacheable
@@ -494,13 +494,13 @@ class Router implements RouterInterface, Cacheable
      *
      * @return array
      */
-    protected function getControllerArgs()
+    protected function getControllerConstructorArgs()
     {
         return [$this->application];
     }
 
     /**
-     * Get next executions as Callable
+     * Wraps the controller or function into a callable closure
      *
      * @param RouteInterface $route
      * @return \Closure
@@ -509,24 +509,27 @@ class Router implements RouterInterface, Cacheable
     protected function getNextCallable(RouteInterface $route)
     {
         $controller = $route->getController();
-        $classMethod = $route->getClassMethod();
+        $controllerMethod = $route->getControllerMethod();
         $namespace = $this->getControllerNamespace();
-        $payload = $route->getParameterValues();
-        $args = $this->getControllerArgs();
+        $payload = $route->getRouteParameters();
+        $args = $this->getControllerConstructorArgs();
         
         if (is_callable($controller)) {
-            $next = function () use ($controller, $payload) {
-                return $controller($payload);
+            $args = $this->getFunctionArgs($controller);
+            $next = function () use ($controller, $args) {
+                return call_user_func_array($controller, $args);
             };
         } else {
-            if (strContains('\\', $controller) && class_exists($controller, true)) {
+            if (strContains('\\', $controller)) {
                 $class = $controller;
             } else {
                 $class = $namespace . '\\' . $controller;
             }
             if (class_exists($class, true)) {
-                $next = function () use ($class, $args, $classMethod, $payload) {
-                    return $this->runController($this->makeController($class, $args), $classMethod, $payload);
+                $obj = $this->makeController($class, $args);
+                $args = $this->getFunctionArgs($controller, $controllerMethod);
+                $next = function () use ($obj, $args, $controllerMethod, $payload) {
+                    return $this->runController($obj, $controllerMethod, $args);
                 };
             } else {
                 throw new ControllerNotFoundException;
@@ -534,6 +537,37 @@ class Router implements RouterInterface, Cacheable
         }
 
         return $next;
+    }
+
+    /**
+     * @param $controller
+     * @param null $method
+     * @return array
+     */
+    protected function getFunctionArgs($controller, $method = null)
+    {
+        $args = [];
+        if ($controller instanceof \Closure) {
+            $reflection = new \ReflectionFunction($controller);
+        } elseif (is_array($controller)) {
+            $reflection = new \ReflectionMethod($controller[0], $controller[1]);
+        } else {
+            $reflection = new \ReflectionMethod($controller, $method);
+        }
+
+        foreach ($reflection->getParameters() as $parameter) {
+            if ($parameter->getName() === 'payload') {
+                $args[] = $this->getCurrentRoute()->getRouteParameters();
+            } elseif ($parameter->getClass() === null && !$parameter->isOptional()) {
+                throw new \RuntimeException(
+                    "Unable to find controller method argument - {$parameter->getName()}"
+                );
+            } else {
+                $args[] = $this->application->get($parameter->getClass()->getShortName());
+            }
+        }
+
+        return $args;
     }
 
     /**
@@ -552,17 +586,18 @@ class Router implements RouterInterface, Cacheable
     /**
      * Executes the (given) controller method
      *
-     * @param $obj
-     * @param $classMethod
-     * @param array $payload
+     * @param $controllerObj
+     * @param $controllerMethod
+     * @param array $args
      * @return mixed
      */
-    protected function runController($obj, $classMethod, $payload = [])
+    protected function runController($controllerObj, $controllerMethod, $args)
     {
-        if (!method_exists($obj, $classMethod)) {
+        if (!method_exists($controllerObj, $controllerMethod)) {
             throw new ControllerMethodNotFoundException;
         }
-        return $obj->{$classMethod}($payload);
+        //return $obj->{$controllerMethod}($payload);
+        return call_user_func_array([$controllerObj, $controllerMethod], $args);
     }
 
     /**

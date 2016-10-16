@@ -24,6 +24,9 @@
 namespace Core\Tests\Stubs\Controllers;
 
 use Core\Controllers\BaseController;
+use Core\FileSystem\FileSystem;
+use Core\Request\Request;
+use Core\Response\Response;
 
 class StubController extends BaseController
 {
@@ -40,5 +43,20 @@ class StubController extends BaseController
     public function returnRouteData()
     {
         return $this->getRouteData();
+    }
+
+    public function testId($payload)
+    {
+        return $payload;
+    }
+
+    public function testName($payload)
+    {
+        return new Response($payload);
+    }
+
+    public function testTypeHint($payload, FileSystem $fileSystem, Request $request)
+    {
+        return func_get_args();
     }
 }

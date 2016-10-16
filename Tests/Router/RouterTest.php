@@ -200,34 +200,48 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         $this->assertInstanceOf('\Core\Router\Route', $route);
         $this->assertSame($action, $route->getAction());
         $this->assertSame($params, $route->getParameterNames());
-        $this->assertSame($values, $route->getParameterValues());
+        $this->assertSame($values, $route->getRouteParameters());
     }
 
     /**
-     * @param $path
-     * @param $params
-     * @param $values
-     * @param $action
-     * @dataProvider pathProvider
+     * @covers \Core\Router\Router::handle
      */
-    public function testRouterHandling($path, $params, $values, $action)
+    public function testRouterHandling()
     {
-        $valuesString = serialize($values);
-        $method = $this->getMethod($action);
-        $class = $this->getClass($action);
-        
-        $controller = $this->getControllerStub($class, $method, $values);
-        $router = $this->getRouterMock($controller);
-        $this->application->updateInstance('Router', $router);
-        $request = $this->getRequestMock($path);
+        $router = $this->getRouter();
+        $router->get('/test/{id:num}/page/{pageId:num}', '\Core\Tests\Stubs\Controllers\StubController@testId');
 
-        $this->setRoutes();
+        $response = $router->handle(Request::create('/test/12/page/10'));
+        $this->assertInternalType('array', $response);
+        $this->assertArrayHasKey('id', $response);
+        $this->assertArrayHasKey('pageId', $response);
+        $this->assertSame(12, $response['id']);
+        $this->assertSame(10, $response['pageId']);
 
+        $router = $this->getRouter();
+        $router->get('/testName/{id:num}/page/{pageId:num}', '\Core\Tests\Stubs\Controllers\StubController@testName');
         /** @var Response $response */
-        $response = $router->handle($request);
-        
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertSame($this->getResponseContent($valuesString), $response->getContent());
+        $response = $router->handle(Request::create('/testName/12/page/10'));
+        $this->assertInstanceOf('\Core\Response\Response', $response);
+        $this->assertSame("{\"id\":12,\"pageId\":10}", $response->getContent());
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::getNextCallable
+     * @covers \Core\Router\Router::getFunctionArgs
+     * @covers \Core\Router\Router::makeController
+     */
+    public function testControllerSupportsTypeHinting()
+    {
+        $application = new Application(MockPaths::$basePath);
+        $router = $this->application->make(\Core\Router\Router::class, $application, 'Router');
+        $router->get('/test/{id:num}/page/{pageId:num}', '\Core\Tests\Stubs\Controllers\StubController@testTypeHint');
+        $response = $router->handle(Request::create('/test/12/page/10'));
+        $this->assertInternalType('array', $response);
+        $this->assertInternalType('array', $response[0]);
+        $this->assertInstanceOf('\\Core\\FileSystem\\FileSystem', $response[1]);
+        $this->assertInstanceOf('\\Core\\Request\\Request', $response[2]);
     }
 
     /**

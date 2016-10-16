@@ -32,6 +32,13 @@ use Core\Contracts\Router\Router;
 
 interface Application extends Runnable
 {
+
+    /**
+     * @param $name
+     * @return mixed
+     */
+    public static function get($name);
+
     /**
      * Get Application Version
      *
