@@ -194,6 +194,9 @@ class View implements ViewInterface
      */
     public function setTemplate($template)
     {
+        if (!strContains('.tpl', $template)) {
+            $template .= '.tpl';
+        }
         $this->template = $template;
     }
 

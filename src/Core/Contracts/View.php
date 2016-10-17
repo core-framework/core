@@ -127,4 +127,11 @@ interface View {
      * @return void
      */
     public static function setResourcesDir($resourcesDir);
+
+    /**
+     * @param string $template
+     * @param array $parameters
+     * @return View
+     */
+    public static function make($template, array $parameters = []);
 }

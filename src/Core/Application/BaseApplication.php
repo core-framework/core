@@ -34,12 +34,13 @@ use Core\Contracts\Events\Dispatcher;
 use Core\Contracts\Events\Subscriber;
 use Core\Contracts\FileSystem\FileSystem;
 use Core\Contracts\Request\Request as RequestInterface;
-use Core\Contracts\Response\Response;
+use Core\Contracts\Response\Response as ResponseInterface;
 use Core\Contracts\Router\Route;
 use Core\Contracts\Router\Router;
 use Core\Contracts\View;
 use Core\FileSystem\Explorer;
 use Core\Request\Request;
+use Core\Response\Response;
 
 class BaseApplication extends Container implements ApplicationInterface, Subscriber
 {
@@ -183,7 +184,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     protected $router;
 
     /**
-     * @var Response $response
+     * @var ResponseInterface $response
      */
     protected $response;
 
@@ -769,7 +770,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     }
 
     /**
-     * @return Response|object
+     * @return ResponseInterface|object
      * @throws \ErrorException
      */
     public function getResponse()
@@ -781,9 +782,9 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     }
 
     /**
-     * @param Response $response
+     * @param ResponseInterface $response
      */
-    public function setResponse(Response $response)
+    public function setResponse(ResponseInterface $response)
     {
         $this->response = $response;
     }
@@ -815,6 +816,11 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     {
         $this->dispatch('core.app.run.pre', $this);
         $this->response = $response = $this->handle($this->getRequest());
+
+        if ($response instanceof View) {
+            $this->response = $response = new Response($response->fetch());
+        }
+
         $response->send();
         $this->terminate();
     }
@@ -827,7 +833,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     {
         $response = $this->dispatch('core.app.handle.pre', $this);
 
-        if ($response instanceof Response) {
+        if ($response instanceof ResponseInterface) {
             return $response;
         }
 
@@ -898,11 +904,11 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         return false;
     }
 
-    protected function prepareResponse(Response $response)
-    {
-
-    }
-
+    /**
+     * Caches the current Route
+     *
+     * @param Router $router
+     */
     public function cacheRoute(Router $router)
     {
         $route = $router->getCurrentRoute();

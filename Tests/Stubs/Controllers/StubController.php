@@ -24,6 +24,7 @@
 namespace Core\Tests\Stubs\Controllers;
 
 use Core\Controllers\BaseController;
+use Core\Facades\View;
 use Core\FileSystem\FileSystem;
 use Core\Request\Request;
 use Core\Response\Response;
@@ -58,5 +59,10 @@ class StubController extends BaseController
     public function testTypeHint($payload, FileSystem $fileSystem, Request $request)
     {
         return func_get_args();
+    }
+
+    public function testReturnView($payload)
+    {
+        return View::make('httpTests/simple', ['name' => $payload['name']]);
     }
 }

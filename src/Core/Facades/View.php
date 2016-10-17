@@ -25,6 +25,7 @@ namespace Core\Facades;
 
 use Core\Reactor\Facade;
 use Core\View\SmartyEngine;
+use Core\Contracts\View as ViewInterface;
 
 /**
  * Class View
@@ -39,7 +40,8 @@ use Core\View\SmartyEngine;
  * @method static string getTemplateDir()
  * @method static string setTemplateDir($templateDir)
  * @method static string getResourcesDir()
- * @method static void setResourcesDir($resourcesDir) 
+ * @method static void setResourcesDir($resourcesDir)
+ * @method static ViewInterface make($template, array $parameters = [])
  */
 class View extends Facade
 {

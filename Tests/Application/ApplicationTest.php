@@ -25,6 +25,7 @@ namespace Core\Tests\Application;
 use Core\Application\Application;
 use Core\Container\Container;
 use Core\Facades\Router;
+use Core\Request\Request;
 use Core\Response\Response;
 use Core\Tests\Mocks\MockPaths;
 
@@ -184,4 +185,20 @@ class ApplicationTest extends \PHPUnit_Framework_TestCase
         $this->expectOutputString("<html><h1>Hello World</h1></html>");
     }
 
+    /**
+     * @covers \Core\Application\BaseApplication::run
+     * @covers \Core\Application\BaseApplication::setRequest
+     * @covers \Core\Request\Request::create
+     * @covers \Core\Facade\Router::get
+     */
+    public function testIfControllersCanReturnView()
+    {
+        MockPaths::createMockPaths();
+        $app = new Application(MockPaths::$basePath);
+        Router::get('/user/{name}', '\Core\Tests\Stubs\Controllers\StubController@testReturnView');
+        $app->setRequest(Request::create('http://example.com/user/sam'));
+        $app->run();
+        $this->assertTrue(headers_sent());
+        $this->expectOutputString("Hello sam");
+    }
 }

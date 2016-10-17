@@ -604,5 +604,6 @@ class ResponseTest extends \PHPUnit_Framework_TestCase
         $this->assertContains('Connection: close', $headersList);
         $this->assertContains('Content-Type: application/json', $headersList);
         $this->assertJson(json_encode($arr), $response->getContent());
+        $this->expectOutputString("{\"test1\":\"val1\",\"test2\":\"val2\"}");
     }
 }

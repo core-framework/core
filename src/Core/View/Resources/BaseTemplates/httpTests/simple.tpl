@@ -1,5 +1,1 @@
-<{block name="testBlock"}>
-
-    Hello <{$name}>
-
-<{/block}>
+Hello {$name}
