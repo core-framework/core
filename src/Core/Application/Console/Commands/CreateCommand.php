@@ -44,7 +44,8 @@ class CreateCommand extends Command
                 'listener' => 'Creates a new Core Framework EventListener class file',
                 'middleware' => 'Creates a new Core Framework Middleware class file',
                 'model' => 'Creates a new Core Framework Model class file',
-                'migration' => 'Creates a new Core Framework Database Migration file'
+                'migration' => 'Creates a new Core Framework Database Migration file',
+                'bootstrapper' => 'Create a new Core Framework Bootstrap file',
             ]
         ));
         $this->addArgument('name', 'Name for the fileType specified', null, true);

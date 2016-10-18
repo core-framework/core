@@ -26,7 +26,7 @@ namespace Core\Application;
 use Core\Application\Bootstrappers\BootConfiguration;
 use Core\Container\Container;
 use Core\Contracts\Application as ApplicationInterface;
-use Core\Contracts\Bootsrapper;
+use Core\Contracts\Bootstrapper;
 use Core\Contracts\Cache;
 use Core\Contracts\Config;
 use Core\Contracts\Database\Mapper;
@@ -360,9 +360,10 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
      */
     protected function bootstrap()
     {
-        foreach ($this->bootstrappers as $bootstrapper)
+        $bootstrappers = array_merge($this->bootstrappers, $this->getConfig()->get('bootstrappers', []));
+        foreach ($bootstrappers as $bootstrapper)
         {
-            /** @var Bootsrapper $bootable */
+            /** @var Bootstrapper $bootable */
             $bootable = new $bootstrapper();
             $bootable->bootstrap($this);
         }
@@ -399,6 +400,10 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     }
 
 
+    /**
+     * @param Config $config
+     * @return $this
+     */
     public function setAppPathFromConf(Config $config)
     {
         $path = $config->get('app.appPath', '/app');

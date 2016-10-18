@@ -24,9 +24,9 @@
 namespace Core\Application\Bootstrappers;
 
 use Core\Contracts\Application;
-use Core\Contracts\Bootsrapper;
+use Core\Contracts\Bootstrapper;
 
-class BootSubscribers implements Bootsrapper
+class BootSubscribers implements Bootstrapper
 {
     /**
      * @inheritDoc

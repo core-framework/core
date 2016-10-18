@@ -24,7 +24,7 @@
 namespace Core\Contracts;
 
 
-interface Bootsrapper
+interface Bootstrapper
 {
     /**
      * @param Application $application

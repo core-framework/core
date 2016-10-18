@@ -21,36 +21,19 @@
  */
 
 
-namespace Core\Application\Bootstrappers;
+namespace {{$namespace}};
 
 use Core\Contracts\Application;
 use Core\Contracts\Bootstrapper;
-use Core\FileSystem\Explorer;
 
-class BootConfiguration implements Bootstrapper
+class {{$fileName}} implements Bootstrapper
 {
-    /**
-     * @var Application
-     */
-    public $application;
-
     /**
      * @inheritDoc
      */
     public function bootstrap(Application $application)
     {
-        $this->application = $application;
-        if (!$application instanceof Application) {
-            throw new \InvalidArgumentException("LoadConfiguration::run expects argument to be of type Application. {${gettype($application)}} given.");
-        }
-
-        $items = $application->getCachedConfigItems();
-
-        if (empty($items)) {
-            $items = $application->loadConfigFromFiles();
-        }
-
-        $application->build(\Core\Config\Config::class, [$items], 'Config');
+        // TODO implement bootstrap()
     }
 
 }
