@@ -40,6 +40,26 @@ interface Application extends Runnable
     public static function get($name);
 
     /**
+     * Method to register services
+     *
+     * @param string $name
+     * @param Callable|\Closure|string $definition
+     * @param bool $shared
+     * @return mixed
+     * @throws \ErrorException
+     */
+    public static function register($name, $definition, $shared = true);
+
+    /**
+     * Finds the instance of the given (namespaced) Class
+     *
+     * @param string|object $namespacedClass
+     * @param bool|mixed $fail
+     * @return bool|mixed
+     */
+    public static function findInstance($namespacedClass, $fail = false);
+
+    /**
      * Get Application Version
      *
      * @return string
@@ -138,17 +158,6 @@ interface Application extends Runnable
     public function showMaintenance();
 
     /**
-     * Method to register services
-     *
-     * @param string $name
-     * @param Callable|\Closure|string $definition
-     * @param bool $shared
-     * @return mixed
-     * @throws \ErrorException
-     */
-    public static function register($name, $definition, $shared = true);
-    
-    /**
      * Boot Application Services
      *
      * @return void
@@ -212,14 +221,14 @@ interface Application extends Runnable
      * @throws \ErrorException
      */
     public function getView();
-    
+
     /**
      * Generates and sets Cache Keys for current Route
      *
      * @param Request $request
      */
     public function setCacheKeys(Request $request);
-    
+
     /**
      * @param $name
      * @return mixed

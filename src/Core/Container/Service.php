@@ -43,7 +43,7 @@ class Service implements ServiceInterface
      */
     protected $arguments;
     /**
-     * @var string Method to for class instantiation, if it is different from default constructor method
+     * @var string Method for class instantiation, if it is different from default constructor method
      */
     protected $method;
     /**

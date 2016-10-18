@@ -63,27 +63,103 @@ class Container implements \ArrayAccess
     /**
      * @param $name
      * @param $definition
-     * @param bool $shared
-     * @return Service
+     * @param null $arguments
+     * @return object
      * @throws \ErrorException
      */
-    public static function register($name, $definition, $shared = true)
+    public static function make($definition, $arguments = null, $name = null)
     {
-        if (!is_string($name)) {
-            throw new \ErrorException("Service name must be a valid string.");
+        if (!is_string($definition)) {
+            throw new \InvalidArgumentException('Definition must be a string representation of the class');
         }
 
-        if (!is_bool($shared)) {
-            throw new \ErrorException("Incorrect parameter type.");
+        if (!class_exists($definition)) {
+            throw new \InvalidArgumentException("Given class:{$definition} does not exist or not found");
         }
 
-        self::$services[$name] = new Service($name, $definition, $shared);
-
-        if (isset(self::$sharedInstances[$name])) {
-            unset(self::$sharedInstances[$name]);
+        if (!is_null($name) && static::$sharedInstances[$name]) {
+            return static::$sharedInstances[$name];
         }
-        
-        return self::$services[$name];
+
+        if (is_string($definition) && self::findInstance($definition)) {
+            return self::findInstance($definition);
+        }
+
+        $r = new \ReflectionClass($definition);
+
+        if (is_null($name)) {
+            $name = ucfirst($r->getShortName());
+        }
+
+        if (is_null($arguments)) {
+            return self::$sharedInstances[$name] = $r->newInstance();
+        } else {
+            if (!is_array($arguments)) {
+                $arguments = [$arguments];
+            }
+            $arguments = self::checkIfIsDependent($arguments);
+            return self::$sharedInstances[$name] = $r->newInstanceArgs($arguments);
+        }
+    }
+
+    /**
+     * @param string|object $namespacedClass
+     * @param bool|mixed $fail
+     * @return bool|mixed
+     */
+    public static function findInstance($namespacedClass, $fail = false)
+    {
+        try {
+
+            if (!strContains('\\', $namespacedClass) && static::serviceExists($namespacedClass)) {
+                return self::get($namespacedClass);
+            } elseif (!strContains('\\', $namespacedClass) && !static::serviceExists($namespacedClass)) {
+                return $fail;
+            }
+
+            $reflection = new \ReflectionClass($namespacedClass);
+            $class = $reflection->getShortName();
+            $namespacedClass = $reflection->getName();
+
+            // search by class name
+            if (self::serviceExists($class)) {
+                $object = self::get($class);
+                if ($object instanceof $namespacedClass) {
+                    return $object;
+                }
+            }
+
+            // search shared instances
+            foreach (static::$sharedInstances as $name => $instance) {
+                if ($instance instanceof $namespacedClass) {
+                    return $instance;
+                }
+            }
+
+            // search services
+            foreach (static::$services as $name => $service) {
+                $instance = self::get($name);
+                if ($instance instanceof $namespacedClass) {
+                    return $instance;
+                }
+            }
+
+        } catch (\Exception $e) {
+            return $fail;
+        }
+
+        return $fail;
+    }
+
+    /**
+     * Return true if given service exists, else false
+     *
+     * @param $name
+     * @return bool
+     */
+    public static function serviceExists($name)
+    {
+        return isset(self::$services[$name]) || isset(self::$sharedInstances[$name]);
     }
 
     /**
@@ -104,7 +180,9 @@ class Container implements \ArrayAccess
         }
 
         if (!self::serviceExists($name)) {
-            throw new \ErrorException("Service of type {$name} not found. Service {$name} must be registered before use.");
+            throw new \ErrorException(
+                "Service of type {$name} not found. Service {$name} must be registered before use."
+            );
         }
 
         //self::$services[$name]->getShared() === true
@@ -166,83 +244,6 @@ class Container implements \ArrayAccess
     }
 
     /**
-     * @param $name
-     * @param $definition
-     * @param null $arguments
-     * @return object
-     * @throws \ErrorException
-     */
-    public static function make($definition, $arguments = null, $name = null)
-    {
-        if (!is_string($definition)) {
-            throw new \InvalidArgumentException('Definition must be a string representation of the class');
-        }
-
-        if (!class_exists($definition)) {
-            throw new \InvalidArgumentException("Given class:{$definition} does not exist or not found");
-        }
-
-        if (!is_null($name) && static::$sharedInstances[$name]) {
-            return static::$sharedInstances[$name];
-        }
-
-        if (is_string($definition) && self::findInstance($definition)) {
-            return self::findInstance($definition);
-        }
-
-        $r = new \ReflectionClass($definition);
-
-        if (is_null($name)) {
-            $name = ucfirst($r->getShortName());
-        }
-
-        if (is_null($arguments)) {
-            return self::$sharedInstances[$name] = $r->newInstance();
-        } else {
-            if (!is_array($arguments)) {
-                $arguments = [$arguments];
-            }
-            $arguments = self::checkIfIsDependent($arguments);
-            return self::$sharedInstances[$name] = $r->newInstanceArgs($arguments);
-        }
-    }
-
-    /**
-     * @param $definition
-     * @return bool|mixed
-     */
-    public static function findInstance($definition)
-    {
-        foreach(static::$sharedInstances as $name => $instance) {
-            if ($instance instanceof $definition) {
-                return $instance;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * @param $name
-     * @param $instance
-     */
-    public static function updateInstance($name, $instance)
-    {
-        static::$sharedInstances[$name] = $instance;
-    }
-
-    /**
-     * Return true if given service exists, else false
-     *
-     * @param $name
-     * @return bool
-     */
-    public static function serviceExists($name)
-    {
-        return isset(self::$services[$name]) || isset(self::$sharedInstances[$name]);
-    }
-
-    /**
      * Checks and returns dependencies passed as argument
      *
      * @param $arguments
@@ -274,6 +275,24 @@ class Container implements \ArrayAccess
 
         return $return;
 
+    }
+
+    /**
+     * @param $name
+     * @param $instance
+     */
+    public static function updateInstance($name, $instance)
+    {
+        static::$sharedInstances[$name] = $instance;
+    }
+
+    /**
+     * Reset Container
+     */
+    public static function reset()
+    {
+        static::$services = [];
+        static::$sharedInstances = [];
     }
 
     /**
@@ -347,15 +366,6 @@ class Container implements \ArrayAccess
     }
 
     /**
-     * Reset Container
-     */
-    public static function reset()
-    {
-        static::$services = [];
-        static::$sharedInstances = [];
-    }
-
-    /**
      * Whether a offset exists
      * @link http://php.net/manual/en/arrayaccess.offsetexists.php
      * @param mixed $offset <p>
@@ -401,6 +411,32 @@ class Container implements \ArrayAccess
     public function offsetSet($offset, $value)
     {
         self::register($offset, $value);
+    }
+
+    /**
+     * @param $name
+     * @param $definition
+     * @param bool $shared
+     * @return Service
+     * @throws \ErrorException
+     */
+    public static function register($name, $definition, $shared = true)
+    {
+        if (!is_string($name)) {
+            throw new \ErrorException("Service name must be a valid string.");
+        }
+
+        if (!is_bool($shared)) {
+            throw new \ErrorException("Incorrect parameter type.");
+        }
+
+        self::$services[$name] = new Service($name, $definition, $shared);
+
+        if (isset(self::$sharedInstances[$name])) {
+            unset(self::$sharedInstances[$name]);
+        }
+
+        return self::$services[$name];
     }
 
     /**

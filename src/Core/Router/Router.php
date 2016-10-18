@@ -103,6 +103,25 @@ class Router implements RouterInterface, Cacheable
     }
 
     /**
+     * Get defined Routes
+     *
+     * @param null $method
+     * @return array|mixed
+     */
+    public function getRoutes($method = null)
+    {
+        if (is_null($method)) {
+            return $this->routes;
+        }
+
+        if (isset($this->routes[strtoupper($method)])) {
+            return $this->routes[strtoupper($method)];
+        } else {
+            throw new PageNotFoundException;
+        }
+    }
+
+    /**
      * Load Routes from routes file
      *
      * Important: loadRoutes must be called after Router instantiation to avoid cyclic search for a Router
@@ -125,6 +144,15 @@ class Router implements RouterInterface, Cacheable
     }
 
     /**
+     * Cache Routes
+     */
+    public function cacheRoutes()
+    {
+        $cache = $this->application->getCache();
+        return $cache->put('routes', $this);
+    }
+
+    /**
      * @deprecated
      * Load Configurations
      */
@@ -136,15 +164,6 @@ class Router implements RouterInterface, Cacheable
                 $config->set($key, $value);
             }
         }
-    }
-
-    /**
-     * Cache Routes
-     */
-    public function cacheRoutes()
-    {
-        $cache = $this->application->getCache();
-        return $cache->put('routes', $this);
     }
 
     /**
@@ -165,26 +184,6 @@ class Router implements RouterInterface, Cacheable
     public function isAestheticRouting()
     {
         return $this->application->getConfig()->get('router.useAestheticRouting');
-    }
-
-    /**
-     * Get Controller namespace
-     *
-     * @return mixed
-     */
-    public function getControllerNamespace()
-    {
-        return $this->application->getConfig()->get('router.controller.namespace', '\\app\\Controllers');
-    }
-
-    /**
-     * Get Request
-     *
-     * @return \Core\Contracts\Request\Request
-     */
-    public function getRequest()
-    {
-        return $this->application->getRequest();
     }
 
     /**
@@ -210,42 +209,16 @@ class Router implements RouterInterface, Cacheable
     }
 
     /**
-     * Get current Route
+     * Add GET Route to routes (collection)
      *
-     * @return RouteInterface
+     * @param $uri
+     * @param $action
+     * @param array $options
+     * @return Router
      */
-    public function getCurrentRoute()
+    public function get($uri, $action, $options = [])
     {
-        return $this->currentRoute;
-    }
-
-    /**
-     * Set current Route
-     *
-     * @param Route $currentRoute
-     */
-    public function setCurrentRoute($currentRoute)
-    {
-        $this->currentRoute = $currentRoute;
-    }
-
-    /**
-     * Get defined Routes
-     *
-     * @param null $method
-     * @return array|mixed
-     */
-    public function getRoutes($method = null)
-    {
-        if (is_null($method)) {
-            return $this->routes;
-        }
-
-        if (isset($this->routes[strtoupper($method)])) {
-            return $this->routes[strtoupper($method)];
-        } else {
-            throw new PageNotFoundException;
-        }
+        return $this->addRoute($uri, ['GET'], $action, $options);
     }
 
     /**
@@ -277,19 +250,6 @@ class Router implements RouterInterface, Cacheable
         }
 
         return $this;
-    }
-
-    /**
-     * Add GET Route to routes (collection)
-     * 
-     * @param $uri
-     * @param $action
-     * @param array $options
-     * @return Router
-     */
-    public function get($uri, $action, $options = [])
-    {
-        return $this->addRoute($uri, ['GET'], $action, $options);
     }
 
     /**
@@ -401,7 +361,6 @@ class Router implements RouterInterface, Cacheable
         $this->currentOptions = [];
     }
 
-    // Request Handling
     /**
      * Handle Request
      *
@@ -418,186 +377,6 @@ class Router implements RouterInterface, Cacheable
         }
 
         return $response;
-    }
-
-    /**
-     * Create Response from Exception
-     *
-     * @param \Exception $exception
-     * @return ResponseInterface
-     */
-    public function makeExceptionResponse(\Exception $exception)
-    {
-        if ($this->getRequest()->isAjax()) {
-            return new Response(['status' => 'error', 'statusCode' => $exception->getCode(), 'message' => $exception->getMessage()], $exception->getCode());
-        } else {
-            return new Response($exception->getMessage(), $exception->getCode());
-        }
-    }
-
-    /**
-     * Run Route parsed by Router
-     *
-     * @param RouteInterface $route
-     * @return mixed
-     * @throws \HttpRuntimeException
-     */
-    public function run(RouteInterface $route)
-    {
-        $next = $this->getNextCallable($route);
-        if ($middlewares = $route->getMiddlewares()) {
-            foreach ($middlewares as $middleware) {
-                $next = $this->executeMiddleware($middleware, $next);
-            }
-            return $next;
-        }
-
-        return $next();
-    }
-
-    /**
-     * Executes bound middleware
-     *
-     * @param $middleware
-     * @param \Closure|Response $response
-     * @return mixed
-     */
-    protected function executeMiddleware($middleware, $response)
-    {
-        if (!$response instanceof \Closure) {
-            $next = function() use ($response) {
-                return $response;
-            };
-        } else {
-            $next = $response;
-        }
-
-        if ($middleware instanceof \Closure) {
-            return $middleware($this, $next);
-
-        } elseif (class_exists($middleware, true)) {
-
-            $middlewareObj = new $middleware();
-
-            if (!$middlewareObj instanceof Middleware) {
-                throw new \RuntimeException("Given Middleware does not comply with the MiddlewareContract!", 600);
-            }
-
-            return $middlewareObj->run($this, $next);
-        }
-
-        throw new \RuntimeException("Middleware - {$middleware} not found.", 604);
-    }
-
-    /**
-     * Get arguments to be passed to controller
-     *
-     * @return array
-     */
-    protected function getControllerConstructorArgs()
-    {
-        return [$this->application];
-    }
-
-    /**
-     * Wraps the controller or function into a callable closure
-     *
-     * @param RouteInterface $route
-     * @return \Closure
-     * @throws \HttpRuntimeException
-     */
-    protected function getNextCallable(RouteInterface $route)
-    {
-        $controller = $route->getController();
-        $controllerMethod = $route->getControllerMethod();
-        $namespace = $this->getControllerNamespace();
-        $payload = $route->getRouteParameters();
-        $args = $this->getControllerConstructorArgs();
-        
-        if (is_callable($controller)) {
-            $args = $this->getFunctionArgs($controller);
-            $next = function () use ($controller, $args) {
-                return call_user_func_array($controller, $args);
-            };
-        } else {
-            if (strContains('\\', $controller)) {
-                $class = $controller;
-            } else {
-                $class = $namespace . '\\' . $controller;
-            }
-            if (class_exists($class, true)) {
-                $obj = $this->makeController($class, $args);
-                $args = $this->getFunctionArgs($controller, $controllerMethod);
-                $next = function () use ($obj, $args, $controllerMethod, $payload) {
-                    return $this->runController($obj, $controllerMethod, $args);
-                };
-            } else {
-                throw new ControllerNotFoundException;
-            }
-        }
-
-        return $next;
-    }
-
-    /**
-     * @param $controller
-     * @param null $method
-     * @return array
-     */
-    protected function getFunctionArgs($controller, $method = null)
-    {
-        $args = [];
-        if ($controller instanceof \Closure) {
-            $reflection = new \ReflectionFunction($controller);
-        } elseif (is_array($controller)) {
-            $reflection = new \ReflectionMethod($controller[0], $controller[1]);
-        } else {
-            $reflection = new \ReflectionMethod($controller, $method);
-        }
-
-        foreach ($reflection->getParameters() as $parameter) {
-            if ($parameter->getName() === 'payload') {
-                $args[] = $this->getCurrentRoute()->getRouteParameters();
-            } elseif ($parameter->getClass() === null && !$parameter->isOptional()) {
-                throw new \RuntimeException(
-                    "Unable to find controller method argument - {$parameter->getName()}"
-                );
-            } else {
-                $args[] = $this->application->get($parameter->getClass()->getShortName());
-            }
-        }
-
-        return $args;
-    }
-
-    /**
-     * Spawns the controller class
-     *
-     * @param $class
-     * @param array $args
-     * @return object
-     */
-    protected function makeController($class, array $args)
-    {
-        $reflection = new \ReflectionClass($class);
-        return $reflection->newInstanceArgs($args);
-    }
-
-    /**
-     * Executes the (given) controller method
-     *
-     * @param $controllerObj
-     * @param $controllerMethod
-     * @param array $args
-     * @return mixed
-     */
-    protected function runController($controllerObj, $controllerMethod, $args)
-    {
-        if (!method_exists($controllerObj, $controllerMethod)) {
-            throw new ControllerMethodNotFoundException;
-        }
-        //return $obj->{$controllerMethod}($payload);
-        return call_user_func_array([$controllerObj, $controllerMethod], $args);
     }
 
     /**
@@ -619,7 +398,7 @@ class Router implements RouterInterface, Cacheable
 
     /**
      * Find matching Route from Route(s)
-     * 
+     *
      * @param array $routes
      * @param RequestInterface $request
      * @return mixed|null
@@ -657,6 +436,231 @@ class Router implements RouterInterface, Cacheable
     public function dispatch($event, $payload = [])
     {
         $this->application->dispatch($event, $payload);
+    }
+
+    // Request Handling
+
+    /**
+     * Run Route parsed by Router
+     *
+     * @param RouteInterface $route
+     * @return mixed
+     * @throws \HttpRuntimeException
+     */
+    public function run(RouteInterface $route)
+    {
+        $next = $this->getNextCallable($route);
+        if ($middlewares = $route->getMiddlewares()) {
+            foreach ($middlewares as $middleware) {
+                $next = $this->executeMiddleware($middleware, $next);
+            }
+            return $next;
+        }
+
+        return $next();
+    }
+
+    /**
+     * Wraps the controller or function into a callable closure
+     *
+     * @param RouteInterface $route
+     * @return \Closure
+     * @throws \HttpRuntimeException
+     */
+    protected function getNextCallable(RouteInterface $route)
+    {
+        $controller = $route->getController();
+        $controllerMethod = $route->getControllerMethod();
+        $namespace = $this->getControllerNamespace();
+        $payload = $route->getRouteParameters();
+        $args = $this->getControllerConstructorArgs();
+
+        if (is_callable($controller)) {
+            $args = $this->getFunctionArgs($controller);
+            $next = function () use ($controller, $args) {
+                return call_user_func_array($controller, $args);
+            };
+        } else {
+            if (strContains('\\', $controller)) {
+                $class = $controller;
+            } else {
+                $class = $namespace . '\\' . $controller;
+            }
+            if (class_exists($class, true)) {
+                $obj = $this->makeController($class, $args);
+                $args = $this->getFunctionArgs($controller, $controllerMethod);
+                $next = function () use ($obj, $args, $controllerMethod, $payload) {
+                    return $this->runController($obj, $controllerMethod, $args);
+                };
+            } else {
+                throw new ControllerNotFoundException;
+            }
+        }
+
+        return $next;
+    }
+
+    /**
+     * Get Controller namespace
+     *
+     * @return mixed
+     */
+    public function getControllerNamespace()
+    {
+        return $this->application->getConfig()->get('router.controller.namespace', '\\app\\Controllers');
+    }
+
+    /**
+     * Get arguments to be passed to controller
+     *
+     * @return array
+     */
+    protected function getControllerConstructorArgs()
+    {
+        return [$this->application];
+    }
+
+    /**
+     * @param $controller
+     * @param null $method
+     * @return array
+     */
+    protected function getFunctionArgs($controller, $method = null)
+    {
+        $args = [];
+        if ($controller instanceof \Closure) {
+            $reflection = new \ReflectionFunction($controller);
+        } elseif (is_array($controller)) {
+            $reflection = new \ReflectionMethod($controller[0], $controller[1]);
+        } else {
+            $reflection = new \ReflectionMethod($controller, $method);
+        }
+
+        foreach ($reflection->getParameters() as $parameter) {
+            if ($parameter->getName() === 'payload') {
+                $args[] = $this->getCurrentRoute()->getRouteParameters();
+            } elseif ($parameter->getClass() === null && !$parameter->isOptional()) {
+                throw new \RuntimeException(
+                    "Unable to find controller method argument - {$parameter->getName()}"
+                );
+            } else {
+                $args[] = $this->application->findInstance($parameter->getClass()->getName());
+            }
+        }
+
+        return $args;
+    }
+
+    /**
+     * Get current Route
+     *
+     * @return RouteInterface
+     */
+    public function getCurrentRoute()
+    {
+        return $this->currentRoute;
+    }
+
+    /**
+     * Set current Route
+     *
+     * @param Route $currentRoute
+     */
+    public function setCurrentRoute($currentRoute)
+    {
+        $this->currentRoute = $currentRoute;
+    }
+
+    /**
+     * Spawns the controller class
+     *
+     * @param $class
+     * @param array $args
+     * @return object
+     */
+    protected function makeController($class, array $args)
+    {
+        $reflection = new \ReflectionClass($class);
+        return $reflection->newInstanceArgs($args);
+    }
+
+    /**
+     * Executes the (given) controller method
+     *
+     * @param $controllerObj
+     * @param $controllerMethod
+     * @param array $args
+     * @return mixed
+     */
+    protected function runController($controllerObj, $controllerMethod, $args)
+    {
+        if (!method_exists($controllerObj, $controllerMethod)) {
+            throw new ControllerMethodNotFoundException;
+        }
+        //return $obj->{$controllerMethod}($payload);
+        return call_user_func_array([$controllerObj, $controllerMethod], $args);
+    }
+
+    /**
+     * Executes bound middleware
+     *
+     * @param $middleware
+     * @param \Closure|Response $response
+     * @return mixed
+     */
+    protected function executeMiddleware($middleware, $response)
+    {
+        if (!$response instanceof \Closure) {
+            $next = function () use ($response) {
+                return $response;
+            };
+        } else {
+            $next = $response;
+        }
+
+        if ($middleware instanceof \Closure) {
+            return $middleware($this, $next);
+
+        } elseif (class_exists($middleware, true)) {
+
+            $middlewareObj = new $middleware();
+
+            if (!$middlewareObj instanceof Middleware) {
+                throw new \RuntimeException("Given Middleware does not comply with the MiddlewareContract!", 600);
+            }
+
+            return $middlewareObj->run($this, $next);
+        }
+
+        throw new \RuntimeException("Middleware - {$middleware} not found.", 604);
+    }
+
+    /**
+     * Create Response from Exception
+     *
+     * @param \Exception $exception
+     * @return ResponseInterface
+     */
+    public function makeExceptionResponse(\Exception $exception)
+    {
+        if ($this->getRequest()->isAjax()) {
+            return new Response(
+                ['status' => 'error', 'statusCode' => $exception->getCode(), 'message' => $exception->getMessage()],
+                $exception->getCode()
+            );
+        } else {
+            return new Response($exception->getMessage(), $exception->getCode());
+        }
+    }
+
+    /**
+     * Get Request
+     *
+     * @return \Core\Contracts\Request\Request
+     */
+    public function getRequest()
+    {
+        return $this->application->getRequest();
     }
 
     /**
