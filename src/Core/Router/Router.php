@@ -473,7 +473,6 @@ class Router implements RouterInterface, Cacheable
         $controllerMethod = $route->getControllerMethod();
         $namespace = $this->getControllerNamespace();
         $payload = $route->getRouteParameters();
-        $args = $this->getControllerConstructorArgs();
 
         if (is_callable($controller)) {
             $args = $this->getFunctionArgs($controller);
@@ -487,7 +486,8 @@ class Router implements RouterInterface, Cacheable
                 $class = $namespace . '\\' . $controller;
             }
             if (class_exists($class, true)) {
-                $obj = $this->makeController($class, $args);
+                $obj = $this->makeController($class);
+                $obj->setApplication($this->application);
                 $args = $this->getFunctionArgs($controller, $controllerMethod);
                 $next = function () use ($obj, $args, $controllerMethod, $payload) {
                     return $this->runController($obj, $controllerMethod, $args);
@@ -575,12 +575,16 @@ class Router implements RouterInterface, Cacheable
      * Spawns the controller class
      *
      * @param $class
-     * @param array $args
      * @return object
      */
-    protected function makeController($class, array $args)
+    protected function makeController($class)
     {
+        $args = [];
         $reflection = new \ReflectionClass($class);
+        $constructor = $reflection->getConstructor();
+        foreach ($constructor->getParameters() as $parameter) {
+            $args[] = $this->application->findInstance($parameter->getClass()->getName());
+        }
         return $reflection->newInstanceArgs($args);
     }
 

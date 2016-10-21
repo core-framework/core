@@ -39,11 +39,25 @@ interface Service
     public function __construct($name, $definition, $shared = false);
 
     /**
+     * Returns the definition of the service
+     *
+     * @return callable|string
+     */
+    public function getDefinition();
+
+    /**
      * Sets the definition of the service
      *
      * @param mixed $definition
      */
     public function setDefinition($definition);
+
+    /**
+     * Returns whether service instance is shared
+     *
+     * @return bool
+     */
+    public function getShared();
 
     /**
      * Sets whether service instances are shared
@@ -54,9 +68,45 @@ interface Service
     public function setShared($bool);
 
     /**
+     * Returns the previously set service arguments
+     *
+     * @return array
+     */
+    public function getArguments();
+
+    /**
      * Sets arguments to be passed to service constructor
      *
      * @param array $args
      */
     public function setArguments(array $args);
+
+    /**
+     * Returns the method set for the service
+     *
+     * @return string
+     */
+    public function getMethod();
+
+    /**
+     * Sets the method for class instantiation
+     *
+     * @param string $method
+     * @throws \ErrorException
+     */
+    public function setMethod($method);
+
+    /**
+     * Returns the set method arguments
+     *
+     * @return mixed
+     */
+    public function getMethodArgs();
+
+    /**
+     * Sets the method arguments
+     *
+     * @param mixed $methodArgs
+     */
+    public function setMethodArgs($methodArgs);
 }

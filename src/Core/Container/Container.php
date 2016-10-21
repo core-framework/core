@@ -22,6 +22,8 @@
 
 namespace Core\Container;
 
+use Core\Contracts\Service as ServiceInterface;
+
 /**
  * Class Container
  *
@@ -52,11 +54,11 @@ namespace Core\Container;
 class Container implements \ArrayAccess
 {
     /**
-     * @var array Array of service objects definitions
+     * @var Service[] Array of service objects definitions
      */
     protected static $services = [];
     /**
-     * @var array Array of shared service instances
+     * @var object[] Array of shared service instances
      */
     protected static $sharedInstances = [];
 
@@ -196,12 +198,19 @@ class Container implements \ArrayAccess
 
         if ($definition instanceof \Closure) {
 
-            if ($shared) {
-                self::$sharedInstances[$name] = $definition();
-                return self::$sharedInstances[$name];
+            $reflection = new \ReflectionFunction($definition);
+
+            if (empty($arguments)) {
+                $action = $reflection->invoke();
+            } else {
+                $action = $reflection->invokeArgs($arguments);
             }
 
-            return $definition();
+            if ($shared) {
+                self::$sharedInstances[$name] = $action;
+            }
+
+            return $action;
 
         } elseif (is_object($definition)) {
 
@@ -296,18 +305,22 @@ class Container implements \ArrayAccess
     }
 
     /**
-     * Returns if service is shared or not
+     * Sets given service as shared
      *
      * @param $name
      * @param $shared
-     * @return mixed
+     * @return ServiceInterface
      * @throws \ErrorException
      */
-    public function setShared($name, $shared)
+    public function setShared($name, $shared = true)
     {
+        if (!is_bool($shared)) {
+            throw new \InvalidArgumentException("setShared method's second argument must be a boolean value. {$shared} (". gettype($shared) .") given.");
+        }
         if (!self::$services[$name]) {
             throw new \ErrorException("Service must be registered first.");
         }
+
 
         self::$services[$name]->setShared($shared);
 
@@ -319,7 +332,7 @@ class Container implements \ArrayAccess
      *
      * @param $name
      * @param $definition
-     * @return mixed
+     * @return ServiceInterface
      * @throws \ErrorException
      */
     public function setDefinition($name, $definition)

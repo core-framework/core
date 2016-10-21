@@ -297,7 +297,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         $this->setEnvironment();
         /**/
         $this->registerCoreComponents();
-        $this->bootstrap();
+        $this->bootstrap($this->bootstrappers);
     }
 
     public function checkIfAppIsDown()
@@ -357,10 +357,11 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
 
     /**
      * Bootstrap application
+     *
+     * @param $bootstrappers
      */
-    protected function bootstrap()
+    protected function bootstrap($bootstrappers)
     {
-        $bootstrappers = array_merge($this->bootstrappers, $this->getConfig()->get('bootstrappers', []));
         foreach ($bootstrappers as $bootstrapper)
         {
             /** @var Bootstrapper $bootable */
@@ -388,17 +389,25 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
      */
     public function subscribe(Dispatcher $dispatcher)
     {
-        $dispatcher->on('core.app.config.booted', [$this, 'loadSubscribers'], 0);
-        $dispatcher->on('core.app.config.booted', [$this, 'loadServices'], 1);
-        $dispatcher->on('core.app.config.booted', [$this, 'cacheConfig'], 2);
-        $dispatcher->on('core.app.config.booted', [$this, 'setAppPathFromConf'], 3);
-        $dispatcher->on('core.app.config.booted', [$this, 'setDocumentRootFromConf'], 4);
+        $dispatcher->on('core.app.config.booted', [$this, 'loadBootstrappersFromConfig'], 0);
+        $dispatcher->on('core.app.config.booted', [$this, 'loadSubscribers'], 1);
+        $dispatcher->on('core.app.config.booted', [$this, 'loadServices'], 2);
+        $dispatcher->on('core.app.config.booted', [$this, 'cacheConfig'], 3);
+        $dispatcher->on('core.app.config.booted', [$this, 'setAppPathFromConf'], 4);
+        $dispatcher->on('core.app.config.booted', [$this, 'setDocumentRootFromConf'], 5);
         $dispatcher->on('core.app.router.postload', [$this, 'bootstrapRouter'], 0);
         $dispatcher->on('core.app.handle.pre', [$this, 'preHandle'], 0);
         $dispatcher->on('core.router.matched', [$this, 'cacheRoute'], 0);
         $dispatcher->on('core.app.setEnvironment', [new BootConfiguration(), 'bootstrap'], 0);
     }
 
+    /**
+     * @param Config $config
+     */
+    public function loadBootstrappersFromConfig(Config $config)
+    {
+        $this->bootstrap($config->get('bootstrappers', []));
+    }
 
     /**
      * @param Config $config

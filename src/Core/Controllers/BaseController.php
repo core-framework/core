@@ -243,4 +243,21 @@ class BaseController
     {
         return $this->request;
     }
+
+    /**
+     * @param Application $application
+     */
+    public function setApplication(Application $application)
+    {
+        $this->application = $application;
+    }
+
+    /**
+     * @return Application
+     */
+    public function application()
+    {
+        return $this->application;
+    }
+
 }
