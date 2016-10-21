@@ -116,17 +116,11 @@ class BaseController
      * BaseController constructor.
      * @param Application $application
      */
-    public function __construct(Application $application)
+    public function __construct(Application $application = null)
     {
-        $this->application = $application;
-        $this->setPathBound($application->basePath());
-        $this->router = $application->getRouter();
-        $this->request = $application->getRequest();
-        $this->POST = $this->request->POST();
-        $this->GET = $this->request->GET();
-        $this->method = $this->request->getHttpMethod();
-
-        $this->baseInit();
+        if (!is_null($application)) {
+            $this->setApplication($application);
+        }
     }
 
     /**
@@ -156,12 +150,23 @@ class BaseController
         return $this->routeData->get($key, $default);
     }
 
+    public function init(Application $application)
+    {
+        $this->setPathBound($application->basePath());
+        $this->router = $application->getRouter();
+        $this->request = $application->getRequest();
+        $this->POST = $this->request->POST();
+        $this->GET = $this->request->GET();
+        $this->method = $this->request->getHttpMethod();
+
+        $this->setViewVariables();
+    }
+
     /**
      * Base init
      */
-    private function baseInit()
+    private function setViewVariables()
     {
-
         // Add Page Title and Page Name (and other Variables defined in Router) to global
         $globalVariables = $this->router->getCurrentRoute()->getData();
         $view = $this->application->getView();
@@ -250,6 +255,7 @@ class BaseController
     public function setApplication(Application $application)
     {
         $this->application = $application;
+        $this->init($application);
     }
 
     /**

@@ -1,5 +1,4 @@
 <?php
-
 /**
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -21,50 +20,29 @@
  * file that was distributed with this source code.
  */
 
+
 namespace Core\Tests\Stubs\Controllers;
 
-use Core\Contracts\Router\Router;
+
 use Core\Controllers\BaseController;
-use Core\Facades\View;
-use Core\FileSystem\FileSystem;
-use Core\Request\Request;
-use Core\Response\Response;
 use Core\Tests\Models\testModels\User;
 
-class StubController extends BaseController
+class StubController2 extends BaseController
 {
-    public function index()
+    protected $user;
+
+    public function __construct(User $user)
     {
-        return 'stubController::index';
+        $this->user = $user;
     }
 
-    public function returnable($payload)
+    public function testControllerConstructArg()
     {
-        return $payload['id'];
+        return $this->user;
     }
 
-    public function returnRouteData()
+    public function testControllerConstructApp()
     {
-        return $this->getRouteData();
-    }
-
-    public function testId($payload)
-    {
-        return $payload;
-    }
-
-    public function testName($payload)
-    {
-        return new Response($payload);
-    }
-
-    public function testTypeHint($payload, FileSystem $fileSystem, Request $request)
-    {
-        return func_get_args();
-    }
-
-    public function testReturnView($payload)
-    {
-        return View::make('httpTests/simple', ['name' => $payload['name']]);
+        return $this->application;
     }
 }

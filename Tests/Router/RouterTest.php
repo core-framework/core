@@ -29,6 +29,7 @@ use Core\Request\Request;
 use Core\Response\Response;
 use Core\Router\Route;
 use Core\Tests\Mocks\MockPaths;
+use Core\Tests\Models\testModels\User;
 use Core\Tests\Stubs\Middlewares\StubMiddleware;
 use Core\Tests\Stubs\Middlewares\StubMiddleware2;
 
@@ -242,6 +243,44 @@ class RouterTest extends \PHPUnit_Framework_TestCase
         $this->assertInternalType('array', $response[0]);
         $this->assertInstanceOf('\\Core\\FileSystem\\FileSystem', $response[1]);
         $this->assertInstanceOf('\\Core\\Request\\Request', $response[2]);
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::getNextCallable
+     * @covers \Core\Router\Router::getFunctionArgs
+     * @covers \Core\Router\Router::makeController
+     * @covers \Core\Controllers\BaseController::setApplication
+     */
+    public function testControllerConstructSupportsTypeHinting()
+    {
+        $application = new Application(MockPaths::$basePath);
+        $router = $this->application->make(\Core\Router\Router::class, $application, 'Router');
+        $this->application->register('User', User::class);
+
+        $router->get('/test/{id:num}/page/{pageId:num}', '\Core\Tests\Stubs\Controllers\StubController2@testControllerConstructArg');
+
+        $response = $router->handle(Request::create('/test/12/page/10'));
+        $this->assertInstanceOf(User::class, $response);
+    }
+
+    /**
+     * @covers \Core\Router\Router::handle
+     * @covers \Core\Router\Router::getNextCallable
+     * @covers \Core\Router\Router::getFunctionArgs
+     * @covers \Core\Router\Router::makeController
+     * @covers \Core\Controllers\BaseController::setApplication
+     */
+    public function testControllerConstructSupportsTypeHintingAndHasApp()
+    {
+        $application = new Application(MockPaths::$basePath);
+        $router = $this->application->make(\Core\Router\Router::class, $application, 'Router');
+        $this->application->register('User', User::class);
+
+        $router->get('/test/{id:num}/page/{pageId:num}', '\Core\Tests\Stubs\Controllers\StubController2@testControllerConstructApp');
+
+        $response = $router->handle(Request::create('/test/12/page/10'));
+        $this->assertInstanceOf(Application::class, $response);
     }
 
     /**
