@@ -50,84 +50,37 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     const DEVELOPMENT_STATE = 'local';
     const PRODUCTION_STATE = 'production';
     const TESTING_STATE = 'testing';
-    
+
     /**
      * Contains the Application Instance
      *
      * @var $app Application
      */
     public static $app;
-
-    /**
-     * Application Name
-     *
-     * @var string
-     */
-    protected $applicationName = "Core Framework";
-
-    /**
-     * Application Version
-     *
-     * @var string
-     */
-    protected $version = '1.0.0';
-
-    /**
-     * Application base/root path
-     *
-     * @var string
-     */
-    private $basePath;
-
-    /**
-     * Application folder path
-     *
-     * @var string
-     */
-    private $appPath;
-
-    /**
-     * Config directory path
-     *
-     * @var string
-     */
-    private $configPath;
-
-    /**
-     * Cache directory path
-     *
-     * @var string
-     */
-    private $cachePath;
-
-    /**
-     * Storage directory path
-     *
-     * @var string
-     */
-    private $storagePath;
-
-    /**
-     * Application Document Root
-     *
-     * @var
-     */
-    private $docRoot;
-
     /**
      * Contains the class maps
      *
      * @var array
      */
     protected static $classmap;
-
+    /**
+     * Application Name
+     *
+     * @var string
+     */
+    protected $applicationName = "Core Framework";
+    /**
+     * Application Version
+     *
+     * @var string
+     */
+    protected $version = '1.0.0';
     /**
      * Class map aliases
      *
      * @var array
      */
     protected $alias = [];
-
     /**
      * When static::DEVELOPMENT_STATE or 'dev' ensures errors are displayed
      *
@@ -135,74 +88,60 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
      * @supported static::DEVELOPMENT_STATE || static::PRODUCTION_STATE
      */
     protected $environment;
-
-
     /**
      * default charset to us Application
      *
      * @var string
      */
     protected $charset = 'UTF-8';
-
     /**
      * Application default language
      *
      * @var string
      */
     protected $language = 'en_US';
-
     /**
      * Time To Live value for Application caching
      *
      * @var int
      */
     protected $ttl = 3600;
-
     /**
      * @var Dispatcher $dispatcher
      */
     protected $event;
-
     /**
      * @var FileSystem $fileSystem
      */
     protected $fileSystem;
-
     /**
      * @var Cache $cache
      */
     protected $cache;
-
     /**
      * @var Config $config
      */
     protected $config;
-
     /**
      * @var Router $router
      */
     protected $router;
-
     /**
      * @var ResponseInterface $response
      */
     protected $response;
-
     /**
      * @var RequestInterface $request
      */
     protected $request;
-
     /**
      * @var View $view
      */
     protected $view;
-
     /**
      * @var array $cacheKeys
      */
     protected $cacheKeys = [];
-
     /**
      * @var array $bootstrappers
      */
@@ -211,7 +150,6 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         '\Core\Application\Bootstrappers\BootConfiguration',
         //'\Core\Application\Bootstrappers\BootComponents'
     ];
-
     /**
      * @var array $coreComponents
      */
@@ -220,7 +158,6 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         'FileSystem' => '\Core\FileSystem\FileSystem',
         'Cache' => ['\Core\Cache\FileCache', ['FileSystem', '@base/storage/framework/cache/']],
     ];
-
     /**
      * @var array $components
      */
@@ -228,10 +165,45 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         'Router' => ['\Core\Router\Router', ['App']],
         'View' => ['\Core\View\View', ['App']]
     ];
-
     protected $mappers = [
         'mysql' => \Core\Database\Mapper\MySqlMapper::class
     ];
+    /**
+     * Application base/root path
+     *
+     * @var string
+     */
+    private $basePath;
+    /**
+     * Application folder path
+     *
+     * @var string
+     */
+    private $appPath;
+    /**
+     * Config directory path
+     *
+     * @var string
+     */
+    private $configPath;
+    /**
+     * Cache directory path
+     *
+     * @var string
+     */
+    private $cachePath;
+    /**
+     * Storage directory path
+     *
+     * @var string
+     */
+    private $storagePath;
+    /**
+     * Application Document Root
+     *
+     * @var
+     */
+    private $docRoot;
 
     /**
      * Application Constructor
@@ -265,7 +237,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
      * @param $path
      * @return $this
      */
-    public function setBasePath($path)
+    private function setBasePath($path)
     {
         $basePath = rtrim($path, "/");
         $this->basePath = $path;
@@ -308,6 +280,104 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     }
 
     /**
+     * @inheritDoc
+     */
+    public function isDown()
+    {
+        return file_exists($this->getAbsolutePath('/storage/framework/down.php'));
+    }
+
+    /**
+     * Get complete path relative to base/root path
+     *
+     * @param $relativePath
+     * @return string
+     */
+    public function getAbsolutePath($relativePath)
+    {
+        return $this->basePath . $relativePath;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function isCLI()
+    {
+        return (php_sapi_name() === 'cli');
+    }
+
+    /**
+     * Register Application
+     *
+     * @throws \ErrorException
+     */
+    protected function registerApp()
+    {
+        static::$app = $this;
+        $this->register('App', $this);
+        $this->register('Application', $this);
+    }
+
+    /**
+     * Set Application Environment
+     *
+     * @param string $environment
+     * @return $this
+     */
+    public function setEnvironment($environment = null)
+    {
+        // TODO: environment variable caching
+        if (getenv('_environment') === static::TESTING_STATE || is_null($environment)) {
+            $this->detectEnvironment();
+        } else {
+            $this->environment = $environment;
+            putenv('environment=' . $environment);
+            $this->dispatch('core.app.setEnvironment', $this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Detect current Environment
+     */
+    public function detectEnvironment()
+    {
+        $env = getenv('environment');
+        if (isset($env)) {
+            $this->environment = $env;
+        } else {
+            $env = $_SERVER["HTTP_HOST"] === 'localhost' && $_SERVER['REMOTE_ADDR'] == '127.0.0.1' ? static::DEVELOPMENT_STATE : static::PRODUCTION_STATE;
+            $this->environment = $env;
+            putenv('environment=' . $env);
+        }
+    }
+
+    /**
+     * Dispatch Application Event
+     *
+     * @param $event
+     * @param array $payload
+     * @return array|mixed
+     */
+    public function dispatch($event, $payload = [])
+    {
+        return $this->getDispatcher()->dispatch($event, $payload);
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getDispatcher()
+    {
+        if ($this->event) {
+            return $this->event;
+        }
+
+        return $this->event = $this->get('Event');
+    }
+
+    /**
      * @return array
      */
     protected function registerCoreComponents()
@@ -319,19 +389,25 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
      * @param $components
      * @return array
      */
-    public function registerComponents($components)
+    private function registerComponents($components)
     {
         $responses = [];
-        foreach($components as $name => $component) {
+        foreach ($components as $name => $component) {
             if ($this->event) {
-                $responses['core.app.'.strtolower($name).'.preload'] = $this->dispatch('core.app.'.strtolower($name).'.preload', static::$app);
+                $responses['core.app.' . strtolower($name) . '.preload'] = $this->dispatch(
+                    'core.app.' . strtolower($name) . '.preload',
+                    static::$app
+                );
             }
             if (is_array($component)) {
                 $this->register($name, $component[0])->setArguments($this->parseArguments($component[1]));
             } else {
                 $this->register($name, $component);
             }
-            $responses['core.app.'.strtolower($name).'.postload'] = $this->dispatch('core.app.'.strtolower($name).'.postload', static::$app);
+            $responses['core.app.' . strtolower($name) . '.postload'] = $this->dispatch(
+                'core.app.' . strtolower($name) . '.postload',
+                static::$app
+            );
         }
         return $responses;
     }
@@ -340,13 +416,13 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
      * @param $arguments
      * @return mixed
      */
-    public function parseArguments($arguments)
+    private function parseArguments($arguments)
     {
         if (!is_array($arguments)) {
             $arguments = [$arguments];
         }
 
-        foreach($arguments as &$argument) {
+        foreach ($arguments as &$argument) {
             if (is_string($argument) && strContains('@', $argument)) {
                 $argument = $this->getRealPath($argument);
             }
@@ -356,14 +432,69 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     }
 
     /**
+     * Get real path from provided aliased path
+     *
+     * @param $aliasPath
+     * @return string
+     */
+    public function getRealPath($aliasPath)
+    {
+        if (!strContains('@', $aliasPath)) {
+            return $aliasPath;
+        }
+        $alias = substr($aliasPath, 0, strpos($aliasPath, '/'));
+        $relativePath = substr($aliasPath, strpos($aliasPath, '/'));
+
+        $realPath = $this->getAlias($alias) . $relativePath;
+        if (!is_dir($realPath) && substr($realPath, -1) != '/') {
+            $realPath .= '.php';
+        }
+        return $realPath;
+    }
+
+    /**
+     * Alias to path conversion
+     *
+     * @param $aliasKey
+     * @return string
+     */
+    public function getAlias($aliasKey)
+    {
+        if ($aliasKey === '@base') {
+            return $this->basePath();
+        }
+
+        if (isset($this->alias[$aliasKey])) {
+            $aliasVal = $this->alias[$aliasKey];
+        } else {
+            return;
+        }
+
+        if (strpos($aliasVal, '@') > -1) {
+            $newAlias = substr($aliasVal, 0, strpos($aliasVal, '/'));
+            $newAliasVal = substr($aliasVal, strpos($aliasVal, '/'));
+            $aliasVal = $this->getAlias($newAlias) . $newAliasVal;
+        }
+
+        return $aliasVal;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function basePath()
+    {
+        return $this->basePath;
+    }
+
+    /**
      * Bootstrap application
      *
      * @param $bootstrappers
      */
     protected function bootstrap($bootstrappers)
     {
-        foreach ($bootstrappers as $bootstrapper)
-        {
+        foreach ($bootstrappers as $bootstrapper) {
             /** @var Bootstrapper $bootable */
             $bootable = new $bootstrapper();
             $bootable->bootstrap($this);
@@ -371,15 +502,21 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     }
 
     /**
-     * @param $definition
-     * @param null $arguments
-     * @param null $name
-     * @return array|mixed
+     * @inheritdoc
      */
-    public function build($definition, $arguments = null, $name = null)
+    public function bind($name, $definition, $singleton = true)
     {
-        $this->{strtolower($name)} = $this->make($definition, $arguments, $name);
-        return $this->dispatch('core.app.'.strtolower($name).'.booted', $this->{strtolower($name)});
+        $service = $this->register($name, $definition, $singleton);
+        $this->dispatch('core.app.' . strtolower($name) . '.registered', $service);
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function build($definition, $arguments = null, $name = null, $singleton = true)
+    {
+        $this->{strtolower($name)} = $this->make($definition, $arguments, $name, $singleton);
+        return $this->dispatch('core.app.' . strtolower($name) . '.booted', $this->{strtolower($name)});
     }
 
     /**
@@ -434,6 +571,9 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         return $this;
     }
 
+    /**
+     * @inheritdoc
+     */
     public function loadConfigFromFiles()
     {
         $overrideItems = [];
@@ -449,18 +589,43 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         return $items;
     }
 
+    /**
+     * @param $path
+     * @return array
+     */
     private function readFromFile($path)
     {
         $items = [];
-        Explorer::find()->files("*.php")->in($path)->map(function($key, $fileInfo) use (&$items) {
-            /** @var \SplFileInfo $fileInfo */
-            if ($path = $fileInfo->getPathname()) {
-                $key = str_replace('.php', '', $key);
-                $items[$key] = require($path);
+        Explorer::find()->files("*.php")->in($path)->map(
+            function ($key, $fileInfo) use (&$items) {
+                /** @var \SplFileInfo $fileInfo */
+                if ($path = $fileInfo->getPathname()) {
+                    $key = str_replace('.php', '', $key);
+                    $items[$key] = require($path);
+                }
             }
-        });
+        );
 
         return $items;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function configPath()
+    {
+        if (!$this->configPath) {
+            $this->configPath = $this->getAbsolutePath('/config');
+        }
+        return $this->configPath;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function environment()
+    {
+        return $this->environment;
     }
 
     /**
@@ -469,6 +634,27 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     public function bootstrapRouter()
     {
         $this->getRouter()->bootstrap();
+    }
+
+    /**
+     * @return Router
+     * @throws \ErrorException
+     */
+    public function getRouter()
+    {
+        if (!isset($this->router)) {
+            $this->router = $this->get('Router');
+        }
+        return $this->router;
+    }
+
+    /**
+     * @param Router $router
+     */
+    public function setRouter(Router $router)
+    {
+        $this->register('Router', $router);
+        $this->router = $router;
     }
 
     /**
@@ -507,35 +693,22 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     }
 
     /**
+     * @return Cache
+     */
+    public function getCache()
+    {
+        if (!isset($this->cache)) {
+            $this->cache = $this->get('Cache');
+        }
+        return $this->cache;
+    }
+
+    /**
      * @param Config $config
      */
     public function cacheConfig(Config $config)
     {
         $this->getCache()->put('framework.conf', $config->all(), $config->get('app.ttl', 60));
-    }
-
-    /**
-     * Dispatch Application Event
-     *
-     * @param $event
-     * @param array $payload
-     * @return array|mixed
-     */
-    public function dispatch($event, $payload = [])
-    {
-        return $this->getDispatcher()->dispatch($event, $payload);
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function getDispatcher()
-    {
-        if ($this->event) {
-            return $this->event;
-        }
-
-        return $this->event = $this->get('Event');
     }
 
     /**
@@ -548,49 +721,6 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         }
 
         return $this->fileSystem = $this->get('FileSystem');
-    }
-
-    /**
-     * Register Application
-     *
-     * @throws \ErrorException
-     */
-    protected function registerApp()
-    {
-        static::$app = $this;
-        $this->register('App', $this);
-    }
-    
-    /**
-     * Set Application Environment
-     *
-     * @param string $environment
-     * @return $this
-     */
-    public function setEnvironment($environment = null)
-    {
-        // TODO: environment variable caching
-        if (getenv('_environment') === static::TESTING_STATE || is_null($environment)) {
-            $this->detectEnvironment();
-        } else {
-            $this->environment = $environment;
-            putenv('environment=' . $environment);
-            $this->dispatch('core.app.setEnvironment', $this);
-        }
-
-        return $this;
-    }
-
-    public function detectEnvironment()
-    {
-        $env = getenv('environment');
-        if (isset($env)) {
-            $this->environment = $env;
-        } else {
-            $env = $_SERVER["HTTP_HOST"] === 'localhost' && $_SERVER['REMOTE_ADDR'] == '127.0.0.1' ? static::DEVELOPMENT_STATE : static::PRODUCTION_STATE;
-            $this->environment = $env;
-            putenv('environment=' . $env);
-        }
     }
 
     /**
@@ -619,37 +749,25 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         return $this;
     }
 
+    /**
+     * @inheritdoc
+     */
     public function name()
     {
         return $this->applicationName;
     }
 
-    public function isCLI()
-    {
-        return (php_sapi_name() === 'cli');
-    }
-
     /**
-     * @inheritDoc
+     * @inheritdoc
      */
-    public function basePath()
-    {
-        return $this->basePath;
-    }
-
     public function appPath()
     {
         return $this->appPath;
     }
 
-    public function configPath()
-    {
-        if (!$this->configPath) {
-            $this->configPath = $this->getAbsolutePath('/config');
-        }
-        return $this->configPath;
-    }
-
+    /**
+     * @inheritdoc
+     */
     public function cachePath()
     {
         if (!$this->cachePath) {
@@ -658,60 +776,6 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
             $this->cachePath = $this->getAbsolutePath($cachePath);
         }
         return $this->cachePath;
-    }
-
-    public function storagePath()
-    {
-        if (!$this->storagePath) {
-            $path = $this->getConfig()->get('app.storagePath', '/storage');
-            $storagePath = $this->getAbsolutePath($path);
-            $this->storagePath = $this->getAbsolutePath($storagePath);
-        }
-        return $this->storagePath;
-    }
-
-    public function publicFolder()
-    {
-        if (!$this->docRoot) {
-            $path = $this->getConfig()->get('app.publicPath', '/web');
-            $publicPath = $this->getAbsolutePath($path);
-            $this->docRoot = $this->getAbsolutePath($publicPath);
-        }
-        return $this->docRoot;
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function environment()
-    {
-        return $this->environment;
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function isDown()
-    {
-        return file_exists($this->getAbsolutePath('/storage/framework/down.php'));
-    }
-
-    public function showMaintenance()
-    {
-        require $this->getAbsolutePath($this->storagePath() . '/framework/down.php');
-        $this->terminate();
-        exit;
-    }
-
-    /**
-     * Get complete path relative to base/root path
-     *
-     * @param $relativePath
-     * @return string
-     */
-    public function getAbsolutePath($relativePath)
-    {
-        return $this->basePath . $relativePath;
     }
 
     /**
@@ -726,61 +790,47 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     }
 
     /**
-     * @return Cache
+     * @inheritdoc
      */
-    public function getCache()
+    public function publicFolder()
     {
-        if (!isset($this->cache)) {
-            $this->cache = $this->get('Cache');
+        if (!$this->docRoot) {
+            $path = $this->getConfig()->get('app.publicPath', '/web');
+            $publicPath = $this->getAbsolutePath($path);
+            $this->docRoot = $this->getAbsolutePath($publicPath);
         }
-        return $this->cache;
+        return $this->docRoot;
     }
 
     /**
-     * @return Router
-     * @throws \ErrorException
+     * @inheritdoc
      */
-    public function getRouter()
+    public function showMaintenance()
     {
-        if (!isset($this->router)) {
-            $this->router = $this->get('Router');
+        require $this->getAbsolutePath($this->storagePath() . '/framework/down.php');
+        $this->terminate();
+        exit;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function storagePath()
+    {
+        if (!$this->storagePath) {
+            $path = $this->getConfig()->get('app.storagePath', '/storage');
+            $storagePath = $this->getAbsolutePath($path);
+            $this->storagePath = $this->getAbsolutePath($storagePath);
         }
-        return $this->router;
+        return $this->storagePath;
     }
 
     /**
-     * @param Router $router
+     * Dispatch application termination
      */
-    public function setRouter(Router $router)
+    public function terminate()
     {
-        $this->register('Router', $router);
-        $this->router = $router;
-    }
-
-    /**
-     * @return RequestInterface
-     * @throws \ErrorException
-     */
-    public function getRequest()
-    {
-        if (!isset($this->request)) {
-            if ($this->serviceExists('Request')) {
-                $this->request = $this->get('Request');
-            } else {
-                $this->setRequest(Request::createFromGlobals());
-                $this->register('Request', $this->request);
-            }
-        }
-        return $this->request;
-    }
-
-    /**
-     * @param RequestInterface $request
-     */
-    public function setRequest(RequestInterface $request)
-    {
-        $this->register('Request', $request);
-        $this->request = $request;
+        $this->dispatch('core.app.terminate', $this);
     }
 
     /**
@@ -866,6 +916,32 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     }
 
     /**
+     * @return RequestInterface
+     * @throws \ErrorException
+     */
+    public function getRequest()
+    {
+        if (!isset($this->request)) {
+            if ($this->serviceExists('Request')) {
+                $this->request = $this->get('Request');
+            } else {
+                $this->setRequest(Request::createFromGlobals());
+                $this->register('Request', $this->request);
+            }
+        }
+        return $this->request;
+    }
+
+    /**
+     * @param RequestInterface $request
+     */
+    public function setRequest(RequestInterface $request)
+    {
+        $this->register('Request', $request);
+        $this->request = $request;
+    }
+
+    /**
      * @param Application $application
      * @return false|mixed
      * @throws \ErrorException
@@ -875,14 +951,13 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         $request = $application->getRequest();
         $application->setCacheKeys($request);
         $cache = $application->getCache();
-        
-        if ($cache->exists($application->getCacheKey('response')) && !$request->isAjax())
-        {
+
+        if ($cache->exists($application->getCacheKey('response')) && !$request->isAjax()) {
             return $cache->get($application->getCacheKey('response'));
 
         } elseif ($cache->exists($application->getCacheKey('route'))
-            && $application->getConfig()->get('app.cacheRoutes',true))
-        {
+            && $application->getConfig()->get('app.cacheRoutes', true)
+        ) {
             $route = $cache->get($application->getCacheKey('route'));
             if ($route instanceof Route) {
                 return $this->getRouter()->run($route);
@@ -930,7 +1005,6 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
             $this->getCache()->put($this->getCacheKey('route'), $route, $this->getConfig()->get('ttl'));
         }
     }
-
 
     /**
      * @inheritdoc
@@ -987,61 +1061,5 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
         }
 
         include $realPath;
-    }
-    
-    /**
-     * Get real path from provided aliased path
-     *
-     * @param $aliasPath
-     * @return string
-     */
-    public function getRealPath($aliasPath)
-    {
-        if (!strContains('@', $aliasPath)) {
-            return $aliasPath;
-        }
-        $alias = substr($aliasPath, 0, strpos($aliasPath, '/'));
-        $relativePath = substr($aliasPath, strpos($aliasPath, '/'));
-
-        $realPath = $this->getAlias($alias) . $relativePath;
-        if (!is_dir($realPath) && substr($realPath,-1) != '/') {
-            $realPath .= '.php';
-        }
-        return $realPath;
-    }
-
-    /**
-     * Alias to path conversion
-     *
-     * @param $aliasKey
-     * @return string
-     */
-    public function getAlias($aliasKey)
-    {
-        if ($aliasKey === '@base') {
-            return $this->basePath();
-        }
-
-        if (isset($this->alias[$aliasKey])) {
-            $aliasVal = $this->alias[$aliasKey];
-        } else {
-            return;
-        }
-
-        if (strpos($aliasVal, '@') > -1) {
-            $newAlias = substr($aliasVal, 0, strpos($aliasVal, '/'));
-            $newAliasVal = substr($aliasVal, strpos($aliasVal, '/'));
-            $aliasVal = $this->getAlias($newAlias) . $newAliasVal;
-        }
-
-        return $aliasVal;
-    }
-
-    /**
-     * Dispatch application termination
-     */
-    public function terminate()
-    {
-        $this->dispatch('core.app.terminate', $this);
     }
 }
