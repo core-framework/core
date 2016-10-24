@@ -256,6 +256,14 @@ interface Application extends Runnable
     public function build($definition, $arguments = null, $name = null);
 
     /**
+     * @param $name
+     * @param $definition
+     * @param bool $singleton
+     * @return void
+     */
+    public function bind($name, $definition, $singleton = true);
+
+    /**
      * @return array $item
      */
     public function loadConfigFromFiles();

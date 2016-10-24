@@ -29,15 +29,15 @@ use Core\Contracts\Service as ServiceInterface;
  *
  * <code>
  *  $di = new Container()
- *  $di->register('View', '\\Core\\View\\View')
+ *  $di->bind('View', '\\Core\\View\\View')
  *      ->setArguments(array('Smarty'));
- *  $di->register('Smarty', '')
+ *  $di->bind('Smarty', '')
  *      ->setDefinition(function() {
  *          return new Smarty();
  *      })
  *
  *  //OR
- *  Container::register(....)
+ *  Container::bind(....)
  *
  * //Later to get services
  *  $view = Container::get('View');
@@ -64,44 +64,31 @@ class Container implements \ArrayAccess
 
     /**
      * @param $name
-     * @param $definition
+     * @param $class
      * @param null $arguments
+     * @param null|bool $singleton
      * @return object
      * @throws \ErrorException
      */
-    public static function make($definition, $arguments = null, $name = null)
+    public static function make($class, $arguments = null, $name = null, $singleton = true)
     {
-        if (!is_string($definition)) {
-            throw new \InvalidArgumentException('Definition must be a string representation of the class');
+        if (!is_string($class)) {
+            throw new \InvalidArgumentException('$class must be a fully qualified class name');
         }
 
-        if (!class_exists($definition)) {
-            throw new \InvalidArgumentException("Given class:{$definition} does not exist or not found");
+        if (!class_exists($class)) {
+            throw new \InvalidArgumentException("Given class:{$class} does not exist or not found");
         }
 
-        if (!is_null($name) && static::$sharedInstances[$name]) {
+        if ($singleton && !is_null($name) && static::$sharedInstances[$name]) {
             return static::$sharedInstances[$name];
         }
 
-        if (is_string($definition) && self::findInstance($definition)) {
-            return self::findInstance($definition);
+        if ($instance = self::findInstance($class)) {
+            return $instance;
         }
 
-        $r = new \ReflectionClass($definition);
-
-        if (is_null($name)) {
-            $name = ucfirst($r->getShortName());
-        }
-
-        if (is_null($arguments)) {
-            return self::$sharedInstances[$name] = $r->newInstance();
-        } else {
-            if (!is_array($arguments)) {
-                $arguments = [$arguments];
-            }
-            $arguments = self::checkIfIsDependent($arguments);
-            return self::$sharedInstances[$name] = $r->newInstanceArgs($arguments);
-        }
+        return self::makeInstance($class, $arguments, $singleton);
     }
 
     /**
@@ -235,7 +222,7 @@ class Container implements \ArrayAccess
 
             } else {
 
-                $arguments = self::checkIfIsDependent($arguments);
+                $arguments = self::resolveDependencies($arguments);
 
                 if ($shared) {
                     self::$sharedInstances[$name] = $r->newInstanceArgs($arguments);
@@ -259,14 +246,13 @@ class Container implements \ArrayAccess
      * @return array
      * @throws \ErrorException
      */
-    public static function checkIfIsDependent($arguments)
+    protected static function resolveDependencies($arguments)
     {
         if (!is_array($arguments)) {
             throw new \ErrorException("Argument(s) must be an Array of arguments.");
         }
 
         if (empty($arguments)) {
-            //throw new \ErrorException("Argument(s) cannot be empty.");
             return [];
         }
 
@@ -284,6 +270,41 @@ class Container implements \ArrayAccess
 
         return $return;
 
+    }
+
+    /**
+     * @param $class
+     * @param $args
+     * @param bool $singleton
+     * @return object
+     */
+    protected static function makeInstance($class, $args = null, $singleton = true)
+    {
+        if (is_null($args)) {
+            $args = [];
+        }
+
+        $reflection = new \ReflectionClass($class);
+        $name = $reflection->getShortName();
+        $constructor = $reflection->getConstructor();
+
+        if ($constructor) {
+            foreach ($constructor->getParameters() as $parameter) {
+                $args[] = self::findInstance($parameter);
+            }
+        }
+
+        if (empty($args)) {
+            $instance = $reflection->newInstance();
+        } else {
+            $instance = $reflection->newInstanceArgs($args);
+        }
+
+        if ($singleton) {
+            self::$sharedInstances[$name] = $instance;
+        }
+
+        return $instance;
     }
 
     /**
@@ -315,7 +336,11 @@ class Container implements \ArrayAccess
     public function setShared($name, $shared = true)
     {
         if (!is_bool($shared)) {
-            throw new \InvalidArgumentException("setShared method's second argument must be a boolean value. {$shared} (". gettype($shared) .") given.");
+            throw new \InvalidArgumentException(
+                "setShared method's second argument must be a boolean value. {$shared} (" . gettype(
+                    $shared
+                ) . ") given."
+            );
         }
         if (!self::$services[$name]) {
             throw new \ErrorException("Service must be registered first.");
@@ -429,21 +454,21 @@ class Container implements \ArrayAccess
     /**
      * @param $name
      * @param $definition
-     * @param bool $shared
+     * @param bool $singleton
      * @return Service
      * @throws \ErrorException
      */
-    public static function register($name, $definition, $shared = true)
+    public static function register($name, $definition, $singleton = true)
     {
         if (!is_string($name)) {
             throw new \ErrorException("Service name must be a valid string.");
         }
 
-        if (!is_bool($shared)) {
+        if (!is_bool($singleton)) {
             throw new \ErrorException("Incorrect parameter type.");
         }
 
-        self::$services[$name] = new Service($name, $definition, $shared);
+        self::$services[$name] = new Service($name, $definition, $singleton);
 
         if (isset(self::$sharedInstances[$name])) {
             unset(self::$sharedInstances[$name]);
