@@ -24,7 +24,7 @@ namespace Core\Request;
 
 use Core\Contracts\Request\Request as RequestInterface;
 use Core\Reactor\DataCollection;
-use Core\Reactor\HttpParameter;
+use Core\Reactor\HeaderCollection;
 
 /**
  * The class that handles the incoming request to server
@@ -139,7 +139,7 @@ class Request implements RequestInterface
         $this->GET = new DataCollection($GET);
         $this->POST = new DataCollection($POST);
         $this->server = new DataCollection($server);
-        $this->headers = new HttpParameter($this->getHeaders());
+        $this->headers = new HeaderCollection($this->getHeaders());
         $this->cookies = new DataCollection($cookies);
         $this->files = new DataCollection($files);
         $this->body = isset($body) ? (string)$body : null;

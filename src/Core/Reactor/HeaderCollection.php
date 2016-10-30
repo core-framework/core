@@ -9,9 +9,9 @@
 namespace Core\Reactor;
 
 
-class HttpParameter extends DataCollection implements \IteratorAggregate, \Countable, \ArrayAccess
+class HeaderCollection extends DataCollection implements \IteratorAggregate, \Countable, \ArrayAccess
 {
-    protected static $preserveOriginal = false;
+    protected $headerNames = [];
 
     /**
      * Parameters constructor.
@@ -20,21 +20,8 @@ class HttpParameter extends DataCollection implements \IteratorAggregate, \Count
     public function __construct(array $parameters)
     {
         foreach ($parameters as $key => $value) {
-            $parameters[str_replace('_', '-', strtolower($key))] = $value;
-
-            if (!static::$preserveOriginal) {
-                unset($parameters[$key]);
-            }
+            $this->set($key, $value);
         }
-        parent::__construct($parameters);
-    }
-
-    /**
-     * Preserve Original Values in Collection
-     */
-    public static function preserveOriginal()
-    {
-        static::$preserveOriginal = true;
     }
 
     /**
@@ -45,8 +32,9 @@ class HttpParameter extends DataCollection implements \IteratorAggregate, \Count
      */
     public function set($key, $value)
     {
-        $key = str_replace('_', '-', strtolower($key));
-        parent::set($key, $value);
+        $_key = str_replace('_', '-', strtolower($key));
+        $this->headerNames[$_key] = $key;
+        parent::set($_key, $value);
     }
 
     /**
@@ -76,6 +64,17 @@ class HttpParameter extends DataCollection implements \IteratorAggregate, \Count
         return parent::has($key);
     }
 
-    
-    
+    /**
+     * @param $name
+     * @return mixed
+     */
+    public function getOriginalName($name)
+    {
+        if (!isset($this->headerNames[$name])) {
+            return implode('-', array_walk(explode('-', $name), 'strtoupper'));
+        }
+
+        return $this->headerNames[$name];
+    }
+
 }

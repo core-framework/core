@@ -88,20 +88,17 @@ class DataCollection implements \IteratorAggregate, \Countable, \ArrayAccess, \S
         }
 
         if (is_null($key)) {
-            $this->_cache[$hash] = $this->collection;
-            return $this->collection;
+            $response = $this->collection;
         } elseif (strpos($key, '.') !== false) {
             $response = dotGet($key, $this->collection, $default);
-            $this->_cache[$hash] = $response;
-            return $response;
         } elseif (array_key_exists($key, $this->collection)) {
-            $this->_cache[$hash] = $this->collection[$key];
-            return $this->collection[$key];
+            $response = $this->collection[$key];
         } else {
             $response = searchArrayByKey($this->collection, $key, $default);
-            $this->_cache[$hash] = $response;
-            return $response;
         }
+
+        $this->_cache[$hash] = $response;
+        return $response;
     }
 
     /**
