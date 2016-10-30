@@ -511,16 +511,6 @@ class Router implements RouterInterface, Cacheable
     }
 
     /**
-     * Get arguments to be passed to controller
-     *
-     * @return array
-     */
-    protected function getControllerConstructorArgs()
-    {
-        return [$this->application];
-    }
-
-    /**
      * @param $controller
      * @param null $method
      * @return array
@@ -630,13 +620,13 @@ class Router implements RouterInterface, Cacheable
             $middlewareObj = new $middleware();
 
             if (!$middlewareObj instanceof Middleware) {
-                throw new \RuntimeException("Given Middleware does not comply with the MiddlewareContract!", 600);
+                throw new \RuntimeException("Given Middleware does not comply with the MiddlewareContract!", 454);
             }
 
             return $middlewareObj->run($this, $next);
         }
 
-        throw new \RuntimeException("Middleware - {$middleware} not found.", 604);
+        throw new \RuntimeException("Middleware - {$middleware} not found.", 454);
     }
 
     /**
@@ -688,5 +678,15 @@ class Router implements RouterInterface, Cacheable
     public function __wakeup()
     {
 
+    }
+
+    /**
+     * Get arguments to be passed to controller
+     *
+     * @return array
+     */
+    protected function getControllerConstructorArgs()
+    {
+        return [$this->application];
     }
 }

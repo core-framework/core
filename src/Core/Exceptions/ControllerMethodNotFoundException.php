@@ -30,7 +30,7 @@ class ControllerMethodNotFoundException extends \BadMethodCallException
      * @param int $code
      * @param \Exception|null $previous
      */
-    public function __construct($message = "Controller Method Not Found", $code = 605, \Exception $previous = null)
+    public function __construct($message = "Controller Method Not Found", $code = 445, \Exception $previous = null)
     {
         parent::__construct($message, $code, $previous);
     }

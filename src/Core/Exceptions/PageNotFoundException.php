@@ -29,7 +29,7 @@ class PageNotFoundException extends HttpException {
      * @param int $code
      * @param \Exception|null $previous
      */
-    public function __construct($message = "Page is Not Found", $code = 404, \Exception $previous = null)
+    public function __construct($message = "Page Not Found", $code = 404, \Exception $previous = null)
     {
         parent::__construct($message, $code, $previous);
     }
