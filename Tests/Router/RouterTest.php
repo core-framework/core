@@ -303,7 +303,7 @@ class RouterTest extends \PHPUnit_Framework_TestCase
          */
         $response = $router->handle($request);
         $this->assertInstanceOf('\\Core\\Response\\Response', $response);
-        $this->assertEquals(604, $response->getStatusCode());
+        $this->assertEquals(404, $response->getStatusCode());
 
         /*
          * Following does not match any route (hence response is a 404)

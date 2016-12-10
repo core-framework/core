@@ -46,14 +46,28 @@ class ResponseTest extends \PHPUnit_Framework_TestCase
 
     /**
      * @covers \Core\Response\Response::__construct
-     * @covers \Core\Response\BaseResponse::__construct
-     * @covers \Core\Response\BaseResponse::setContent
-     * @covers \Core\Response\BaseResponse::setStatusCode
+     * @covers \Core\Response\Response::setContent
+     * @covers \Core\Response\Response::setStatusCode
      */
     public function testConstructor()
     {
         $response = new Response();
         $this->assertInstanceOf('\\Core\\Response\\Response', $response);
+        $this->assertInstanceOf('\Core\Reactor\HeaderCollection', $response->getHeaderCollection());
+        $this->assertSame($response->getHeader('Connection'), 'keep-alive');
+        $this->assertTrue($response->getHeaderCollection()->has('Date'));
+    }
+
+    /**
+     * @covers \Core\Response\Response::header
+     * @covers \Core\Response\Response::getHeader
+     */
+    public function testHeaderMethod()
+    {
+        $response = new Response();
+        $response->header('Accept', '*')->header('Content-Type', 'application/json');
+        $this->assertSame('*', $response->getHeader('Accept'));
+        $this->assertSame('application/json', $response->getHeader('Content-Type'));
     }
 
     /**
@@ -166,7 +180,7 @@ class ResponseTest extends \PHPUnit_Framework_TestCase
 
     /**
      * @covers \Core\Response\Response::setAge
-     * @expectedException PHPUnit_Framework_Error
+     * @expectedException \InvalidArgumentException
      */
     public function testSetAgeWithDefault()
     {
@@ -195,6 +209,7 @@ class ResponseTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @runInSeparateProcess
      * @covers \Core\Response\Response::setAllow
      * @expectedException \PHPUnit_Framework_Error
      */
@@ -216,6 +231,7 @@ class ResponseTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @runInSeparateProcess
      * @covers \Core\Response\Response::setAllow
      * @expectedException \PHPUnit_Framework_Error
      */
@@ -231,7 +247,7 @@ class ResponseTest extends \PHPUnit_Framework_TestCase
     {
         $response = new Response();
         $response->setCacheControl();
-        $this->assertSame("max-age=3600, public", $response->getHeader('Cache-Control'));
+        $this->assertSame("public", $response->getHeader('Cache-Control'));
     }
 
     /**
@@ -241,16 +257,16 @@ class ResponseTest extends \PHPUnit_Framework_TestCase
     {
         $response = new Response();
         $response->setCacheControl("public", 4000);
-        $this->assertSame("max-age=4000, public", $response->getHeader('Cache-Control'));
+        $this->assertSame("public, max-age=4000", $response->getHeader('Cache-Control'));
     }
 
     /**
      * @covers \Core\Response\Response::setCacheControl
-     * @expectedException \InvalidArgumentException
      */
     public function testSetCacheControlWithNonInteger()
     {
-        (new Response())->setCacheControl("public", '3000');
+        $response = (new Response())->setCacheControl("public", '3000');
+        $this->assertSame("public, max-age=3000", $response->getHeader('Cache-Control'));
     }
 
     /**
@@ -261,7 +277,7 @@ class ResponseTest extends \PHPUnit_Framework_TestCase
     public function testSetConnectionHappensByDefault()
     {
         $value = (new Response())->getHeader('Connection');
-        $this->assertSame('close', $value);
+        $this->assertSame('keep-alive', $value);
     }
 
     /**
@@ -414,12 +430,12 @@ class ResponseTest extends \PHPUnit_Framework_TestCase
 
     /**
      * @covers \Core\Response\Response::setContentLocation
-     * @expectedException \PHPUnit_Framework_Error
      */
     public function testSetContentLocationWithNoValue()
     {
         $response = new Response();
         $response->setContentLocation();
+        $this->assertFalse($response->getHeader('Content-Location', false));
     }
 
     /**
@@ -434,7 +450,7 @@ class ResponseTest extends \PHPUnit_Framework_TestCase
 
     /**
      * @covers \Core\Response\Response::setContentRange
-     * @expectedException \PHPUnit_Framework_Error
+     * @expectedException \InvalidArgumentException
      */
     public function testSetContentRangeWithNoValue()
     {
@@ -464,55 +480,55 @@ class ResponseTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @covers \Core\Response\Response::setContentType
+     * @covers \Core\Response\Response::contentType
      */
     public function testSetContentTypeDefault()
     {
         $response = new Response();
-        $response->setContentType();
-        $this->assertSame('text/html; charset=utf-8', $response->getHeader('Content-Type'));
+        $response->contentType();
+        $this->assertSame('text/html; charset=UTF-8', $response->getHeader('Content-Type'));
     }
 
     /**
-     * @covers \Core\Response\Response::setContentType
+     * @covers \Core\Response\Response::contentType
      */
     public function testSetContentTypeWithValue()
     {
         $response = new Response();
-        $response->setContentType("application/json");
+        $response->contentType("application/json");
         $this->assertSame('application/json', $response->getHeader('Content-Type'));
     }
 
     /**
-     * @covers \Core\Response\Response::setContentType
+     * @covers \Core\Response\Response::contentType
      * @expectedException \InvalidArgumentException
      * @expectedExceptionMessage Given arguments cannot be empty.
      */
     public function testSetContentTypeWithEmpty()
     {
         $response = new Response();
-        $response->setContentType("");
+        $response->contentType("");
     }
 
     /**
-     * @covers \Core\Response\Response::setContentType
+     * @covers \Core\Response\Response::contentType
      * @expectedException \InvalidArgumentException
      * @expectedExceptionMessage Given arguments must of type String.
      */
     public function testSetContentTypeWithNonStrings()
     {
         $response = new Response();
-        $response->setContentType(00123);
+        $response->contentType(00123);
     }
 
     /**
      * @covers \Core\Response\Response::setRedirect
-     * @expectedException \PHPUnit_Framework_Error
      */
     public function testSetRedirectWithDefault()
     {
         $response = new Response();
         $response->setRedirect();
+        $this->assertFalse($response->getHeader('Location', false));
     }
 
     /**
@@ -565,9 +581,8 @@ class ResponseTest extends \PHPUnit_Framework_TestCase
         $response->send();
         $headersList = xdebug_get_headers();
         $statusCode = http_response_code();
-
         $this->assertEquals(200, $statusCode);
-        $this->assertContains('Connection: close', $headersList);
+        $this->assertContains('Connection: keep-alive', $headersList);
         $this->assertEmpty($response->getContent());
     }
 
@@ -584,7 +599,7 @@ class ResponseTest extends \PHPUnit_Framework_TestCase
         $statusCode = http_response_code();
 
         $this->assertEquals(200, $statusCode);
-        $this->assertContains('Connection: close', $headersList);
+        $this->assertContains('Connection: keep-alive', $headersList);
         $this->expectOutputString($str);
     }
 
@@ -601,9 +616,11 @@ class ResponseTest extends \PHPUnit_Framework_TestCase
         $statusCode = http_response_code();
 
         $this->assertEquals(200, $statusCode);
-        $this->assertContains('Connection: close', $headersList);
+        $this->assertContains('Connection: keep-alive', $headersList);
         $this->assertContains('Content-Type: application/json', $headersList);
         $this->assertJson(json_encode($arr), $response->getContent());
         $this->expectOutputString("{\"test1\":\"val1\",\"test2\":\"val2\"}");
     }
+
+
 }

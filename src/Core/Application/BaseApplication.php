@@ -327,7 +327,7 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     public function setEnvironment($environment = null)
     {
         // TODO: environment variable caching
-        if (getenv('_environment') === static::TESTING_STATE || is_null($environment)) {
+        if (getenv('environment') === static::TESTING_STATE || is_null($environment)) {
             $this->detectEnvironment();
         } else {
             $this->environment = $environment;
@@ -880,11 +880,6 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     {
         $this->dispatch('core.app.run.pre', $this);
         $this->response = $response = $this->handle($this->getRequest());
-
-        if ($response instanceof View) {
-            $this->response = $response = new Response($response->fetch());
-        }
-
         $response->send();
         $this->terminate();
     }
@@ -912,6 +907,25 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     {
         $router = $this->getRouter();
         $response = $router->handle($request);
+        $response = $this->buildResponse($response, $request);
+        return $response;
+    }
+
+    /**
+     * @param $response
+     * @param RequestInterface $request
+     * @return Response|void
+     */
+    protected function buildResponse($response, RequestInterface $request)
+    {
+        if ($response instanceof View) {
+            $response = new Response($response->fetch());
+        } elseif (!$response instanceof ResponseInterface) {
+            $response = new Response($response);
+        }
+
+        $response->format($request);
+
         return $response;
     }
 

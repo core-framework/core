@@ -679,10 +679,10 @@ class Request implements RequestInterface
     /**
      * @inheritdoc
      */
-    public function headers($key = null)
+    public function headers($key = null, $default = false)
     {
         if (!empty($key)) {
-            return $this->headers->get($key, false);
+            return $this->headers->get($key, $default);
         }
         return $this->headers;
     }

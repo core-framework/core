@@ -23,6 +23,7 @@
 namespace Core\Contracts\Response;
 
 use Core\Contracts\View;
+use Core\Reactor\Cookie;
 
 interface Response
 {
@@ -31,7 +32,7 @@ interface Response
      *
      * @param null $content
      * @supported array || string || serializable
-     * @return void
+     * @return Response
      */
     public function setContent($content = null);
 
@@ -53,7 +54,7 @@ interface Response
      * Set status code for current response
      *
      * @param int $code
-     * @return void
+     * @return Response
      */
     public function setStatusCode($code = 200);
 
@@ -68,18 +69,18 @@ interface Response
      * Set view object associated with current response
      *
      * @param View $view
-     * @return void
+     * @return Response
      */
-    public function setView(View $view);
+    public function view(View $view);
 
     /**
      * Add Header(s) for current response
      *
      * @param $key
      * @param $value
-     * @return void
+     * @return Response
      */
-    public function addHeader($key, $value);
+    public function header($key, $value = null);
 
     /**
      * Get a previously set header
@@ -108,7 +109,7 @@ interface Response
      * @param bool $secure
      * @param bool $httpOnly
      *
-     * @return mixed
+     * @return Cookie
      */
     public function setCookie($name, $value = null, $domain = null, $expiresInMinutes = 0, $path = '/', $secure = false, $httpOnly = true);
 
@@ -117,7 +118,7 @@ interface Response
      *
      * @param $location
      * @param int $statusCode
-     * @return $this
+     * @return Response
      */
     public function setRedirect($location, $statusCode = 302);
 

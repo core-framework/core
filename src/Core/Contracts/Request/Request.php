@@ -174,9 +174,10 @@ interface Request
 
     /**
      * @param null|string $key
+     * @param bool $default
      * @return array|DataCollection
      */
-    public function headers($key = null);
+    public function headers($key = null, $default = false);
 
     /**
      * @param null $key

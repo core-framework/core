@@ -62,20 +62,20 @@ class View implements ViewInterface
         $config = $this->getConfig();
         $engine = $this->getEngine();
 
-        if ($config->has('template.leftDelimiter'))
+        if ($config->has('view.leftDelimiter'))
         {
-            $engine->left_delimiter = $config->get('template.leftDelimiter', '<{');
-            $engine->right_delimiter = $config->get('template.rightDelimiter', '}>');
+            $engine->left_delimiter = $config->get('view.leftDelimiter', '<{');
+            $engine->right_delimiter = $config->get('view.rightDelimiter', '}>');
         }
 
         $basePath = $this->application->basePath();
         $appPath = $this->application->appPath();
-        $engine->setCompileDir($this->application->getAbsolutePath($config->get('template.compileDir', '/storage/smarty_cache/templates_c/')));
-        $engine->setConfigDir($this->application->getAbsolutePath($config->get('template.configDir', '/storage/smarty_cache/config/')));
-        $engine->setCacheDir($this->application->getAbsolutePath($config->get('template.cacheDir', '/storage/smarty_cache/cache/')));
-        $engine->setTemplateDir($this->application->getAbsolutePath($config->get('template.dir', '/web/Templates/')));
+        $engine->setCompileDir($this->application->getAbsolutePath($config->get('view.compileDir', '/storage/smarty_cache/templates_c/')));
+        $engine->setConfigDir($this->application->getAbsolutePath($config->get('view.configDir', '/storage/smarty_cache/config/')));
+        $engine->setCacheDir($this->application->getAbsolutePath($config->get('view.cacheDir', '/storage/smarty_cache/cache/')));
+        $engine->setTemplateDir($this->application->getAbsolutePath($config->get('view.dir', '/resources/views/')));
         $engine->addTemplateDir(__DIR__ . '/Resources/BaseTemplates/');
-        $this->addTemplateDirs($config->get('template.dirs', []));
+        $this->addTemplateDirs($config->get('view.dirs', []));
         
         $engine->assign('basePath', $basePath);
         $engine->assign('appPath', $appPath);
@@ -83,9 +83,9 @@ class View implements ViewInterface
         $engine->assign('showHeader', $this->showHeader);
         $engine->assign('showFooter', $this->showFooter);
 
-        $engine->inheritance_merge_compiled_includes = $config->get('template.mergeCompiled', false);
-        $engine->caching = $config->get('template.caching', 1);
-        $engine->compile_check = $config->get('template.compileCheck', true);
+        $engine->inheritance_merge_compiled_includes = $config->get('view.mergeCompiled', false);
+        $engine->caching = $config->get('view.caching', 1);
+        $engine->compile_check = $config->get('view.compileCheck', true);
         $engine->cache_lifetime = $config->get('app.ttl', 60);
     }
 
@@ -210,6 +210,20 @@ class View implements ViewInterface
             $this->engine = $this->application->get($engineName);
         }
         return $this->engine;
+    }
+
+    /**
+     * Check if view template exists
+     *
+     * @param $template
+     * @return bool
+     */
+    public function has($template)
+    {
+        if (!strContains('.tpl', $template)) {
+            $template = $template . '.tpl';
+        }
+        return $this->getEngine()->templateExists($template);
     }
 
     /**
