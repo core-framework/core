@@ -488,7 +488,7 @@ class Router implements RouterInterface, Cacheable
             if (class_exists($class, true)) {
                 $obj = $this->makeController($class);
                 $obj->setApplication($this->application);
-                $args = $this->getFunctionArgs($controller, $controllerMethod);
+                $args = $this->getFunctionArgs($obj, $controllerMethod);
                 $next = function () use ($obj, $args, $controllerMethod, $payload) {
                     return $this->runController($obj, $controllerMethod, $args);
                 };
