@@ -53,7 +53,7 @@ class csrfProtectionMiddleware implements Middleware
         }
 
         if ($response instanceof ResponseInterface && $response->getStatusCode() === 200) {
-            $response->addHeader('X-CSRF-Token', $this->getCSRFToken());
+            $response->header('X-CSRF-Token', $this->getCSRFToken());
         }
 
         return $response;
