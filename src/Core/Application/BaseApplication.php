@@ -527,11 +527,11 @@ class BaseApplication extends Container implements ApplicationInterface, Subscri
     public function subscribe(Dispatcher $dispatcher)
     {
         $dispatcher->on('core.app.config.booted', [$this, 'loadBootstrappersFromConfig'], 0);
-        $dispatcher->on('core.app.config.booted', [$this, 'loadSubscribers'], 1);
-        $dispatcher->on('core.app.config.booted', [$this, 'loadServices'], 2);
-        $dispatcher->on('core.app.config.booted', [$this, 'cacheConfig'], 3);
-        $dispatcher->on('core.app.config.booted', [$this, 'setAppPathFromConf'], 4);
-        $dispatcher->on('core.app.config.booted', [$this, 'setDocumentRootFromConf'], 5);
+        $dispatcher->on('core.app.config.booted', [$this, 'setAppPathFromConf'], 1);
+        $dispatcher->on('core.app.config.booted', [$this, 'setDocumentRootFromConf'], 2);
+        $dispatcher->on('core.app.config.booted', [$this, 'loadSubscribers'], 3);
+        $dispatcher->on('core.app.config.booted', [$this, 'loadServices'], 4);
+        $dispatcher->on('core.app.config.booted', [$this, 'cacheConfig'], 5);
         $dispatcher->on('core.app.router.postload', [$this, 'bootstrapRouter'], 0);
         $dispatcher->on('core.app.handle.pre', [$this, 'preHandle'], 0);
         $dispatcher->on('core.router.matched', [$this, 'cacheRoute'], 0);
